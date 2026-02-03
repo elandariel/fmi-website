@@ -72,7 +72,7 @@ export default function Dashboard() {
   async function handleSyncSheet() {
   setIsSyncing(true);
   // Ganti dengan URL Web App dari Google Apps Script lu
-  const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw7O4GNpDTnnz6eihoGn2qHMegBlbay43UFu4OsTVnaPWb7srWQJ6YD7IJ65qCGxBe0/exec";
+  const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz_Kamhv6OJiN7bAtzzA2Z-tzkWvekJakQNRsPVGU1Xwmn_jePm2ZyiSf_RdU_5zUpr/exec";
 
   // Konfigurasi Mapping: name = Tabel Supabase, sheetName = Nama Tab di Sheets
   const syncTargets = [
