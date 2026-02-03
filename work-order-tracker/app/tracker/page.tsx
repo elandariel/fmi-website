@@ -351,15 +351,15 @@ export default function TrackerPage() {
                   <h3 className="text-3xl font-black mt-1">{globalStats.netGrowth}</h3>
                 </div>
                 <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                  <p className="text-[10px] font-bold uppercase text-slate-400">Total Pasang</p>
+                  <p className="text-[10px] font-bold uppercase text-slate-400">Berlangganan</p>
                   <h3 className="text-3xl font-black text-emerald-600 mt-1">{globalStats.pasang}</h3>
                 </div>
                 <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                  <p className="text-[10px] font-bold uppercase text-slate-400">Total Putus</p>
+                  <p className="text-[10px] font-bold uppercase text-slate-400">Berhenti Berlangganan</p>
                   <h3 className="text-3xl font-black text-red-600 mt-1">{globalStats.putus}</h3>
                 </div>
                 <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                  <p className="text-[10px] font-bold uppercase text-slate-400">Total Cuti</p>
+                  <p className="text-[10px] font-bold uppercase text-slate-400">Berhenti Sementara</p>
                   <h3 className="text-3xl font-black text-amber-500 mt-1">{globalStats.cuti}</h3>
                 </div>
               </div>

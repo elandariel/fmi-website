@@ -9,7 +9,7 @@ import {
   Sun, Moon, CalendarDays, Inbox, CheckCircle2, ArrowRight,
   Download, X, ListTodo, BarChart3, TrendingUp, ArrowDownRight, MinusCircle, 
   AlertTriangle, Calendar, ChevronLeft, ChevronRight, ExternalLink,
-  ChevronDown, Search // Ditambahkan untuk fitur pencarian dan akordion
+  ChevronDown, Search, Database, RefreshCw, Archive // Tambahan icons
 } from 'lucide-react';
 import { format, getISOWeek } from 'date-fns'; 
 import { id as indonesia } from 'date-fns/locale';
@@ -28,6 +28,7 @@ const TEAM_CONFIG = {
 
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false); // State baru untuk sync
   const [userRole, setUserRole] = useState<Role | null>(null);
   const [userFullName, setUserFullName] = useState('');
   
@@ -66,6 +67,73 @@ export default function Dashboard() {
     if (hour < 18) return 'Selamat Sore';
     return 'Selamat Malam';
   };
+
+// --- FUNGSI SYNC SPREADSHEET (FULL CONFIG) ---
+  async function handleSyncSheet() {
+  setIsSyncing(true);
+  // Ganti dengan URL Web App dari Google Apps Script lu
+  const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyh4c2AS6FbLEaDk50gsO5ovKgJ5lIZyjWNu_3NLVyaDcYmc6twgKTlnoh7fqMme2SQ/exec";
+
+  // Konfigurasi Mapping: name = Tabel Supabase, sheetName = Nama Tab di Sheets
+  const syncTargets = [
+    { 
+      name: 'Report Bulanan', 
+      sheetName: '2026',
+      id: '1Yqr6tlJGo2yHE-9FJ_mCMpnehV-0Lpo2oiGUPWqAXOE' 
+    },
+    { 
+      name: 'Berlangganan 2026', 
+      sheetName: 'Berlangganan 2026', 
+      id: '19PWdBv4RQgHqxa2Bf7-OQuOeSdTumLb01bR0fhQhkb0' 
+    },
+    { 
+      name: 'Berhenti Berlangganan 2026', 
+      sheetName: 'Berhenti Berlangganan 2026', 
+      id: '19PWdBv4RQgHqxa2Bf7-OQuOeSdTumLb01bR0fhQhkb0' 
+    },
+    { 
+      name: 'Berhenti Sementara 2026', 
+      sheetName: 'Berhenti Sementara 2026', 
+      id: '19PWdBv4RQgHqxa2Bf7-OQuOeSdTumLb01bR0fhQhkb0' 
+    },
+    { 
+      name: 'Upgrade 2026', 
+      sheetName: 'Upgrade 2026', 
+      id: '19PWdBv4RQgHqxa2Bf7-OQuOeSdTumLb01bR0fhQhkb0' 
+    },
+    { 
+      name: 'Downgrade 2026', 
+      sheetName: 'Downgrade 2026', 
+      id: '19PWdBv4RQgHqxa2Bf7-OQuOeSdTumLb01bR0fhQhkb0' 
+    }
+  ];
+
+  try {
+    for (const target of syncTargets) {
+      const response = await fetch('/api/sync-spreadsheet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          tableTarget: target.name,
+          sheetName: target.sheetName, // Mengirim nama tab (misal: 2026)
+          spreadsheetId: target.id,
+          googleScriptUrl: GOOGLE_SCRIPT_URL
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error(`Gagal sync: ${target.name}`, errorData.error);
+      }
+    }
+    alert("✅ Data Supabase berhasil di-sync ke Google Sheets!");
+  } catch (err) {
+    console.error("Sync Error:", err);
+    alert("❌ Terjadi kesalahan sinkronisasi.");
+  } finally {
+    setIsSyncing(false);
+  }
+}
 
   async function fetchDashboardData() {
     setLoading(true);
@@ -191,11 +259,47 @@ export default function Dashboard() {
           <p className="text-slate-500 text-sm font-bold mb-1">
             {format(new Date(), 'EEEE, dd MMMM yyyy', { locale: indonesia })}
           </p>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight uppercase">
             {userFullName ? `${getGreeting()}, ${userFullName.split(' ')[0]}` : 'NOC Dashboard'}
           </h1>
         </div>
-        <div className="flex gap-3">
+
+        {/* TOOLBAR ACTIONS */}
+        <div className="flex items-center gap-3">
+          
+          {/* TOMBOL SYNC SPREADSHEET */}
+          <button 
+            onClick={handleSyncSheet}
+            disabled={isSyncing}
+            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold shadow-sm hover:bg-slate-50 transition-all active:scale-95 disabled:opacity-50"
+          >
+            {isSyncing ? <RefreshCw size={18} className="animate-spin text-blue-500" /> : <Database size={18} className="text-emerald-500" />}
+            <span className="text-xs uppercase tracking-wider">{isSyncing ? 'Syncing...' : 'Sync Sheet'}</span>
+          </button>
+
+{/* DROPDOWN ARCHIVE - LOCKED MODE */}
+          <div className="relative group cursor-not-allowed"> 
+            <button 
+              disabled // Me-lock button agar tidak bisa diinteraksi
+              className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-400 rounded-xl font-bold shadow-sm opacity-60 grayscale"
+            >
+              <Archive size={18} className="text-slate-400" />
+              <span className="text-xs uppercase tracking-wider">Archive</span>
+              <ChevronDown size={14} className="text-slate-300" />
+            </button>
+
+            {/* Tooltip atau Notif saat Hover (Opsional) */}
+            <div className="absolute right-0 mt-2 w-48 bg-slate-800 text-white text-[10px] p-2 rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 text-center font-bold">
+              Fitur Arsip belum tersedia (Coming Soon)
+            </div>
+
+            {/* Kode Dropdown asli gua comment/hapus agar tidak muncul saat hover */}
+            {/* <div className="absolute right-0 mt-2 w-44 bg-white border border-slate-100 rounded-2xl shadow-2xl opacity-0 invisible transition-all z-50 p-2">
+               ... link content ...
+            </div> 
+            */}
+          </div>
+
           <Link href="/work-orders/create">
             <button className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-bold shadow-lg hover:bg-blue-700 transition active:scale-95">
               <Plus size={18} /> Buat WO Baru
@@ -225,7 +329,7 @@ export default function Dashboard() {
                       {chartTab === 'CLIENT' ? <Users size={20} className="text-emerald-600"/> : <BarChart3 size={20} className="text-blue-600"/>}
                       {chartTab === 'CLIENT' ? 'Pertumbuhan Pelanggan' : 'Pertumbuhan Kapasitas'}
                     </h3>
-                    <p className="text-xs text-slate-500 mt-1">Data statistik tahun 2026</p>
+                    <p className="text-xs text-slate-500 mt-1 uppercase font-bold tracking-tighter">Data statistik tahun 2026</p>
                 </div>
                 <div className="flex bg-slate-100 p-1 rounded-xl">
                     <button onClick={() => setChartTab('CLIENT')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${chartTab === 'CLIENT' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Pelanggan</button>
@@ -248,9 +352,9 @@ export default function Dashboard() {
           {/* Chart Summary Footer */}
           <div className="mt-auto bg-slate-50 border-t border-slate-100 p-6">
              <div className="grid grid-cols-3 gap-4">
-                <div className="bg-white p-3 rounded-xl border border-emerald-100 shadow-sm"><p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Total Pasang</p><div className="flex items-center gap-2"><span className="p-1 bg-emerald-100 text-emerald-600 rounded"><ArrowUpRight size={14}/></span><span className="text-xl font-black text-slate-800">{chartSummary.pasang}</span></div></div>
-                <div className="bg-white p-3 rounded-xl border border-rose-100 shadow-sm"><p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Total Putus</p><div className="flex items-center gap-2"><span className="p-1 bg-rose-100 text-rose-600 rounded"><ArrowDownRight size={14}/></span><span className="text-xl font-black text-slate-800">{chartSummary.putus}</span></div></div>
-                <div className="bg-white p-3 rounded-xl border border-amber-100 shadow-sm"><p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Sedang Cuti</p><div className="flex items-center gap-2"><span className="p-1 bg-amber-100 text-amber-600 rounded"><MinusCircle size={14}/></span><span className="text-xl font-black text-slate-800">{chartSummary.cuti}</span></div></div>
+                <div className="bg-white p-3 rounded-xl border border-emerald-100 shadow-sm"><p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Berlangganan</p><div className="flex items-center gap-2"><span className="p-1 bg-emerald-100 text-emerald-600 rounded"><ArrowUpRight size={14}/></span><span className="text-xl font-black text-slate-800">{chartSummary.pasang}</span></div></div>
+                <div className="bg-white p-3 rounded-xl border border-rose-100 shadow-sm"><p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Berhenti Berlangganan</p><div className="flex items-center gap-2"><span className="p-1 bg-rose-100 text-rose-600 rounded"><ArrowDownRight size={14}/></span><span className="text-xl font-black text-slate-800">{chartSummary.putus}</span></div></div>
+                <div className="bg-white p-3 rounded-xl border border-amber-100 shadow-sm"><p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Berhenti Sementara</p><div className="flex items-center gap-2"><span className="p-1 bg-amber-100 text-amber-600 rounded"><MinusCircle size={14}/></span><span className="text-xl font-black text-slate-800">{chartSummary.cuti}</span></div></div>
              </div>
           </div>
         </div>
@@ -258,7 +362,7 @@ export default function Dashboard() {
         {/* JADWAL & AKTIVITAS SIDEBAR */}
         <div className="flex flex-col gap-6">
           <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-            <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><Calendar size={18} className="text-blue-600"/> Jadwal NOC</h3>
+            <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><Calendar size={18} className="text-blue-600"/> Jadwal Team</h3>
             <div className="space-y-4">
               <div className="bg-amber-50 p-3 rounded-lg border border-amber-100">
                 <p className="text-[10px] font-bold text-amber-700 uppercase mb-2">Pagi (08.00 - 16.00)</p>
@@ -341,7 +445,7 @@ export default function Dashboard() {
             </div>
             
             {/* List Tiket Content */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 text-slate-800">
               {myInboxTickets.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-64 text-slate-400">
                   <CheckCircle2 size={64} className="mb-4 text-emerald-100" />
