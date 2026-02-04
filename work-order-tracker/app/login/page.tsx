@@ -55,14 +55,20 @@ export default function LoginPage() {
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-600/20 rounded-full blur-[120px]" />
 
       <div className="w-full max-w-md z-10">
-        {/* Logo / Brand */}
-        <div className="text-center mb-8">
-          <div className="inline-flex p-3 bg-blue-600 rounded-2xl shadow-xl shadow-blue-500/30 mb-4">
-            <Globe className="text-white" size={32} />
+        {/* Logo / Brand Section */}
+        <div className="text-center mb-6 mt-4">
+        <div className="flex justify-center mb-0">
+          <div className="relative group">
+            <img 
+              src="/FMI.png" 
+              alt="Logo Fibermedia Indonesia" 
+              className="h-15 w-auto object-contain drop-shadow-[0_0_15px_rgba(59,130,246,0.5)] transition-transform duration-500 group-hover:scale-105"
+            />
           </div>
-          <h1 className="text-3xl font-black text-white tracking-tight">FMI SYSTEM</h1>
-          <p className="text-slate-400 mt-2 text-sm uppercase tracking-widest font-semibold">Management Tracker 2026</p>
         </div>
+            <h1 className="text-3xl font-black text-white tracking-tight">Network Operating Center</h1>
+            <p className="text-slate-400 mt-2 text-sm uppercase tracking-widest font-semibold">============================================</p>
+          </div>
 
         {/* Card Login */}
         <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-8 rounded-3xl shadow-2xl">
