@@ -2,13 +2,20 @@
 
 import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
-import { Bell, AlertTriangle, X, ExternalLink, RefreshCw, CheckCircle, Calendar, Info } from 'lucide-react';
+import { 
+  Bell, AlertTriangle, X, RefreshCw, 
+  Trash2, ShieldQuestion, User, Send, ExternalLink, Calendar 
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export function NotificationBell() {
   const router = useRouter();
-  const [mounted, setMounted] = useState(false); //
+  const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [showReasonModal, setShowReasonModal] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [reason, setReason] = useState('');
+  const [currentUser, setCurrentUser] = useState<string>('USER');
   const [loading, setLoading] = useState(true);
   const [missingItems, setMissingItems] = useState<any[]>([]);
 
@@ -16,11 +23,20 @@ export function NotificationBell() {
     process.env.NEXT_PUBLIC_SUPABASE_URL || '',
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
   );
+  const fetchUserData = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      // Ambil nama dari metadata atau email depannya
+      const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'USER';
+      setCurrentUser(name.toUpperCase());
+    }
+  };
 
   useEffect(() => {
-    setMounted(true); // Memastikan komponen sudah di-mount di client side
+    setMounted(true);
+    fetchUserData();
     checkMissingData();
-    const interval = setInterval(checkMissingData, 300000); 
+    const interval = setInterval(checkMissingData, 300000);
     return () => clearInterval(interval);
   }, []);
 
@@ -29,6 +45,10 @@ export function NotificationBell() {
     const missing: any[] = [];
 
     try {
+      // Ambil list data yang sudah di-ignore (PENDING atau APPROVED)
+      const { data: ignoredData } = await supabase.from('Ignored_Items').select('SUBJECT_IGNORED');
+      const ignoredSet = new Set(ignoredData?.map(i => i.SUBJECT_IGNORED?.toLowerCase().trim()) || []);
+
       const { data: solvedWO } = await supabase
         .from('Report Bulanan')
         .select('*')
@@ -60,7 +80,8 @@ export function NotificationBell() {
 
           candidates.forEach((wo) => {
             const woSubjectClean = (wo['SUBJECT WO'] || '').toLowerCase().trim();
-            if (!existingSubjects.has(woSubjectClean)) {
+            // Filter: Bukan yang sudah ada di tabel target DAN bukan yang ada di list ignored
+            if (!existingSubjects.has(woSubjectClean) && !ignoredSet.has(woSubjectClean)) {
               missing.push({
                 id: wo.id,
                 date: wo['TANGGAL'],
@@ -87,7 +108,27 @@ export function NotificationBell() {
     setIsOpen(false);
   };
 
-  // Border kiri kartu mengikuti kategori
+  const submitDiscard = async () => {
+  if (!reason.trim()) return;
+
+  try {
+    const { error } = await supabase.from('Ignored_Items').insert({
+      SUBJECT_IGNORED: selectedItem.subject,
+      ALASAN: reason,
+      STATUS: 'PENDING',
+      REQUESTED_BY: currentUser
+    });
+
+    if (error) throw error;
+    
+    setShowReasonModal(false);
+    setReason('');
+    checkMissingData();
+  } catch (err: any) {
+    alert("Gagal discard: " + err.message);
+  }
+};
+
   const getBorderColor = (color: string) => {
     const colors: any = { 
       blue: 'border-blue-500', 
@@ -109,7 +150,7 @@ export function NotificationBell() {
       >
         <Bell size={24} />
         {!loading && missingItems.length > 0 && (
-          <span className="absolute top-1.5 right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-red shadow-sm animate-pulse">
+          <span className="absolute top-1.5 right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white shadow-sm animate-pulse">
             {missingItems.length}
           </span>
         )}
@@ -119,7 +160,6 @@ export function NotificationBell() {
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
           <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] border border-slate-200">
             
-            {/* MODAL HEADER */}
             <div className="bg-slate-900 px-6 py-4 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
                 <AlertTriangle size={20} className="text-red-500" />
@@ -135,7 +175,6 @@ export function NotificationBell() {
               </div>
             </div>
 
-            {/* NOTIFICATION LIST */}
             <div className="flex-1 overflow-y-auto p-5 bg-slate-50 space-y-3">
               {loading ? (
                 <div className="h-40 flex items-center justify-center text-slate-400 font-bold italic uppercase tracking-widest">Memindai Database...</div>
@@ -163,14 +202,25 @@ export function NotificationBell() {
                       </div>
                     </div>
 
-                    {/* TOMBOL INPUT: BIRU SOLID TULISAN PUTIH */}
-                    <div className="shrink-0">
+                    {/* ACTION BUTTONS */}
+                    <div className="flex flex-col gap-2 shrink-0 min-w-[100px]">
                       <button 
                         onClick={() => handleFixData(item.subject)} 
-                        className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-xs shadow-md shadow-blue-200 transition-all active:scale-95 uppercase tracking-wide border-0"
+                        className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-black text-[10px] shadow-md shadow-blue-200 transition-all active:scale-95 uppercase tracking-wide border-0"
                       >
-                        <ExternalLink size={14} />
+                        <ExternalLink size={12} />
                         Input
+                      </button>
+                      <button 
+                        onClick={() => { 
+                          setSelectedItem(item); // Set item mana yang mau didiscard
+                          setReason(''); // Kosongkan alasan
+                          setShowReasonModal(true); // Munculkan pop-up
+                        }}
+                        className="flex items-center justify-center gap-2 px-4 py-2 bg-slate-50 hover:bg-red-50 text-slate-700 hover:text-red-600 rounded-lg font-black text-[10px] transition-all active:scale-95 uppercase tracking-wide border border-slate-100 hover:border-red-100"
+                      >
+                        <Trash2 size={16} />
+                        Abaikan
                       </button>
                     </div>
                   </div>
@@ -178,7 +228,6 @@ export function NotificationBell() {
               )}
             </div>
 
-            {/* MODAL FOOTER */}
             <div className="bg-white px-6 py-3 border-t border-slate-100 flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">
               <span>{missingItems.length} Work Order Perlu Tindakan</span>
               <button onClick={() => setIsOpen(false)} className="hover:text-slate-800 font-black transition-colors">Tutup (Esc)</button>
@@ -186,6 +235,71 @@ export function NotificationBell() {
           </div>
         </div>
       )}
+
+      {showReasonModal && (
+  <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
+    <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.2)] p-10 text-center border border-slate-100">
+      
+      {/* Icon Shield dengan Glassmorphism */}
+      <div className="w-20 h-20 bg-amber-50 text-amber-500 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm border border-amber-100">
+        <ShieldQuestion size={40} strokeWidth={2.5} />
+      </div>
+
+      <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tighter mb-2">
+        Konfirmasi Alasan
+      </h3>
+      
+      <div className="mb-8">
+        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-2">Mengabaikan:</p>
+        <p className="text-[11px] text-blue-600 font-bold italic leading-relaxed px-6 py-3 bg-blue-50/50 rounded-2xl border border-blue-100/50">
+          "{selectedItem?.subject}"
+        </p>
+      </div>
+      
+      {/* Input Area - Dibuat lebih kontras */}
+      <div className="bg-slate-50 rounded-[2rem] p-6 border-2 border-slate-100 mb-8 text-left transition-all focus-within:border-blue-200">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="p-1.5 bg-blue-500 rounded-lg text-white">
+            <User size={14} />
+          </div>
+          <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest">
+            Requester: <span className="text-blue-600">{currentUser}</span>
+          </span>
+        </div>
+        
+        <textarea 
+          autoFocus
+          placeholder="Kenapa WO ini diabaikan?..."
+          className="w-full h-32 bg-white border border-slate-200 rounded-2xl p-4 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all resize-none shadow-sm placeholder:text-slate-300"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+        />
+      </div>
+
+      {/* Action Buttons */}
+      <div className="grid grid-cols-2 gap-4">
+        <button 
+          onClick={() => setShowReasonModal(false)} 
+          className="py-4 bg-slate-100 text-slate-700 rounded-2xl font-black text-xs uppercase hover:bg-slate-200 transition-all tracking-widest"
+        >
+          Batal
+        </button>
+        <button 
+          onClick={submitDiscard} 
+          disabled={!reason.trim()}
+          className="py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase flex items-center justify-center gap-2 hover:bg-blue-700 hover:-translate-y-1 transition-all disabled:opacity-50 disabled:translate-y-0 shadow-xl shadow-blue-200 tracking-widest"
+        >
+          <Send size={16} /> Kirim Request
+        </button>
+      </div>
+
+      <p className="mt-8 text-[9px] font-black text-slate-700 uppercase tracking-[0.3em]">
+        NOC FMI
+      </p>
+    </div>
+  </div>
+)}
+
     </>
   );
 }
