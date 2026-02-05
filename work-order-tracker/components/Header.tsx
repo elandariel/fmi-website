@@ -320,7 +320,7 @@ export default function Header() {
         <div className="flex items-center gap-2 border-r border-slate-200 pr-6 mr-2 h-10">
           <button 
             onClick={() => setShowImportModal(true)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 text-slate-600 rounded-lg hover:bg-emerald-50 hover:text-emerald-600 transition-all border border-slate-200 shadow-sm"
+            className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 text-slate-800 rounded-lg hover:bg-emerald-50 hover:text-emerald-600 transition-all border border-slate-200 shadow-sm"
           >
             <Upload size={14} />
             <span className="text-[10px] font-bold uppercase">Import</span>
@@ -328,7 +328,7 @@ export default function Header() {
 
           <button 
             onClick={() => setShowExportModal(true)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 text-slate-600 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-200 shadow-sm"
+            className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 text-slate-800 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-200 shadow-sm"
           >
             <Download size={14} />
             <span className="text-[10px] font-bold uppercase">Export</span>

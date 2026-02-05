@@ -236,7 +236,7 @@ function CreateTrackerContent() {
             <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
               <TrendingUp className="text-emerald-600" /> Input Tracker Pelanggan
             </h1>
-            <p className="text-sm text-slate-500">Pilih kategori transaksi</p>
+            <p className="text-sm text-slate-500">Pilih kategori</p>
           </div>
         </div>
 

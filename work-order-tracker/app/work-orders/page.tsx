@@ -99,7 +99,7 @@ export default function WorkOrderPage() {
 
          <div className="overflow-x-auto">
             <table className="w-full text-left text-sm whitespace-nowrap">
-               <thead className="bg-slate-50 font-bold text-slate-500 uppercase text-xs border-b border-slate-200">
+               <thead className="bg-slate-50 font-bold text-slate-800 uppercase text-xs border-b border-slate-200">
                   <tr>
                       <th className="px-6 py-4">DATE</th>
                       <th className="px-6 py-4">Subject WO</th>

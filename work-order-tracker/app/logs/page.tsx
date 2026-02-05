@@ -130,17 +130,17 @@ export default function LogActivityPage() {
                             {style.label}
                           </span>
                       </div>
-                      <p className="text-slate-600 text-sm leading-relaxed font-medium">
+                      <p className="text-slate-800 text-sm leading-relaxed font-medium">
                         {log.SUBJECT}
                       </p>
                     </div>
                     
                     <div className="text-right flex-shrink-0">
-                        <div className="flex items-center justify-end gap-1 text-xs font-bold text-slate-500">
+                        <div className="flex items-center justify-end gap-1 text-xs font-bold text-slate-800">
                           <Clock size={12} />
                           {log.created_at ? formatDistanceToNow(new Date(log.created_at), { addSuffix: true, locale: indonesia }) : '-'}
                         </div>
-                        <div className="text-[10px] text-slate-400 mt-0.5 font-medium">
+                        <div className="text-[10px] text-slate-800 mt-0.5 font-medium">
                           {log.created_at ? format(new Date(log.created_at), 'EEEE, dd MMM yyyy HH:mm', { locale: indonesia }) : '-'}
                         </div>
                     </div>

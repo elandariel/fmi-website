@@ -131,7 +131,7 @@ export default function ManageUsersPage() {
             </div>
             <h1 className="text-3xl font-black text-slate-900">Manajemen Tim</h1>
           </div>
-          <p className="text-slate-500 text-sm font-medium">Kelola hak akses personel NOC ISP.</p>
+          <p className="text-slate-500 text-sm font-medium">Kelola hak akses team NOC FMI</p>
         </div>
         
         <div className="flex flex-col md:flex-row gap-4">

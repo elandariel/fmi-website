@@ -183,7 +183,7 @@ export default function CreateWOPage() {
             <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
               <ClipboardList className="text-blue-600" /> Buat Work Order Baru
             </h1>
-            <p className="text-sm text-slate-500">Input laporan pekerjaan harian / bulanan</p>
+            <p className="text-sm text-slate-500">Input WO</p>
           </div>
         </div>
 

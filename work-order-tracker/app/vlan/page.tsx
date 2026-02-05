@@ -172,7 +172,7 @@ export default function VlanPage() {
       <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <Server className="text-blue-600" /> VLAN Master Registry
+            <Server className="text-blue-600" /> Database VLan
           </h1>
           <p className="text-sm text-slate-500">Database alokasi VLAN & IP Network</p>
         </div>
@@ -201,15 +201,15 @@ export default function VlanPage() {
       {/* STATISTIK */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-blue-500 flex justify-between items-center">
-          <div><p className="text-xs font-bold text-slate-500 uppercase">Total VLAN</p><h3 className="text-2xl font-bold text-slate-800">{stats.total}</h3></div>
+          <div><p className="text-xs font-bold text-slate-800 uppercase">Total VLAN</p><h3 className="text-2xl font-bold text-slate-800">{stats.total}</h3></div>
           <Database className="text-blue-100" size={32} />
         </div>
         <div className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-rose-500 flex justify-between items-center">
-          <div><p className="text-xs font-bold text-slate-500 uppercase">Terpakai (Used)</p><h3 className="text-2xl font-bold text-rose-600">{stats.used}</h3></div>
+          <div><p className="text-xs font-bold text-slate-800 uppercase">Terpakai (Used)</p><h3 className="text-2xl font-bold text-rose-600">{stats.used}</h3></div>
           <AlertCircle className="text-rose-100" size={32} />
         </div>
         <div className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-emerald-500 flex justify-between items-center">
-          <div><p className="text-xs font-bold text-slate-500 uppercase">Tersedia (Free)</p><h3 className="text-2xl font-bold text-emerald-600">{stats.free}</h3></div>
+          <div><p className="text-xs font-bold text-slate-800 uppercase">Tersedia (Free)</p><h3 className="text-2xl font-bold text-emerald-600">{stats.free}</h3></div>
           <CheckCircle className="text-emerald-100" size={32} />
         </div>
       </div>
@@ -358,12 +358,12 @@ export default function VlanPage() {
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-1">Customer Name</label>
                     <input type="text" name="NAME" value={editingVlan.NAME || ''} onChange={handleModalChange}
-                      className="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 outline-none" />
+                      className="w-full p-2 border border-slate-400 rounded bg-white text-slate-800 font-bold focus:ring-2 focus:ring-blue-500 outline-none" />
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-1">Service ID</label>
                     <input type="text" name="SERVICE ID" value={editingVlan['SERVICE ID'] || ''} onChange={handleModalChange}
-                      className="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 outline-none" />
+                      className="w-full p-2 border border-slate-400 rounded bg-white text-slate-800 font-bold focus:ring-2 focus:ring-blue-500 outline-none" />
                   </div>
                 </div>
               </div>
@@ -377,17 +377,17 @@ export default function VlanPage() {
                   <div className="col-span-3 md:col-span-1">
                     <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Switch Name</label>
                     <input type="text" name="NE_SWITCH POP" value={editingVlan['NE_SWITCH POP'] || ''} onChange={handleModalChange}
-                      className="w-full p-2 text-sm border border-slate-300 rounded font-mono" />
+                      className="w-full p-2 border border-slate-400 rounded bg-white text-slate-800 font-bold focus:ring-2 focus:ring-blue-500 outline-none" />
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Port</label>
                     <input type="text" name="NE_PORT" value={editingVlan['NE_PORT'] || ''} onChange={handleModalChange}
-                      className="w-full p-2 text-sm border border-slate-300 rounded font-mono" />
+                      className="w-full p-2 border border-slate-400 rounded bg-white text-slate-800 font-bold focus:ring-2 focus:ring-blue-500 outline-none" />
                   </div>
                     <div>
                     <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Mode</label>
                     <input type="text" name="NE_MODE" value={editingVlan['NE_MODE'] || ''} onChange={handleModalChange}
-                      className="w-full p-2 text-sm border border-slate-300 rounded font-mono" />
+                      className="w-full p-2 border border-slate-400 rounded bg-white text-slate-800 font-bold focus:ring-2 focus:ring-blue-500 outline-none" />
                   </div>
                 </div>
               </div>
@@ -401,17 +401,17 @@ export default function VlanPage() {
                   <div className="col-span-3 md:col-span-1">
                     <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Device Name</label>
                     <input type="text" name="FE_SWITCH POP" value={editingVlan['FE_SWITCH POP'] || ''} onChange={handleModalChange}
-                      className="w-full p-2 text-sm border border-slate-300 rounded font-mono" />
+                      className="w-full p-2 border border-slate-400 rounded bg-white text-slate-800 font-bold focus:ring-2 focus:ring-blue-500 outline-none" />
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Port</label>
                     <input type="text" name="FE_PORT" value={editingVlan['FE_PORT'] || ''} onChange={handleModalChange}
-                      className="w-full p-2 text-sm border border-slate-300 rounded font-mono" />
+                      className="w-full p-2 border border-slate-400 rounded bg-white text-slate-800 font-bold focus:ring-2 focus:ring-blue-500 outline-none" />
                   </div>
                     <div>
                     <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Mode</label>
                     <input type="text" name="FE_MODE" value={editingVlan['FE_MODE'] || ''} onChange={handleModalChange}
-                      className="w-full p-2 text-sm border border-slate-300 rounded font-mono" />
+                      className="w-full p-2 border border-slate-400 rounded bg-white text-slate-800 font-bold focus:ring-2 focus:ring-blue-500 outline-none" />
                   </div>
                 </div>
               </div>

@@ -144,14 +144,24 @@ export default function TrackerPage() {
     if(category.includes('Berhenti') || category.includes('Cuti')) color = '#ef4444'; 
     if(category.includes('Upgrade') || category.includes('Downgrade')) color = '#3b82f6'; 
 
-    setChartTrend({
+setChartTrend({
       series: [{ name: 'Jumlah', data: sortedDates.map(d => dateMap[d]) }],
       options: {
         chart: { type: 'area', toolbar: { show: false } },
         xaxis: { categories: sortedDates },
         colors: [color],
         stroke: { curve: 'smooth' },
-        title: { text: `Tren ${category}`, style: { color: '#64748b' } }
+        title: { text: `Tren ${category}`, style: { color: '#030303' } },
+        tooltip: {
+          enabled: true,
+          theme: 'dark',
+          style: {
+            fontSize: '12px',
+          },
+          y: {
+            formatter: (val) => `${val} Data`
+          }
+        },
       }
     });
 
@@ -163,15 +173,44 @@ export default function TrackerPage() {
     const sortedTeams = Object.keys(teamMap).sort((a,b) => teamMap[b] - teamMap[a]).slice(0, 5);
 
     setChartTeam({
-      series: [{ name: 'Total', data: sortedTeams.map(t => teamMap[t]) }],
+      series: [{ name: 'Total WO', data: sortedTeams.map(t => teamMap[t]) }],
       options: {
         chart: { type: 'bar', toolbar: { show: false } },
         xaxis: { categories: sortedTeams },
         colors: [color],
-        title: { text: 'Top Performance Team', style: { color: '#64748b' } }
+        title: { text: 'TOP PERFORMANCE TEAM', style: { color: '#000000', fontWeight: 'bold' } },
+        
+        // --- TAMBAHKAN TOOLTIP DI SINI ---
+        tooltip: {
+          theme: 'dark', // Tulisan jadi putih terang, background gelap
+          style: {
+            fontSize: '12px',
+          },
+          marker: {
+            show: true, // Menampilkan titik warna kategori
+          },
+        },
+
+        // --- BONUS: BIAR ANGKA MUNCUL DI ATAS BATANG (DATALABELS) ---
+        dataLabels: {
+          enabled: true,
+          style: {
+            colors: ['#fff'], // Angka di dalam batang warna putih
+            fontSize: '11px'
+          },
+          offsetY: -2, // Posisi angka
+        },
+
+        // --- BIAR BATANGNYA AGAK MELENGKUNG (BIAR MODERN) ---
+        plotOptions: {
+          bar: {
+            borderRadius: 6,
+            columnWidth: '50%',
+          }
+        }
       }
     });
-  };
+    };
 
   const getSubject = (row: any) => {
     // Helper subject yang lebih aman
@@ -278,7 +317,7 @@ export default function TrackerPage() {
         <div className="overflow-x-auto">
           
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50/50 text-slate-500 font-bold uppercase text-[10px] tracking-widest border-b border-slate-100">
+              <thead className="bg-slate-50/50 text-slate-900 font-bold uppercase text-[10px] tracking-widest border-b border-slate-100">
                 <tr>
                   <th className="px-6 py-4">Tanggal</th>
                   <th className="px-6 py-4">Subject Pelanggan</th>
@@ -293,7 +332,7 @@ export default function TrackerPage() {
                 ) : filteredData.length > 0 ? (
                   filteredData.map((row, idx) => (
                     <tr key={idx} className="hover:bg-slate-50/80 transition-colors group">
-                      <td className="px-6 py-4 text-slate-500 font-medium">
+                      <td className="px-6 py-4 text-slate-800 font-medium">
                         {row.TANGGAL ? format(new Date(row.TANGGAL), 'dd/MM/yyyy') : '-'}
                       </td>
                       <td className="px-6 py-4">
@@ -347,29 +386,29 @@ export default function TrackerPage() {
             <div className="p-8 overflow-y-auto flex-1 bg-slate-50/30">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 <div className="bg-blue-600 p-5 rounded-2xl text-white shadow-lg shadow-blue-200">
-                  <p className="text-[10px] font-bold uppercase opacity-80">Net Growth</p>
+                  <p className="text-[10px] font-bold uppercase opacity-100">Net Growth</p>
                   <h3 className="text-3xl font-black mt-1">{globalStats.netGrowth}</h3>
                 </div>
                 <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                  <p className="text-[10px] font-bold uppercase text-slate-400">Berlangganan</p>
+                  <p className="text-[10px] font-bold uppercase text-slate-800">Berlangganan</p>
                   <h3 className="text-3xl font-black text-emerald-600 mt-1">{globalStats.pasang}</h3>
                 </div>
                 <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                  <p className="text-[10px] font-bold uppercase text-slate-400">Berhenti Berlangganan</p>
+                  <p className="text-[10px] font-bold uppercase text-slate-800">Berhenti Berlangganan</p>
                   <h3 className="text-3xl font-black text-red-600 mt-1">{globalStats.putus}</h3>
                 </div>
                 <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                  <p className="text-[10px] font-bold uppercase text-slate-400">Berhenti Sementara</p>
+                  <p className="text-[10px] font-bold uppercase text-slate-800">Berhenti Sementara</p>
                   <h3 className="text-3xl font-black text-amber-500 mt-1">{globalStats.cuti}</h3>
                 </div>
               </div>
 
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                  <div className="flex justify-between items-center mb-6">
-                    <h4 className="font-bold text-slate-700">Distribusi Pelanggan Pasang</h4>
+                    <h4 className="font-bold text-slate-800">Distribusi Pelanggan Pasang</h4>
                     <div className="flex bg-slate-100 p-1 rounded-xl">
-                        <button onClick={() => setModalChartMode('ISP')} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${modalChartMode === 'ISP' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>PER ISP</button>
-                        <button onClick={() => setModalChartMode('BTS')} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${modalChartMode === 'BTS' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>PER BTS</button>
+                        <button onClick={() => setModalChartMode('ISP')} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${modalChartMode === 'ISP' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-800'}`}>PER ISP</button>
+                        <button onClick={() => setModalChartMode('BTS')} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${modalChartMode === 'BTS' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-800'}`}>PER BTS</button>
                     </div>
                  </div>
                  <div className="h-[400px]">
@@ -382,7 +421,24 @@ export default function TrackerPage() {
                         plotOptions: { bar: { horizontal: true, borderRadius: 6, barHeight: '70%' } },
                         colors: [modalChartMode === 'ISP' ? '#3b82f6' : '#8b5cf6'],
                         xaxis: { categories: modalChartMode === 'ISP' ? globalStats.byIsp.map((i:any) => i.name) : globalStats.byBts.map((i:any) => i.name) },
-                        grid: { borderColor: '#f1f5f9' }
+                        grid: { borderColor: '#f1f5f9' },
+                        tooltip: {
+                          theme: 'dark',
+                          x: { show: true },
+                          y: {
+                            formatter: (val) => `${val} Pelanggan`
+                          }
+                        },
+                        dataLabels: {
+                          enabled: true,
+                          textAnchor: 'start',
+                          style: {
+                            colors: ['#fff'],
+                            fontWeight: 'bold'
+                          },
+                          formatter: (val) => val,
+                          offsetX: 0,
+                        }
                       }}
                     />
                  </div>
