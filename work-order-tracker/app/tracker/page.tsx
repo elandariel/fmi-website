@@ -1,18 +1,19 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { createBrowserClient } from '@supabase/ssr';
 import Link from 'next/link';
 import { 
   Search, RefreshCcw, Download, ChevronDown, X, 
-  TrendingUp, UserPlus, Server, Globe, Plus 
+  TrendingUp, UserPlus, Server, Globe, Plus, Calendar
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { hasAccess, PERMISSIONS, Role } from '@/lib/permissions';
 import { toast } from 'sonner'; 
+import MonthlySummary from '@/components/MonthlySummary';
 
-// Setup ApexCharts (No SSR)
 const ReactApexChart = dynamic(() => import('react-apexcharts'), { ssr: false });
 
 // --- FIX 1: UPDATE KEY MAPPING AGAR SESUAI DEFAULT STATE ---
@@ -25,12 +26,15 @@ const TABLE_MAP = {
 };
 
 export default function TrackerPage() {
-  // State default adalah 'Berlangganan', jadi TABLE_MAP harus punya key 'Berlangganan'
   const [selectedCategory, setSelectedCategory] = useState('Berlangganan');
   const [dataList, setDataList] = useState<any[]>([]); 
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [userRole, setUserRole] = useState<Role | null>(null);
+  const summaryRef = useRef<any>(null);
+  
+  // --- TAMBAHAN STATE UNTUK FILTER BULANAN ---
+  const [targetMonth, setTargetMonth] = useState('2026-01');
    
   // State Modal Global Stats
   const [showModal, setShowModal] = useState(false);
@@ -292,6 +296,48 @@ setChartTrend({
           </div>
         </div>
       </div>
+
+      {/* --- SECTION BARU: MONTHLY SUMMARY REPORT --- */}
+      <div className="mb-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+          <div>
+            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+              <Calendar className="text-blue-500" size={20} />
+              Monthly Summary Report
+            </h3>
+            <p className="text-xs text-slate-500">Rekapitulasi performa bulanan dan status pelanggan</p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Tombol Export */}
+            <div className="flex items-center bg-white rounded-xl shadow-sm border border-slate-200 p-1">
+              {/* HUBUNGKAN ONCLICK KE REF */}
+            <button 
+              onClick={() => summaryRef.current?.handleExport()}
+              className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded-lg transition-all border-r border-slate-100"
+            >
+              <Download size={14} /> Excel
+            </button>
+            <button onClick={() => window.print()} className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-50 rounded-lg transition-all">
+              <Download size={14} /> PDF
+            </button>
+            </div>
+
+            {/* Input Periode */}
+            <div className="flex items-center gap-3 bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm">
+              <span className="text-[10px] font-bold text-slate-400 uppercase ml-2 tracking-wider">Periode:</span>
+              <input 
+                type="month" 
+                value={targetMonth} 
+                onChange={(e) => setTargetMonth(e.target.value)}
+                className="text-xs font-bold text-blue-600 outline-none bg-transparent cursor-pointer pr-2"
+              />
+            </div>
+          </div>
+        </div>
+        
+        <MonthlySummary ref={summaryRef} selectedMonth={targetMonth} />
+    </div>
 
       {/* TABEL DATA */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
