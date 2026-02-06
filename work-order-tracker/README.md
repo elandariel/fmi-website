@@ -1,36 +1,42 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 📊 ISP Performance Tracker & Analytics Dashboard
 
-## Getting Started
+[![Next.js](https://img.shields.io/badge/Next.js-14-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![Supabase](https://img.shields.io/badge/Supabase-Database-emerald?style=for-the-badge&logo=supabase)](https://supabase.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-CSS-blue?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
 
-First, run the development server:
+Dashboard monitoring manajemen data ISP (Internet Service Provider) yang dirancang untuk melacak aktivasi, pemutusan, dan performa tim secara real-time. Dilengkapi dengan visualisasi data interaktif dan fitur export laporan profesional.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🚀 Fitur Utama
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Real-time Analytics**: Visualisasi tren bulanan menggunakan ApexCharts (Area & Bar Charts).
+- **Monthly Summary Report**: Ringkasan otomatis status pelanggan (Berlangganan, Cuti, Putus).
+- **Team Performance Tracking**: Monitoring produktivitas tim teknisi secara detail.
+- **Professional Excel Export**: Generate laporan .xlsx yang terstruktur rapi dengan satu klik.
+- **Role-Based Access Control (RBAC)**: Keamanan data berdasarkan peran user (Viewer/Aktivator/Admin).
+- **Responsive Design**: Tampilan optimal di desktop maupun perangkat mobile.
 
-## Learn More
+## 🛠️ Tech Stack
 
-To learn more about Next.js, take a look at the following resources:
+- **Framework**: Next.js 14 (App Router)
+- **Database**: Supabase (PostgreSQL)
+- **Authentication**: Supabase Auth
+- **Styling**: Tailwind CSS & Lucide Icons
+- **Charts**: ApexCharts
+- **Data Export**: SheetJS (XLSX)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 📸 Screenshots
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Dashboard Utama | Analitik Performa Tim |
+|---|---|
+| ![Main Dashboard](https://www.fmi-tracker.my.id) | ![Team Stats](https://www.fmi-tracker.my.id/tracker) |
 
-## Deploy on Vercel
+## ⚙️ Instalasi Lokal
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. **Clone Repository**
+   ```bash
+   git clone [https://github.com/Ochay-BOT/FMI-WEB/tree/8ca448e7d221e6f8d8e775f0fe6bb57a332d1071/work-order-tracker](https://github.com/Ochay-BOT/FMI-WEB/tree/main/work-order-tracker)
+   cd work-order-tracker
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+   

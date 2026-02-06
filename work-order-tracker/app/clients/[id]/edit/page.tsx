@@ -242,8 +242,8 @@ function EditClientContent() {
             className="w-full p-2 border border-slate-300 rounded-lg outline-none bg-white text-slate-700"
           >
             <option value="Active">Active</option>
-            <option value="Suspend">Suspend</option>
-            <option value="Isolir">Isolir</option>
+            <option value="Deactive">Berhenti Sementara</option>
+            <option value="Berhenti Berlangganan">Berhenti Berlangganan</option>
             <option value="Dismantle">Dismantle</option>
           </select>
         </div>
