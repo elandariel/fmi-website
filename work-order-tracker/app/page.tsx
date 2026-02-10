@@ -43,7 +43,7 @@ export default function Dashboard() {
   const [recentLogs, setRecentLogs] = useState<any[]>([]);
   const [chartTab, setChartTab] = useState<'CLIENT' | 'CAPACITY'>('CLIENT');
   const [chartData, setChartData] = useState<any>({ client: [], capacity: [] });
-  const [chartSummary, setChartSummary] = useState({ pasang: 0, putus: 0, cuti: 0, upgrade: 0, downgrade: 0 });
+  const [chartSummary, setChartSummary] = useState({ pasang: 0, putus: 0, BerhentiSementara: 0, upgrade: 0, downgrade: 0 });
   
   // --- STATE UNTUK SISTEM INBOX & APPROVAL ---
   const [myInboxTickets, setMyInboxTickets] = useState<any[]>([]);
@@ -182,12 +182,12 @@ async function fetchDashboardData() {
       const d = responses.map(r => groupByMonth(r.data || []));
 
       setChartData({
-        client: [{ name: 'Pasang Baru', data: d[0] }, { name: 'Berhenti', data: d[1] }, { name: 'Cuti', data: d[2] }],
+        client: [{ name: 'Berlangganan', data: d[0] }, { name: 'Berhenti', data: d[1] }, { name: 'BerhentiSementara', data: d[2] }],
         capacity: [{ name: 'Upgrade', data: d[3] }, { name: 'Downgrade', data: d[4] }]
       });
 
       setChartSummary({
-        pasang: d[0].reduce((a, b) => a + b, 0), putus: d[1].reduce((a, b) => a + b, 0), cuti: d[2].reduce((a, b) => a + b, 0),
+        pasang: d[0].reduce((a, b) => a + b, 0), putus: d[1].reduce((a, b) => a + b, 0), BerhentiSementara: d[2].reduce((a, b) => a + b, 0),
         upgrade: d[3].reduce((a, b) => a + b, 0), downgrade: d[4].reduce((a, b) => a + b, 0),
       });
 
@@ -336,7 +336,7 @@ async function fetchDashboardData() {
         <StatCard title="Total Client" value={stats.totalClient} sub="Database Client" icon={<Users size={24} />} color="blue" />
         <StatCard title="WO Active" value={stats.woPending} sub="Pending & Progress" icon={<Activity size={24} />} color="purple" />
         <StatCard title="New This Month" value={`+${stats.growthMonth}`} sub="Pelanggan Baru" icon={<ArrowUpRight size={24} />} color="emerald" />
-        <StatCard title="VLAN Available" value={stats.totalVlanFree} sub="Total Free All Segment" icon={<Database size={24} />} color="orange" />
+        <StatCard title="VLAN Available" value={stats.totalVlanFree} sub="Total Vlan Available" icon={<Database size={24} />} color="orange" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -363,7 +363,7 @@ async function fetchDashboardData() {
              <div className="grid grid-cols-3 gap-4">
                 <div className="bg-white p-3 rounded-xl border border-emerald-100 shadow-sm"><p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Berlangganan</p><div className="flex items-center gap-2"><span className="p-1 bg-emerald-100 text-emerald-600 rounded"><ArrowUpRight size={14}/></span><span className="text-xl font-black text-slate-800">{chartSummary.pasang}</span></div></div>
                 <div className="bg-white p-3 rounded-xl border border-rose-100 shadow-sm"><p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Berhenti Berlangganan</p><div className="flex items-center gap-2"><span className="p-1 bg-rose-100 text-rose-600 rounded"><ArrowDownRight size={14}/></span><span className="text-xl font-black text-slate-800">{chartSummary.putus}</span></div></div>
-                <div className="bg-white p-3 rounded-xl border border-amber-100 shadow-sm"><p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Berhenti Sementara</p><div className="flex items-center gap-2"><span className="p-1 bg-amber-100 text-amber-600 rounded"><MinusCircle size={14}/></span><span className="text-xl font-black text-slate-800">{chartSummary.cuti}</span></div></div>
+                <div className="bg-white p-3 rounded-xl border border-amber-100 shadow-sm"><p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Berhenti Sementara</p><div className="flex items-center gap-2"><span className="p-1 bg-amber-100 text-amber-600 rounded"><MinusCircle size={14}/></span><span className="text-xl font-black text-slate-800">{chartSummary.BerhentiSementara}</span></div></div>
              </div>
           </div>
         </div>
