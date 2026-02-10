@@ -15,7 +15,6 @@ import { format, getISOWeek } from 'date-fns';
 import { id as indonesia } from 'date-fns/locale';
 import { Role } from '@/lib/permissions';
 
-// Komponen AlertBanner yang menangani WO Pending/Progress dan aksi Solved
 import AlertBanner from '@/components/AlertBanner';
 
 const ReactApexChart = dynamic(() => import('react-apexcharts'), { ssr: false });
@@ -48,7 +47,7 @@ export default function Dashboard() {
   
   // --- STATE UNTUK SISTEM INBOX & APPROVAL ---
   const [myInboxTickets, setMyInboxTickets] = useState<any[]>([]);
-  const [pendingApprovals, setPendingApprovals] = useState<any[]>([]); // State untuk Discard Approval
+  const [pendingApprovals, setPendingApprovals] = useState<any[]>([]);
   const [showInbox, setShowInbox] = useState(false); 
   const [expandedTicket, setExpandedTicket] = useState<string | null>(null);
   const [searchTicket, setSearchTicket] = useState('');
@@ -118,7 +117,7 @@ export default function Dashboard() {
     }
   }
 
-  async function fetchDashboardData() {
+async function fetchDashboardData() {
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -135,7 +134,7 @@ export default function Dashboard() {
         }
       }
 
-      // --- FETCH PENDING APPROVALS (HANYA ADMIN/SUPER_DEV) ---
+      // --- FETCH PENDING APPROVALS ---
       if (currentUserRole === 'SUPER_DEV' || currentUserRole === 'ADMIN') {
         const { data: approvals } = await supabase
           .from('Ignored_Items')
@@ -169,7 +168,7 @@ export default function Dashboard() {
         }
       }
 
-      // STATS & CHARTS...
+      // --- STATS & CHARTS ---
       const { count: clientCount } = await supabase.from('Data Client Corporate').select('*', { count: 'exact', head: true });
       const { count: pendingCount } = await supabase.from('Report Bulanan').select('id', { count: 'exact', head: true }).in('STATUS', ['PENDING', 'OPEN', 'PROGRESS', 'ON PROGRESS']);
       const tables = ['Berlangganan 2026', 'Berhenti Berlangganan 2026', 'Berhenti Sementara 2026', 'Upgrade 2026', 'Downgrade 2026'];
@@ -192,13 +191,39 @@ export default function Dashboard() {
         upgrade: d[3].reduce((a, b) => a + b, 0), downgrade: d[4].reduce((a, b) => a + b, 0),
       });
 
+      // --- LOGIKA HITUNG VLAN FREE GABUNGAN ---
+      const vlanTables = [
+        'Daftar Vlan 1-1000', 
+        'Daftar Vlan 1000+', 
+        'Daftar Vlan 2000+', 
+        'Daftar Vlan 3000+', 
+        'Daftar Vlan 3500+'
+      ];
+      let totalUsed = 0;
+      let totalAllVlan = 0;
+
+      const vlanResponses = await Promise.all(vlanTables.map(t => supabase.from(t).select('NAME')));
+      vlanResponses.forEach(res => {
+        if (res.data) {
+          totalAllVlan += res.data.length;
+          const usedInTable = res.data.filter(r => {
+            const name = (r.NAME || '').toUpperCase();
+            return name && name !== '-' && name !== 'AVAILABLE' && name !== '';
+          }).length;
+          totalUsed += usedInTable;
+        }
+      });
+      const calculatedFree = totalAllVlan - totalUsed;
+
       const todayStart = new Date().toISOString().split('T')[0] + "T00:00:00Z";
       const { data: logs } = await supabase.from('Log_Aktivitas').select('*').order('created_at', { ascending: false }).limit(5);
       const { count: countToday } = await supabase.from('Log_Aktivitas').select('id', { count: 'exact', head: true }).gte('created_at', todayStart);
 
+      // --- UPDATE STATS DENGAN NILAI VLAN ---
       setStats({
         totalClient: clientCount || 0,
-        totalVlanUsed: 0, totalVlanFree: 0,
+        totalVlanUsed: totalUsed,
+        totalVlanFree: calculatedFree, 
         growthMonth: d[0][new Date().getMonth()],
         logsToday: countToday || 0,
         woPending: pendingCount || 0
@@ -311,7 +336,7 @@ export default function Dashboard() {
         <StatCard title="Total Client" value={stats.totalClient} sub="Database Client" icon={<Users size={24} />} color="blue" />
         <StatCard title="WO Active" value={stats.woPending} sub="Pending & Progress" icon={<Activity size={24} />} color="purple" />
         <StatCard title="New This Month" value={`+${stats.growthMonth}`} sub="Pelanggan Baru" icon={<ArrowUpRight size={24} />} color="emerald" />
-        <StatCard title="Logs Today" value={stats.logsToday} sub="Aktivitas Hari Ini" icon={<Clock size={24} />} color="orange" />
+        <StatCard title="VLAN Available" value={stats.totalVlanFree} sub="Total Free All Segment" icon={<Database size={24} />} color="orange" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

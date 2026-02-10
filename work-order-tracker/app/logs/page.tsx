@@ -48,7 +48,7 @@ export default function LogActivityPage() {
 
   useEffect(() => {
     fetchLogs();
-  }, [page, search]); // Re-fetch jika halaman atau search berubah
+  }, [page, search]);
 
   // Helper Warna Badge
   const getActionStyle = (activity: string) => {
