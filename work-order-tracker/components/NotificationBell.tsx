@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { 
   Bell, AlertTriangle, X, RefreshCw, 
-  Trash2, ShieldQuestion, User, Send, ExternalLink, Calendar 
+  Trash2, ShieldQuestion, User, Send, ExternalLink, Calendar, CheckCircle 
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { hasAccess, PERMISSIONS, Role } from '@/lib/permissions'; // Import satpam
 
 export function NotificationBell() {
   const router = useRouter();
@@ -16,6 +17,7 @@ export function NotificationBell() {
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [reason, setReason] = useState('');
   const [currentUser, setCurrentUser] = useState<string>('USER');
+  const [userRole, setUserRole] = useState<Role | null>(null); // State untuk Role
   const [loading, setLoading] = useState(true);
   const [missingItems, setMissingItems] = useState<any[]>([]);
 
@@ -23,12 +25,21 @@ export function NotificationBell() {
     process.env.NEXT_PUBLIC_SUPABASE_URL || '',
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
   );
+
   const fetchUserData = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      // Ambil nama dari metadata atau email depannya
       const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'USER';
       setCurrentUser(name.toUpperCase());
+
+      // AMBIL ROLE DARI PROFILES
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+      
+      if (profile) setUserRole(profile.role as Role);
     }
   };
 
@@ -45,7 +56,6 @@ export function NotificationBell() {
     const missing: any[] = [];
 
     try {
-      // Ambil list data yang sudah di-ignore (PENDING atau APPROVED)
       const { data: ignoredData } = await supabase.from('Ignored_Items').select('SUBJECT_IGNORED');
       const ignoredSet = new Set(ignoredData?.map(i => i.SUBJECT_IGNORED?.toLowerCase().trim()) || []);
 
@@ -80,7 +90,6 @@ export function NotificationBell() {
 
           candidates.forEach((wo) => {
             const woSubjectClean = (wo['SUBJECT WO'] || '').toLowerCase().trim();
-            // Filter: Bukan yang sudah ada di tabel target DAN bukan yang ada di list ignored
             if (!existingSubjects.has(woSubjectClean) && !ignoredSet.has(woSubjectClean)) {
               missing.push({
                 id: wo.id,
@@ -103,39 +112,41 @@ export function NotificationBell() {
   };
 
   const handleFixData = (subject: string) => {
+    // PROTEKSI FUNGSI
+    if (!hasAccess(userRole, PERMISSIONS.CLIENT_ADD)) return;
+
     const encodedSubject = encodeURIComponent(subject);
     router.push(`/tracker/create?subject=${encodedSubject}`);
     setIsOpen(false);
   };
 
   const submitDiscard = async () => {
-  if (!reason.trim()) return;
+    // PROTEKSI FUNGSI
+    if (!hasAccess(userRole, PERMISSIONS.CLIENT_ADD)) return;
+    if (!reason.trim()) return;
 
-  try {
-    const { error } = await supabase.from('Ignored_Items').insert({
-      SUBJECT_IGNORED: selectedItem.subject,
-      ALASAN: reason,
-      STATUS: 'PENDING',
-      REQUESTED_BY: currentUser
-    });
+    try {
+      const { error } = await supabase.from('Ignored_Items').insert({
+        SUBJECT_IGNORED: selectedItem.subject,
+        ALASAN: reason,
+        STATUS: 'PENDING',
+        REQUESTED_BY: currentUser
+      });
 
-    if (error) throw error;
-    
-    setShowReasonModal(false);
-    setReason('');
-    checkMissingData();
-  } catch (err: any) {
-    alert("Gagal discard: " + err.message);
-  }
-};
+      if (error) throw error;
+      
+      setShowReasonModal(false);
+      setReason('');
+      checkMissingData();
+    } catch (err: any) {
+      alert("Gagal discard: " + err.message);
+    }
+  };
 
   const getBorderColor = (color: string) => {
     const colors: any = { 
-      blue: 'border-blue-500', 
-      red: 'border-red-500', 
-      orange: 'border-orange-500', 
-      emerald: 'border-emerald-500', 
-      yellow: 'border-yellow-500' 
+      blue: 'border-blue-500', red: 'border-red-500', orange: 'border-orange-500', 
+      emerald: 'border-emerald-500', yellow: 'border-yellow-500' 
     };
     return colors[color] || 'border-slate-300';
   };
@@ -144,13 +155,10 @@ export function NotificationBell() {
 
   return (
     <>
-      <button 
-        onClick={() => setIsOpen(true)}
-        className="relative p-2.5 rounded-full hover:bg-slate-100 transition-colors text-slate-600 active:scale-95 duration-200 mr-4 group"
-      >
+      <button onClick={() => setIsOpen(true)} className="relative p-2.5 rounded-full hover:bg-slate-100 transition-colors text-slate-600 active:scale-95 duration-200 mr-4 group">
         <Bell size={24} />
         {!loading && missingItems.length > 0 && (
-          <span className="absolute top-1.5 right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white shadow-sm animate-pulse">
+          <span className="absolute top-1.5 right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white animate-pulse">
             {missingItems.length}
           </span>
         )}
@@ -163,7 +171,7 @@ export function NotificationBell() {
             <div className="bg-slate-900 px-6 py-4 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
                 <AlertTriangle size={20} className="text-red-500" />
-                <h2 className="text-lg font-bold text-white uppercase tracking-tight">Missing Data Sinkronisasi</h2>
+                <h2 className="text-lg font-bold text-white uppercase">Missing Data Sinkronisasi</h2>
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={() => checkMissingData()} className="p-2 text-slate-400 hover:text-white transition-colors">
@@ -177,11 +185,11 @@ export function NotificationBell() {
 
             <div className="flex-1 overflow-y-auto p-5 bg-slate-50 space-y-3">
               {loading ? (
-                <div className="h-40 flex items-center justify-center text-slate-400 font-bold italic uppercase tracking-widest">Memindai Database...</div>
+                <div className="h-40 flex items-center justify-center text-slate-400 font-bold italic">Memindai Database...</div>
               ) : missingItems.length === 0 ? (
                 <div className="h-40 flex flex-col items-center justify-center text-slate-500 gap-2">
                   <CheckCircle size={40} className="text-emerald-500" />
-                  <p className="font-bold">Database Terintegrasi!</p>
+                  <p className="font-bold uppercase tracking-widest text-[10px]">Database Terintegrasi!</p>
                 </div>
               ) : (
                 missingItems.map((item, idx) => (
@@ -191,115 +199,73 @@ export function NotificationBell() {
                         <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1 uppercase bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
                           <Calendar size={12} /> {item.date}
                         </span>
-                        <span className="text-[9px] font-black px-2 py-0.5 rounded border border-blue-100 bg-blue-50 text-blue-600 uppercase tracking-widest">
+                        <span className="text-[9px] font-black px-2 py-0.5 rounded border border-blue-100 bg-blue-50 text-blue-600 uppercase">
                           {item.type}
                         </span>
                       </div>
                       <h3 className="text-base font-bold text-slate-800 leading-tight mb-2">{item.subject}</h3>
                       <div className="flex items-center gap-1.5 text-[10px]">
-                        <span className="text-slate-400 italic font-medium">Missing di tabel:</span>
+                        <span className="text-slate-400 italic">Missing di tabel:</span>
                         <span className="font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded uppercase">{item.targetTable}</span>
                       </div>
                     </div>
 
-                    {/* ACTION BUTTONS */}
+                    {/* ACTION BUTTONS DENGAN SATPAM */}
                     <div className="flex flex-col gap-2 shrink-0 min-w-[100px]">
-                      <button 
-                        onClick={() => handleFixData(item.subject)} 
-                        className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-black text-[10px] shadow-md shadow-blue-200 transition-all active:scale-95 uppercase tracking-wide border-0"
-                      >
-                        <ExternalLink size={12} />
-                        Input
-                      </button>
-                      <button 
-                        onClick={() => { 
-                          setSelectedItem(item); // Set item mana yang mau didiscard
-                          setReason(''); // Kosongkan alasan
-                          setShowReasonModal(true); // Munculkan pop-up
-                        }}
-                        className="flex items-center justify-center gap-2 px-4 py-2 bg-slate-50 hover:bg-red-50 text-slate-700 hover:text-red-600 rounded-lg font-black text-[10px] transition-all active:scale-95 uppercase tracking-wide border border-slate-100 hover:border-red-100"
-                      >
-                        <Trash2 size={16} />
-                        Abaikan
-                      </button>
+                      {hasAccess(userRole, PERMISSIONS.CLIENT_ADD) ? (
+                        <>
+                          <button 
+                            onClick={() => handleFixData(item.subject)} 
+                            className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-black text-[10px] shadow-md transition-all uppercase tracking-wide"
+                          >
+                            <ExternalLink size={12} /> Input
+                          </button>
+                          <button 
+                            onClick={() => { setSelectedItem(item); setReason(''); setShowReasonModal(true); }}
+                            className="flex items-center justify-center gap-2 px-4 py-2 bg-slate-50 hover:bg-red-50 text-slate-700 hover:text-red-600 rounded-lg font-black text-[10px] transition-all uppercase border border-slate-100"
+                          >
+                            <Trash2 size={16} /> Abaikan
+                          </button>
+                        </>
+                      ) : (
+                        <div className="text-center px-2 py-4 bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                          <p className="text-[9px] font-black text-slate-400 uppercase italic">View Only</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))
               )}
             </div>
-
-            <div className="bg-white px-6 py-3 border-t border-slate-100 flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-              <span>{missingItems.length} Work Order Perlu Tindakan</span>
-              <button onClick={() => setIsOpen(false)} className="hover:text-slate-800 font-black transition-colors">Tutup (Esc)</button>
-            </div>
           </div>
         </div>
       )}
 
+      {/* MODAL ALASAN (CS TIDAK AKAN BISA LIHAT INI JUGA) */}
       {showReasonModal && (
-  <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
-    <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.2)] p-10 text-center border border-slate-100">
-      
-      {/* Icon Shield dengan Glassmorphism */}
-      <div className="w-20 h-20 bg-amber-50 text-amber-500 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm border border-amber-100">
-        <ShieldQuestion size={40} strokeWidth={2.5} />
-      </div>
-
-      <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tighter mb-2">
-        Konfirmasi Alasan
-      </h3>
-      
-      <div className="mb-8">
-        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-2">Mengabaikan:</p>
-        <p className="text-[11px] text-blue-600 font-bold italic leading-relaxed px-6 py-3 bg-blue-50/50 rounded-2xl border border-blue-100/50">
-          "{selectedItem?.subject}"
-        </p>
-      </div>
-      
-      {/* Input Area - Dibuat lebih kontras */}
-      <div className="bg-slate-50 rounded-[2rem] p-6 border-2 border-slate-100 mb-8 text-left transition-all focus-within:border-blue-200">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="p-1.5 bg-blue-500 rounded-lg text-white">
-            <User size={14} />
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+          <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl p-10 text-center border border-slate-100">
+            <div className="w-20 h-20 bg-amber-50 text-amber-500 rounded-3xl flex items-center justify-center mx-auto mb-6">
+              <ShieldQuestion size={40} />
+            </div>
+            <h3 className="text-2xl font-black text-slate-800 uppercase mb-2">Konfirmasi Alasan</h3>
+            <div className="bg-slate-50 rounded-[2rem] p-6 border-2 border-slate-100 mb-8 text-left">
+              <textarea 
+                placeholder="Kenapa WO ini diabaikan?..."
+                className="w-full h-32 bg-white border border-slate-200 rounded-2xl p-4 text-sm font-bold text-slate-700 outline-none"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <button onClick={() => setShowReasonModal(false)} className="py-4 bg-slate-100 text-slate-700 rounded-2xl font-black text-xs uppercase">Batal</button>
+              <button onClick={submitDiscard} disabled={!reason.trim()} className="py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase flex items-center justify-center gap-2">
+                <Send size={16} /> Kirim Request
+              </button>
+            </div>
           </div>
-          <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest">
-            Requester: <span className="text-blue-600">{currentUser}</span>
-          </span>
         </div>
-        
-        <textarea 
-          autoFocus
-          placeholder="Kenapa WO ini diabaikan?..."
-          className="w-full h-32 bg-white border border-slate-200 rounded-2xl p-4 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all resize-none shadow-sm placeholder:text-slate-300"
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-        />
-      </div>
-
-      {/* Action Buttons */}
-      <div className="grid grid-cols-2 gap-4">
-        <button 
-          onClick={() => setShowReasonModal(false)} 
-          className="py-4 bg-slate-100 text-slate-700 rounded-2xl font-black text-xs uppercase hover:bg-slate-200 transition-all tracking-widest"
-        >
-          Batal
-        </button>
-        <button 
-          onClick={submitDiscard} 
-          disabled={!reason.trim()}
-          className="py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase flex items-center justify-center gap-2 hover:bg-blue-700 hover:-translate-y-1 transition-all disabled:opacity-50 disabled:translate-y-0 shadow-xl shadow-blue-200 tracking-widest"
-        >
-          <Send size={16} /> Kirim Request
-        </button>
-      </div>
-
-      <p className="mt-8 text-[9px] font-black text-slate-700 uppercase tracking-[0.3em]">
-        NOC FMI
-      </p>
-    </div>
-  </div>
-)}
-
+      )}
     </>
   );
 }

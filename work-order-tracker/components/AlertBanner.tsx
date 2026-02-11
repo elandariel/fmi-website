@@ -221,12 +221,6 @@ export default function AlertBanner() {
             </div>
 
             <div className="p-4 bg-white border-t flex justify-between items-center">
-              {/* FIX: Gunakan Link Next.js di sini */}
-              <Link href="/work-orders/create">
-                <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold text-sm hover:bg-blue-700 transition">
-                  <Plus size={18} /> Buat WO Baru
-                </button>
-              </Link>
               <button onClick={() => setIsModalOpen(false)} className="px-6 py-2 bg-slate-800 text-white rounded-lg font-bold text-sm">Tutup</button>
             </div>
           </div>
