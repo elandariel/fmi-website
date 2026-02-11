@@ -8,7 +8,7 @@ import {
   Users, Activity, Plus, List, Database, RefreshCw, Archive, 
   ShieldAlert, Check, X, ListTodo, BarChart3, ArrowUpRight, 
   ArrowDownRight, MinusCircle, Calendar, ChevronDown, Search, 
-  Download, CheckCircle2, ChevronRight
+  Download, CheckCircle2, ChevronRight, Inbox
 } from 'lucide-react';
 import { format, getISOWeek } from 'date-fns'; 
 import { id as indonesia } from 'date-fns/locale';
