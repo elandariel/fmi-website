@@ -5,7 +5,7 @@ import { createBrowserClient } from '@supabase/ssr';
 import { 
   Search, RefreshCcw, Server, Database, Filter, 
   Edit, Save, Trash2, X, AlertCircle, CheckCircle, Router, ShieldCheck, AlertTriangle, 
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, Share2 // Tambah icon Share2 untuk sync
 } from 'lucide-react';
 import { hasAccess, PERMISSIONS, Role } from '@/lib/permissions';
 import { toast } from 'sonner';
@@ -22,6 +22,7 @@ export default function VlanPage() {
   const [selectedTable, setSelectedTable] = useState(VLAN_TABLES[0]);
   const [vlanList, setVlanList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false); // State baru untuk loading sync
   const [search, setSearch] = useState('');
   const [userRole, setUserRole] = useState<Role | null>(null);
 
@@ -39,6 +40,44 @@ export default function VlanPage() {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   
   const [stats, setStats] = useState({ total: 0, used: 0, free: 0 });
+
+  // --- FUNGSI SYNC KE GOOGLE SHEETS ---
+  const handleSyncToSheets = async () => {
+  setIsSyncing(true);
+  const syncToast = toast.loading("Menyelaraskan data ke Spreadsheet...");
+  
+  try {
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwnTcFZLgV99h8P0rMhFptCCiJtAYTm8rqUtZYPj3FLEhEnkAKEau7iVqqbQjX8V3k-GQ/exec";
+    
+    // 2. Siapkan Payload (Data yang dikirim)
+    const payload = {
+      spreadsheetId: "1d-535dTslbMS9Q6JeqhkObqmLp56HeRpzKPp6KzqAFA",
+      sheetName: selectedTable.table, // Sesuai pilihan di dropdown (contoh: 'Daftar Vlan 1-1000')
+      rows: vlanList // Seluruh data yang sudah di-fetch dari Supabase sebelumnya
+    };
+
+    // 3. Eksekusi Request POST
+    // Kita gunakan Content-Type text/plain untuk menghindari pre-flight CORS yang ribet di Google Apps Script
+    const response = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors', 
+      headers: {
+        'Content-Type': 'text/plain',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    // Karena mode 'no-cors', kita tidak bisa baca response body secara teknis, 
+    // tapi jika tidak masuk ke catch, artinya request berhasil terkirim.
+    toast.success("Sync Terkirim! Cek Spreadsheet dalam beberapa detik.", { id: syncToast });
+    
+  } catch (error) {
+    console.error("Sync Error:", error);
+    toast.error("Gagal mengirim data ke Google Sheets.", { id: syncToast });
+  } finally {
+    setIsSyncing(false);
+  }
+};
 
   async function fetchData() {
     setLoading(true);
@@ -178,6 +217,16 @@ export default function VlanPage() {
         </div>
 
         <div className="flex gap-2">
+           {/* TOMBOL SYNC SHEETS (BARU) */}
+           <button 
+            onClick={handleSyncToSheets} 
+            disabled={isSyncing}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-sm shadow-sm transition-all disabled:opacity-50"
+           >
+            <Share2 size={16} className={isSyncing ? 'animate-pulse' : ''} />
+            {isSyncing ? 'Syncing...' : 'Sync Sheets'}
+           </button>
+
            <div className="relative">
              <select 
               className="appearance-none bg-white border border-slate-300 text-slate-700 py-2 pl-4 pr-8 rounded-lg leading-tight focus:outline-none focus:border-blue-500 font-medium text-sm"
@@ -192,7 +241,8 @@ export default function VlanPage() {
                <Filter size={14} />
              </div>
            </div>
-           <button onClick={fetchData} className="p-2 bg-white border rounded-lg hover:bg-slate-50 text-slate-600">
+           
+           <button onClick={fetchData} className="p-2 bg-white border rounded-lg hover:bg-slate-50 text-slate-600 shadow-sm">
             <RefreshCcw size={20} className={loading ? 'animate-spin' : ''} />
           </button>
         </div>
