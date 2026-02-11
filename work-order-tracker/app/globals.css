@@ -24,3 +24,15 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* app/globals.css */
+@layer components {
+  .table-container {
+    @apply w-full overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  table {
+    @apply min-w-[600px] md:min-w-full;
+  }
+}
