@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { 
-  Wifi, Upload, Download, X, FileSpreadsheet, AlertCircle, 
+  Wifi, Upload, Download, X, FileSpreadsheet, 
   Info, FileText, Table, Search, Loader2, ArrowRight, User, Database 
 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -69,7 +69,7 @@ export default function Header() {
     };
   }, []);
 
-  // --- LOGIKA GLOBAL SEARCH (FIXED) ---
+  // --- LOGIKA GLOBAL SEARCH ---
   const handleGlobalSearch = async (query: string) => {
     setSearchQuery(query);
     if (query.trim().length < 2) {
@@ -82,34 +82,25 @@ export default function Header() {
     setShowResults(true);
 
     try {
-      // 1. Search Client (Kolom: Nama Pelanggan, ID Pelanggan)
       const clientsQuery = supabase
         .from('Data Client Corporate')
         .select('id, "Nama Pelanggan", "ID Pelanggan"')
         .or(`"Nama Pelanggan".ilike.%${query}%,"ID Pelanggan".ilike.%${query}%`)
         .limit(3);
 
-      // 2. Search WO (Kolom: SUBJECT WO)
       const reportsQuery = supabase
         .from('Report Bulanan')
         .select('id, "SUBJECT WO", TANGGAL')
         .ilike('SUBJECT WO', `%${query}%`)
         .limit(3);
 
-      // 3. Search VLAN (Kolom: VLAN, NAME)
       const vlanTables = ['Daftar Vlan 1-1000', 'Daftar Vlan 1000+', 'Daftar Vlan 2000+', 'Daftar Vlan 3000+'];
-      
       const vlanQueries = vlanTables.map(tableName => {
-        // Jika query adalah angka murni, kita bisa gunakan filter eq (equal) untuk VLAN ID
         const isNumeric = !isNaN(Number(query));
-        
         let baseQuery = supabase.from(tableName).select('VLAN, NAME');
-        
         if (isNumeric) {
-           // Mencari Nama yang mengandung angka TERSEBUT atau VLAN yang SAMA PERSIS
            return baseQuery.or(`NAME.ilike.%${query}%,VLAN.eq.${query}`).limit(2);
         } else {
-           // Jika input teks, cari di Nama saja
            return baseQuery.ilike('NAME', `%${query}%`).limit(2);
         }
       });
@@ -154,7 +145,7 @@ export default function Header() {
     }
   };
 
-  // --- LOGIKA EXPORT MULTI-FORMAT ---
+  // --- LOGIKA EXPORT ---
   const handleProcessExport = async () => {
     const { table, format: fileFormat } = exportConfig;
     if (!table || !fileFormat) return toast.error("Pilih data dan format export!");
@@ -242,47 +233,57 @@ export default function Header() {
   if (!mounted) return null;
 
   return (
-    <header className="bg-white border-b border-slate-200 px-6 py-4 flex flex-col md:flex-row justify-between items-center shadow-sm sticky top-0 z-40 h-[73px]">
-      
-      {/* BAGIAN KIRI: BRANDING & SEARCH BAR */}
-      <div className="flex items-center gap-8 flex-1">
-        <div className="flex items-center gap-3 shrink-0">
-          <div className="bg-blue-600 p-2 rounded-lg">
-            <Wifi className="text-white" size={20} />
+    <header className="bg-white border-b border-slate-200 sticky top-0 z-40 w-full shadow-sm">
+      {/* Container Utama: Menggunakan flex-col di HP dan flex-row di Desktop */}
+      <div className="flex flex-col md:flex-row items-center justify-between px-4 py-3 md:px-6 md:h-[73px] gap-3 md:gap-8">
+        
+        {/* BAGIAN ATAS (Mobile): Logo, Notif, Jam */}
+        <div className="flex items-center justify-between w-full md:w-auto gap-4">
+          <div className="flex items-center gap-2 md:gap-3 shrink-0">
+            <div className="bg-blue-600 p-1.5 md:p-2 rounded-lg">
+              <Wifi className="text-white" size={18} />
+            </div>
+            <div>
+              <h1 className="text-xs md:text-sm font-bold text-slate-800 leading-none">NOC Command</h1>
+              <p className="text-[8px] md:text-[9px] text-slate-500 font-medium mt-0.5 uppercase tracking-tighter">Database System</p>
+            </div>
           </div>
-          <div className="hidden lg:block">
-            <h1 className="text-sm font-bold text-slate-800 leading-none">NOC Command Center</h1>
-            <p className="text-[9px] text-slate-500 font-medium mt-1 uppercase tracking-tighter">Monitoring & Database</p>
+
+          {/* Muncul hanya di mobile (Notif & Jam Ringkas) */}
+          <div className="flex items-center gap-3 md:hidden">
+            <NotificationBell />
+            <div className="text-right border-l border-slate-200 pl-3">
+               <p className="text-sm font-mono font-bold text-slate-700">{format(time, 'HH:mm')}</p>
+            </div>
           </div>
         </div>
 
-        {/* INPUT GLOBAL SEARCH */}
-          <div className="relative max-w-md w-full" ref={searchRef}>
-            <div className="relative group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={16} />
-              <input 
-                type="text"
-                placeholder="Cari Client, WO, atau VLAN..."
-                // TAMBAHKAN !text-slate-900 DAN style={{ color: '#0f172a' }} DI SINI
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-10 pr-10 text-xs outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all font-medium !text-slate-900"
-                style={{ color: '#0f172a' }} 
-                value={searchQuery}
-                onChange={(e) => handleGlobalSearch(e.target.value)}
-                onFocus={() => searchQuery.length >= 2 && setShowResults(true)}
-              />
-              {isSearching ? (
-                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-500 animate-spin" size={14} />
-              ) : searchQuery && (
-                <button onClick={() => {setSearchQuery(''); setSearchResults([]);}} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                  <X size={14} />
-                </button>
-              )}
-            </div>
+        {/* BAGIAN TENGAH: SEARCH BAR (Full width di HP) */}
+        <div className="relative w-full max-w-xl md:flex-1" ref={searchRef}>
+          <div className="relative group">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={16} />
+            <input 
+              type="text"
+              placeholder="Cari Client, WO, atau VLAN..."
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-10 pr-10 text-[11px] md:text-xs outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all font-medium text-slate-900"
+              style={{ color: '#0f172a' }} 
+              value={searchQuery}
+              onChange={(e) => handleGlobalSearch(e.target.value)}
+              onFocus={() => searchQuery.length >= 2 && setShowResults(true)}
+            />
+            {isSearching ? (
+              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-500 animate-spin" size={14} />
+            ) : searchQuery && (
+              <button onClick={() => {setSearchQuery(''); setSearchResults([]);}} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                <X size={14} />
+              </button>
+            )}
+          </div>
 
           {/* HASIL PENCARIAN DROPDOWN */}
           {showResults && (
-            <div className="absolute top-full mt-2 w-full bg-white border border-slate-200 shadow-2xl rounded-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-              <div className="p-2 max-h-[350px] overflow-y-auto custom-scrollbar">
+            <div className="absolute top-full left-0 mt-2 w-full bg-white border border-slate-200 shadow-2xl rounded-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 z-50">
+              <div className="p-2 max-h-[300px] md:max-h-[350px] overflow-y-auto custom-scrollbar">
                 {searchResults.length > 0 ? (
                   searchResults.map((result, idx) => (
                     <button 
@@ -295,13 +296,13 @@ export default function Header() {
                           {result.icon}
                         </div>
                         <div>
-                            <p className="text-[11px] font-bold text-slate-900 line-clamp-1">{result.label}</p>
-                            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">
-                              {result.type} {result.subLabel ? `• ${result.subLabel}` : ''}
-                            </p>
-                          </div>
+                          <p className="text-[11px] font-bold text-slate-900 line-clamp-1">{result.label}</p>
+                          <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">
+                            {result.type} {result.subLabel ? `• ${result.subLabel}` : ''}
+                          </p>
+                        </div>
                       </div>
-                      <ArrowRight size={14} className="text-slate-300 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                      <ArrowRight size={14} className="text-slate-300 opacity-0 md:group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
                     </button>
                   ))
                 ) : (
@@ -313,61 +314,54 @@ export default function Header() {
             </div>
           )}
         </div>
-      </div>
 
-      {/* BAGIAN KANAN: ACTIONS, NOTIF, & TIME */}
-      <div className="flex items-center gap-4 md:gap-6 mt-3 md:mt-0">
-        <div className="flex items-center gap-2 border-r border-slate-200 pr-6 mr-2 h-10">
-          <button 
-            onClick={() => setShowImportModal(true)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 text-slate-800 rounded-lg hover:bg-emerald-50 hover:text-emerald-600 transition-all border border-slate-200 shadow-sm"
-          >
-            <Upload size={14} />
-            <span className="text-[10px] font-bold uppercase">Import</span>
-          </button>
+        {/* BAGIAN KANAN: ACTIONS & TIME (Desktop Only View) */}
+        <div className="flex items-center gap-3 md:gap-6 w-full md:w-auto">
+          {/* Tombol Import/Export: Berjajar 2 di mobile */}
+          <div className="flex items-center gap-2 flex-1 md:flex-none md:border-r border-slate-200 md:pr-6 md:mr-2">
+            <button 
+              onClick={() => setShowImportModal(true)}
+              className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-slate-50 text-slate-800 rounded-lg hover:bg-emerald-50 hover:text-emerald-600 transition-all border border-slate-200 shadow-sm"
+            >
+              <Upload size={14} />
+              <span className="text-[10px] font-bold uppercase">Import</span>
+            </button>
 
-          <button 
-            onClick={() => setShowExportModal(true)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 text-slate-800 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-200 shadow-sm"
-          >
-            <Download size={14} />
-            <span className="text-[10px] font-bold uppercase">Export</span>
-          </button>
-        </div>
-        
-        <NotificationBell />
-        
-        <div className="hidden md:flex flex-col items-end border-l border-slate-200 pl-4 h-10 justify-center">
-          <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-100">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-            <span className="text-[10px] font-bold uppercase tracking-wide">System Online</span>
+            <button 
+              onClick={() => setShowExportModal(true)}
+              className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-slate-50 text-slate-800 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-200 shadow-sm"
+            >
+              <Download size={14} />
+              <span className="text-[10px] font-bold uppercase">Export</span>
+            </button>
+          </div>
+          
+          {/* Info Jam Desktop */}
+          <div className="hidden md:flex items-center gap-6">
+            <NotificationBell />
+            <div className="text-right border-l border-slate-200 pl-6 flex flex-col justify-center">
+              <p className="text-xl font-mono font-bold text-slate-700 leading-none">{format(time, 'HH:mm:ss')}</p>
+              <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">{format(time, 'dd MMM yyyy', { locale: indonesia })}</p>
+            </div>
           </div>
         </div>
-
-        <div className="text-right border-l border-slate-200 pl-6 h-10 flex flex-col justify-center">
-          <p className="text-xl font-mono font-bold text-slate-700 leading-none">{format(time, 'HH:mm:ss')}</p>
-          <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">{format(time, 'EEEE, dd MMM yyyy', { locale: indonesia })}</p>
-        </div>
       </div>
 
-      {/* MODAL EXPORT */}
+      {/* MODAL EXPORT (Mobile Friendly) */}
       {showExportModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in duration-200">
-            <div className="p-6 border-b border-slate-100 bg-blue-50 flex justify-between items-center">
-              <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                <Download size={18} className="text-blue-600" /> Export Database NOC
+        <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 md:p-4 animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-md rounded-t-2xl md:rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom md:zoom-in duration-300">
+            <div className="p-5 border-b border-slate-100 bg-blue-50 flex justify-between items-center">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2 text-sm">
+                <Download size={18} className="text-blue-600" /> Export Database
               </h3>
-              <button onClick={() => setShowExportModal(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-400"><X size={20} /></button>
+              <button onClick={() => setShowExportModal(false)} className="p-2 hover:bg-slate-200 rounded-full text-slate-400"><X size={20} /></button>
             </div>
             <div className="p-6 space-y-5">
               <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase block mb-2 tracking-widest">Pilih Sumber Data</label>
+                <label className="text-[10px] font-black text-slate-500 uppercase block mb-2 tracking-widest">Pilih Data</label>
                 <select 
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none"
                   onChange={(e) => setExportConfig({...exportConfig, table: e.target.value})}
                   value={exportConfig.table}
                 >
@@ -376,7 +370,7 @@ export default function Header() {
                 </select>
               </div>
               <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase block mb-2 tracking-widest">Pilih Format Output</label>
+                <label className="text-[10px] font-black text-slate-500 uppercase block mb-2 tracking-widest">Pilih Format</label>
                 <div className="grid grid-cols-3 gap-2">
                   {['CSV', 'EXCEL', 'PDF'].map((f) => (
                     <button 
@@ -392,7 +386,7 @@ export default function Header() {
               </div>
               <button 
                 onClick={handleProcessExport}
-                className="w-full py-4 bg-blue-600 text-white rounded-xl font-black text-sm uppercase tracking-widest hover:bg-blue-700 transition shadow-xl shadow-blue-100 flex items-center justify-center gap-2 mt-4"
+                className="w-full py-4 bg-blue-600 text-white rounded-xl font-black text-sm uppercase tracking-widest hover:bg-blue-700 transition shadow-xl shadow-blue-100 flex items-center justify-center gap-2"
               >
                 <Download size={18} /> Eksekusi Export
               </button>
@@ -401,24 +395,24 @@ export default function Header() {
         </div>
       )}
 
-      {/* MODAL IMPORT */}
+      {/* MODAL IMPORT (Mobile Friendly) */}
       {showImportModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in duration-200">
-            <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-              <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                <FileSpreadsheet size={18} className="text-blue-600" /> Import CSV ke Database
+        <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 md:p-4 animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-2xl rounded-t-2xl md:rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom md:zoom-in duration-300">
+            <div className="p-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2 text-sm">
+                <FileSpreadsheet size={18} className="text-blue-600" /> Import CSV
               </h3>
-              <button onClick={() => { setShowImportModal(false); setSelectedTable(''); }} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
+              <button onClick={() => { setShowImportModal(false); setSelectedTable(''); }} className="p-2 hover:bg-slate-100 rounded-full text-slate-400">
                 <X size={20} />
               </button>
             </div>
 
-            <div className="p-6 space-y-6 text-left overflow-y-auto max-h-[80vh]">
+            <div className="p-6 space-y-6 overflow-y-auto max-h-[85vh]">
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase mb-2 block tracking-widest">Pilih Tabel Tujuan</label>
                 <select 
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer"
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none"
                   onChange={(e) => setSelectedTable(e.target.value)}
                   value={selectedTable}
                 >
@@ -430,39 +424,22 @@ export default function Header() {
               {selectedTable && (
                 <div className="space-y-4">
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-                    <div className="flex items-center gap-2 text-amber-800 mb-3">
-                      <Info size={16} />
-                      <span className="text-xs font-bold uppercase">Struktur Header Kolom CSV</span>
+                    <div className="flex items-center gap-2 text-amber-800 mb-2">
+                      <Info size={14} />
+                      <span className="text-[10px] font-bold uppercase">Panduan Header CSV</span>
                     </div>
-                    <div className="overflow-x-auto border border-amber-100 rounded-lg">
-                      <table className="w-full text-[11px] font-mono">
-                        <thead className="bg-amber-100/50 text-amber-700">
-                          <tr>
-                            <th className="px-3 py-2 border-r border-amber-200 text-left">NAMA TABLE DATABASE</th>
-                            <th className="px-3 py-2 text-left text-center">ISI KOLOM (HEADER CSV)</th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white">
-                          <tr>
-                            <td className="px-3 py-4 font-bold border-r border-amber-200 align-top text-slate-800">{selectedTable}</td>
-                            <td className="px-3 py-4">
-                              <div className="flex flex-wrap gap-1.5">
-                                {TABLE_GUIDE[selectedTable].map(h => (
-                                  <span key={h} className="px-2 py-1 bg-slate-100 text-slate-700 rounded border border-slate-200 font-bold uppercase text-[9px]">
-                                    {h}
-                                  </span>
-                                ))}
-                              </div>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
+                    <div className="flex flex-wrap gap-1.5">
+                      {TABLE_GUIDE[selectedTable].map(h => (
+                        <span key={h} className="px-2 py-1 bg-white/50 text-slate-700 rounded border border-amber-200 font-bold uppercase text-[9px]">
+                          {h}
+                        </span>
+                      ))}
                     </div>
                   </div>
 
                   <label className="w-full flex flex-col items-center justify-center py-10 border-2 border-dashed border-blue-200 bg-blue-50/20 rounded-2xl hover:bg-blue-50 cursor-pointer transition-all">
                     <Upload size={32} className="text-blue-500 mb-3 animate-bounce" />
-                    <span className="text-xs font-bold text-slate-600">Klik untuk pilih file CSV</span>
+                    <span className="text-xs font-bold text-slate-600 text-center px-4">Klik untuk pilih file CSV</span>
                     <input 
                       type="file" 
                       accept=".csv" 
