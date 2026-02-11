@@ -47,13 +47,13 @@ export default function VlanPage() {
   const syncToast = toast.loading("Menyelaraskan data ke Spreadsheet...");
   
   try {
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwnTcFZLgV99h8P0rMhFptCCiJtAYTm8rqUtZYPj3FLEhEnkAKEau7iVqqbQjX8V3k-GQ/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwfOmI847h1PFaaO6FBJ52SLCORyOmIalhkVxcb_W0jYI9J31-jAY03CoQzcZ0DZxDP/exec";
     
     // 2. Siapkan Payload (Data yang dikirim)
     const payload = {
-      spreadsheetId: "1d-535dTslbMS9Q6JeqhkObqmLp56HeRpzKPp6KzqAFA",
-      sheetName: selectedTable.table, // Sesuai pilihan di dropdown (contoh: 'Daftar Vlan 1-1000')
-      rows: vlanList // Seluruh data yang sudah di-fetch dari Supabase sebelumnya
+      spreadsheetId: "1kojKLgb04yCirdTfRcb3C_1xqkKs8N68bmzuz0-4-N4",
+      sheetName: selectedTable.table, 
+      rows: vlanList
     };
 
     // 3. Eksekusi Request POST
