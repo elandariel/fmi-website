@@ -63,7 +63,6 @@ export default function BroadcastPage() {
       if (!error) setHistory(data || []);
     } catch (err) {
       console.error("Fetch error:", err);
-      // GANTI ALERT JADI TOAST ERROR
       toast.error("Gagal memuat riwayat broadcast");
     } finally {
       setLoading(false);
@@ -75,13 +74,11 @@ export default function BroadcastPage() {
   // --- 2. HANDLERS ---
   const handleTemplate = (tmpl: any) => {
     setForm({ ...form, type: tmpl.type, title: tmpl.title, message: tmpl.text });
-    // Feedback visual kecil
     toast.info('Template diterapkan', { duration: 2000 });
   };
 
   const handleSave = async () => {
     if (!form.title || !form.message) {
-      // GANTI ALERT JADI TOAST ERROR
       toast.error('Judul dan Pesan wajib diisi!');
       return;
     }
@@ -94,7 +91,7 @@ export default function BroadcastPage() {
       sender: form.sender
     };
 
-    // Loading indicator sederhana saat proses kirim
+    // Loading indicator
     const toastId = toast.loading('Mengirim broadcast...');
 
     const { error } = await supabase.from('Broadcasts').insert([payload]);
@@ -103,11 +100,9 @@ export default function BroadcastPage() {
     toast.dismiss(toastId);
 
     if (error) {
-      // GANTI ALERT JADI TOAST ERROR
       toast.error('Gagal simpan: ' + error.message);
     } else {
       fetchHistory();
-      // GANTI ALERT JADI TOAST SUKSES
       toast.success('Broadcast Terkirim!', {
         description: 'Pesan akan muncul di dashboard semua user.'
       });
@@ -116,7 +111,6 @@ export default function BroadcastPage() {
   };
 
   const handleDelete = async (id: any) => {
-    // Confirm bawaan masih oke untuk delete (safety)
     if(!confirm('Hapus log ini?')) return;
     
     const { error } = await supabase.from('Broadcasts').delete().eq('id', id);
@@ -131,7 +125,6 @@ export default function BroadcastPage() {
   const handleCopy = (title: string, msg: string) => {
     const textToCopy = `*${title}*\n\n${msg}\n\n_Regards,_\n*NOC System*`;
     navigator.clipboard.writeText(textToCopy);
-    // GANTI ALERT JADI TOAST SUKSES
     toast.success('Disalin ke Clipboard!', {
       description: 'Siap paste ke WhatsApp.'
     });
@@ -144,7 +137,6 @@ export default function BroadcastPage() {
         textToCopy = `*${match[1]}*\n\n${match[2]}\n\n_Regards,_\n*NOC System*`;
     }
     navigator.clipboard.writeText(textToCopy);
-    // GANTI ALERT JADI TOAST SUKSES
     toast.success('Teks disalin!');
   }
 

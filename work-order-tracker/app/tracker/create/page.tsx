@@ -1,6 +1,5 @@
 'use client';
 
-// Wajib biar aman dari static generation error
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, Suspense } from 'react'; 
@@ -8,10 +7,9 @@ import { createBrowserClient } from '@supabase/ssr';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   Save, ArrowLeft, Loader2, TrendingUp, 
-  CheckCircle, UserPlus, List 
+  CheckCircle, UserPlus, List, Moon, Sparkles, LayoutGrid, Info
 } from 'lucide-react';
 
-// 1. IMPORT TOAST & LOGGER
 import { toast } from 'sonner';
 import { logActivity } from '@/lib/logger';
 
@@ -23,11 +21,11 @@ const TABLE_OPTIONS = [
   { label: 'Downgrade Layanan', value: 'Downgrade 2026' },
 ];
 
-// --- LOGIKA UTAMA ---
 function CreateTrackerContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const subjectFromWO = searchParams.get('subject') || '';
+  const isRamadhan = true; // SAKLAR TEMA
 
   const [saving, setSaving] = useState(false);
   const [selectedTable, setSelectedTable] = useState(TABLE_OPTIONS[0].value);
@@ -45,7 +43,6 @@ function CreateTrackerContent() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
   );
 
-  // --- FUNGSI HELPER: FORMAT TANGGAL INDONESIA ---
   const formatTanggalIndo = (dateString: string) => {
     if (!dateString) return '';
     const date = new Date(dateString);
@@ -54,7 +51,7 @@ function CreateTrackerContent() {
       day: '2-digit',
       month: 'long',
       year: 'numeric',
-    }); // Hasil: "Selasa, 13 Januari 2026"
+    });
   };
 
   const [formData, setFormData] = useState({
@@ -72,16 +69,13 @@ function CreateTrackerContent() {
   useEffect(() => {
     async function fetchMasterData() {
       const { data, error } = await supabase.from('Index').select('*');
-      
       if (!error && data) {
-        // @ts-ignore
-        const getUnique = (key) => [...new Set(data.map(item => item[key]).filter(x => x))];
-
+        const getUnique = (key: string) => [...new Set(data.map((item: any) => item[key]).filter(x => x))];
         setOptions({
-          bts: getUnique('BTS'),
-          isp: getUnique('ISP'),
-          device: getUnique('DEVICE'),
-          team: getUnique('TEAM')
+          bts: getUnique('BTS') as any,
+          isp: getUnique('ISP') as any,
+          device: getUnique('DEVICE') as any,
+          team: getUnique('TEAM') as any
         });
       }
     }
@@ -98,7 +92,6 @@ function CreateTrackerContent() {
 
   const handleSave = async (e: any) => {
     e.preventDefault();
-    
     if (!formData['SUBJECT BERLANGGANAN']) {
       toast.error('Nama Subject / Pelanggan wajib diisi!');
       return;
@@ -107,35 +100,23 @@ function CreateTrackerContent() {
     setSaving(true);
     const toastId = toast.loading('Menyimpan Data Tracker...');
 
-    // --- 1. PERSIAPAN DATA (MAPPING KOLOM & FORMAT TANGGAL) ---
-    // Gunakan fungsi formatTanggalIndo di sini sebelum masuk payload
     const payload: any = { 
       ...formData,
       'TANGGAL': formatTanggalIndo(formData['TANGGAL']) 
     };
 
     let targetColumnName = 'SUBJECT BERLANGGANAN'; 
-
-    if (selectedTable === 'Berhenti Sementara 2026') {
-        targetColumnName = 'SUBJECT BERHENTI SEMENTARA';
-    } else if (selectedTable === 'Berhenti Berlangganan 2026') {
-        targetColumnName = 'SUBJECT BERHENTI BERLANGGANAN';
-    } else if (selectedTable === 'Downgrade 2026') {
-        targetColumnName = 'SUBJECT DOWNGRADE';
-    } else if (selectedTable === 'Upgrade 2026') {
-        targetColumnName = 'SUBJECT UPGRADE';
-    }
+    if (selectedTable === 'Berhenti Sementara 2026') targetColumnName = 'SUBJECT BERHENTI SEMENTARA';
+    else if (selectedTable === 'Berhenti Berlangganan 2026') targetColumnName = 'SUBJECT BERHENTI BERLANGGANAN';
+    else if (selectedTable === 'Downgrade 2026') targetColumnName = 'SUBJECT DOWNGRADE';
+    else if (selectedTable === 'Upgrade 2026') targetColumnName = 'SUBJECT UPGRADE';
 
     if (targetColumnName !== 'SUBJECT BERLANGGANAN') {
         payload[targetColumnName] = payload['SUBJECT BERLANGGANAN'];
         delete payload['SUBJECT BERLANGGANAN']; 
     }
+    if (selectedTable === 'Berlangganan 2026') delete payload['REASON'];
 
-    if (selectedTable === 'Berlangganan 2026') {
-        delete payload['REASON'];
-    }
-
-    // --- 2. INSERT KE DATABASE ---
     const { error } = await supabase.from(selectedTable).insert([payload]);
 
     if (error) {
@@ -144,7 +125,6 @@ function CreateTrackerContent() {
       return;
     }
 
-    // --- 3. LOG KE TELEGRAM ---
     const { data: { user } } = await supabase.auth.getUser();
     let actorName = 'System';
     if(user) {
@@ -158,7 +138,6 @@ function CreateTrackerContent() {
         actor: actorName
     });
 
-    // --- 4. FLOW LOGIC SETELAH SUKSES ---
     if (selectedTable === 'Berlangganan 2026') {
         toast.success('Tracker Tersimpan!', { id: toastId });
         setSaving(false);
@@ -167,19 +146,12 @@ function CreateTrackerContent() {
     else if (selectedTable.includes('Berhenti')) {
         const newStatus = selectedTable === 'Berhenti Berlangganan 2026' ? 'Dismantle' : 'Isolir';
         const targetName = formData['SUBJECT BERLANGGANAN'];
-        
         const { error: updateError } = await supabase.from('Data Client Corporate')
           .update({ 'STATUS': newStatus })
           .ilike('Nama Pelanggan', `%${targetName}%`); 
 
-        if(updateError) {
-            toast.warning('Tracker tersimpan, tapi gagal update status client otomatis.', { id: toastId });
-        } else {
-            toast.success('Tracker & Status Client Diupdate!', { 
-                id: toastId,
-                description: `Client '${targetName}' kini berstatus ${newStatus}.` 
-            });
-        }
+        if(updateError) toast.warning('Tracker tersimpan, tapi gagal update status client otomatis.', { id: toastId });
+        else toast.success('Tracker & Status Client Diupdate!', { id: toastId });
         
         setTimeout(() => { router.push('/tracker'); router.refresh(); }, 1500);
     } 
@@ -194,32 +166,36 @@ function CreateTrackerContent() {
     router.push(`/clients/create?name=${name}`);
   };
 
-  const goBackList = () => {
-    router.push('/tracker');
-    router.refresh();
-  };
-
   return (
-    <div className="min-h-screen bg-slate-50 p-6 flex justify-center items-start font-sans relative">
-      {/* MODAL SUCCESS */}
+    <div className={`min-h-screen w-full flex justify-center items-start p-4 md:p-10 transition-colors duration-500 ${isRamadhan ? 'bg-[#020c09]' : 'bg-slate-50'}`}>
+      
+      {/* BACKGROUND ELEMENTS */}
+      {isRamadhan && (
+        <div className="fixed inset-0 pointer-events-none opacity-30">
+            <Moon className="absolute top-10 right-10 text-emerald-900" size={200} />
+            <Sparkles className="absolute bottom-20 left-20 text-amber-500 animate-pulse" size={40} />
+        </div>
+      )}
+
+      {/* MODAL SUCCESS (RAMADHAN STYLE) */}
       {showSuccessModal && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200">
-            <div className="p-8 text-center">
-              <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle size={32} />
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="bg-[#041a14] rounded-[3rem] shadow-2xl w-full max-w-md overflow-hidden border border-emerald-800">
+            <div className="p-10 text-center">
+              <div className="w-20 h-20 bg-emerald-500 text-black rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-emerald-500/20">
+                <CheckCircle size={40} strokeWidth={3} />
               </div>
-              <h2 className="text-xl font-bold text-slate-800">Pelanggan Baru Dicatat!</h2>
-              <p className="text-slate-500 mt-2 text-sm leading-relaxed">
-                Tracker berhasil disimpan. Apakah Anda ingin lanjut mendaftarkan data teknis <strong>{formData['SUBJECT BERLANGGANAN']}</strong> ke Database Client?
+              <h2 className="text-2xl font-black text-emerald-50 uppercase tracking-tighter">Data Tercatat!</h2>
+              <p className="text-emerald-700 mt-4 text-xs font-bold uppercase tracking-widest leading-relaxed">
+                Tracker berhasil disimpan. Ingin lanjut mendaftarkan data teknis <strong>{formData['SUBJECT BERLANGGANAN']}</strong> ke Database Client?
               </p>
             </div>
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex flex-col gap-3">
-              <button onClick={goToClientInput} className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition flex justify-center items-center gap-2">
-                <UserPlus size={18} /> Ya, Input Data Client
+            <div className="p-6 bg-emerald-950/20 flex flex-col gap-3">
+              <button onClick={goToClientInput} className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-black rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all shadow-lg active:scale-95">
+                <UserPlus size={16} /> Ya, Input Data Client
               </button>
-              <button onClick={goBackList} className="w-full py-3 bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 rounded-xl font-bold transition flex justify-center items-center gap-2">
-                <List size={18} /> Tidak, Kembali ke List
+              <button onClick={() => router.push('/tracker')} className="w-full py-4 bg-transparent border border-emerald-800 text-emerald-500 hover:bg-emerald-950 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all">
+                <List size={16} /> Tidak, Kembali ke List
               </button>
             </div>
           </div>
@@ -227,107 +203,128 @@ function CreateTrackerContent() {
       )}
 
       {/* FORM UTAMA */}
-      <div className="w-full max-w-3xl bg-white rounded-xl shadow-lg border border-slate-200 p-8">
-        <div className="flex items-center gap-4 mb-8 border-b pb-6">
-          <button onClick={() => router.back()} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500">
+      <div className={`w-full max-w-3xl relative z-10 rounded-[3rem] border shadow-2xl p-8 md:p-12 transition-all duration-500 ${isRamadhan ? 'bg-[#041a14] border-emerald-800/50 shadow-black' : 'bg-white'}`}>
+        
+        {/* HEADER */}
+        <div className="flex flex-col md:flex-row items-center gap-6 mb-12 pb-8 border-b border-emerald-900/30">
+          <button 
+            onClick={() => router.back()} 
+            className={`p-4 rounded-2xl transition-all active:scale-90 ${isRamadhan ? 'bg-emerald-950 text-emerald-500 hover:text-amber-500' : 'bg-slate-100 text-slate-500'}`}
+          >
             <ArrowLeft size={24} />
           </button>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-              <TrendingUp className="text-emerald-600" /> Input Tracker Pelanggan
+          <div className="text-center md:text-left">
+            <div className="flex items-center justify-center md:justify-start gap-2 mb-1">
+                <Sparkles className="text-amber-500" size={14} />
+                <p className={`text-[10px] font-black uppercase tracking-[0.3em] ${isRamadhan ? 'text-emerald-500' : 'text-blue-600'}`}>New Entry System</p>
+            </div>
+            <h1 className={`text-3xl font-black uppercase tracking-tighter ${isRamadhan ? 'text-emerald-50' : 'text-slate-800'}`}>
+              Input <span className={isRamadhan ? 'text-emerald-500' : 'text-slate-400'}>Tracker</span>
             </h1>
-            <p className="text-sm text-slate-500">Pilih kategori</p>
           </div>
         </div>
 
-        <form onSubmit={handleSave} className="space-y-6">
-          <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-6">
-            <label className="block text-sm font-bold text-blue-800 mb-2">Pilih Kategori Transaksi</label>
-            <select 
-              value={selectedTable} 
-              onChange={(e) => setSelectedTable(e.target.value)}
-              className="w-full p-3 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-blue-900 font-bold bg-white"
-            >
-              {TABLE_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-            </select>
+        <form onSubmit={handleSave} className="space-y-8">
+          
+          {/* CATEGORY SELECTOR */}
+          <div className={`p-6 rounded-[2rem] border transition-all ${isRamadhan ? 'bg-[#020c09] border-emerald-800 shadow-inner' : 'bg-blue-50 border-blue-100'}`}>
+            <label className={`block text-[10px] font-black uppercase tracking-widest mb-4 ${isRamadhan ? 'text-emerald-700' : 'text-blue-800'}`}>Pilih Kategori Transaksi</label>
+            <div className="relative">
+                <LayoutGrid className="absolute left-4 top-3.5 text-emerald-600" size={18} />
+                <select 
+                value={selectedTable} 
+                onChange={(e) => setSelectedTable(e.target.value)}
+                className={`w-full pl-12 pr-6 py-4 rounded-xl border appearance-none outline-none text-xs font-black uppercase tracking-widest transition-all ${
+                    isRamadhan ? 'bg-[#041a14] border-emerald-800 text-emerald-400 focus:border-amber-500' : 'bg-white border-blue-300'
+                }`}
+                >
+                {TABLE_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                </select>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">Tanggal</label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-2">
+              <label className={`text-[10px] font-black uppercase tracking-widest ml-2 ${isRamadhan ? 'text-emerald-800' : 'text-slate-700'}`}>Tanggal Eksekusi</label>
               <input type="date" name="TANGGAL" value={formData['TANGGAL']} onChange={handleChange}
-                className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-700" />
+                className={`w-full p-4 rounded-2xl border text-xs font-bold outline-none transition-all ${isRamadhan ? 'bg-[#020c09] border-emerald-800 text-emerald-50 focus:border-emerald-500' : 'bg-white'}`} />
             </div>
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">Status</label>
+            <div className="space-y-2">
+              <label className={`text-[10px] font-black uppercase tracking-widest ml-2 ${isRamadhan ? 'text-emerald-800' : 'text-slate-700'}`}>Status WO</label>
               <input type="text" name="STATUS" value={formData['STATUS']} onChange={handleChange}
-                className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-700 bg-slate-50" />
+                className={`w-full p-4 rounded-2xl border text-xs font-bold outline-none transition-all ${isRamadhan ? 'bg-[#020c09]/50 border-emerald-800 text-emerald-600 cursor-not-allowed' : 'bg-slate-50'}`} readOnly />
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-1">Subject / Nama Pelanggan <span className="text-red-500">*</span></label>
-            <input type="text" name="SUBJECT BERLANGGANAN" value={formData['SUBJECT BERLANGGANAN']} onChange={handleChange} placeholder="Nama Customer / PT"
-              className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-700 font-medium" />
+          <div className="space-y-2">
+            <label className={`text-[10px] font-black uppercase tracking-widest ml-2 ${isRamadhan ? 'text-emerald-800' : 'text-slate-700'}`}>
+                Subject / Nama Pelanggan <span className="text-amber-500">*</span>
+            </label>
+            <input type="text" name="SUBJECT BERLANGGANAN" value={formData['SUBJECT BERLANGGANAN']} onChange={handleChange} placeholder="INPUT NAMA PT / CUSTOMER..."
+              className={`w-full p-4 rounded-2xl border text-xs font-black uppercase tracking-widest outline-none transition-all ${isRamadhan ? 'bg-[#020c09] border-emerald-800 text-emerald-50 focus:border-emerald-500 placeholder:text-emerald-950' : 'bg-white'}`} />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">BTS</label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-2">
+              <label className={`text-[10px] font-black uppercase tracking-widest ml-2 ${isRamadhan ? 'text-emerald-800' : 'text-slate-700'}`}>Base Transceiver (BTS)</label>
               <select name="BTS" value={formData['BTS']} onChange={handleChange} 
-                className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-700">
-                <option value="">- Pilih BTS -</option>
+                className={`w-full p-4 rounded-2xl border text-xs font-bold outline-none appearance-none ${isRamadhan ? 'bg-[#020c09] border-emerald-800 text-emerald-50' : 'bg-white'}`}>
+                <option value="">- PILIH AREA -</option>
                 {options.bts.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">ISP</label>
+            <div className="space-y-2">
+              <label className={`text-[10px] font-black uppercase tracking-widest ml-2 ${isRamadhan ? 'text-emerald-800' : 'text-slate-700'}`}>Service Provider (ISP)</label>
               <select name="ISP" value={formData['ISP']} onChange={handleChange} 
-                className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-700">
-                <option value="">- Pilih ISP -</option>
+                className={`w-full p-4 rounded-2xl border text-xs font-bold outline-none appearance-none ${isRamadhan ? 'bg-[#020c09] border-emerald-800 text-emerald-50' : 'bg-white'}`}>
+                <option value="">- PILIH ISP -</option>
                 {options.isp.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
               </select>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">Device / Perangkat</label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-2">
+              <label className={`text-[10px] font-black uppercase tracking-widest ml-2 ${isRamadhan ? 'text-emerald-800' : 'text-slate-700'}`}>Perangkat Utama</label>
               <select name="DEVICE" value={formData['DEVICE']} onChange={handleChange} 
-                className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-700">
-                <option value="">- Pilih Device -</option>
+                className={`w-full p-4 rounded-2xl border text-xs font-bold outline-none appearance-none ${isRamadhan ? 'bg-[#020c09] border-emerald-800 text-emerald-50' : 'bg-white'}`}>
+                <option value="">- PILIH PERANGKAT -</option>
                 {options.device.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">Team Pelaksana</label>
+            <div className="space-y-2">
+              <label className={`text-[10px] font-black uppercase tracking-widest ml-2 ${isRamadhan ? 'text-emerald-800' : 'text-slate-700'}`}>Team Lapangan</label>
               <select name="TEAM" value={formData['TEAM']} onChange={handleChange} 
-                className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-700">
-                <option value="">- Pilih Team -</option>
+                className={`w-full p-4 rounded-2xl border text-xs font-bold outline-none appearance-none ${isRamadhan ? 'bg-[#020c09] border-emerald-800 text-emerald-50' : 'bg-white'}`}>
+                <option value="">- PILIH TEAM -</option>
                 {options.team.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
               </select>
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-1">Problem / Catatan</label>
-            <textarea name="PROBLEM" rows={2} value={formData['PROBLEM']} onChange={handleChange}
-              className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-700"></textarea>
+          <div className="space-y-2">
+            <label className={`text-[10px] font-black uppercase tracking-widest ml-2 ${isRamadhan ? 'text-emerald-800' : 'text-slate-700'}`}>Catatan Teknis / Problem</label>
+            <textarea name="PROBLEM" rows={3} value={formData['PROBLEM']} onChange={handleChange}
+              className={`w-full p-4 rounded-2xl border text-xs font-bold outline-none transition-all ${isRamadhan ? 'bg-[#020c09] border-emerald-800 text-emerald-50 focus:border-emerald-500' : 'bg-white'}`}></textarea>
           </div>
 
           {selectedTable !== 'Berlangganan 2026' && (
-              <div className="bg-red-50 p-4 rounded-lg border border-red-100">
-                <label className="block text-sm font-bold text-red-700 mb-1">Alasan (Reason)</label>
-                <textarea name="REASON" rows={2} value={formData['REASON']} onChange={handleChange} placeholder="Kenapa berhenti/downgrade?"
-                  className="w-full p-2.5 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-500 outline-none text-slate-700"></textarea>
+              <div className={`p-6 rounded-[2rem] border animate-in slide-in-from-top-4 duration-300 ${isRamadhan ? 'bg-amber-950/10 border-amber-900/50 shadow-lg' : 'bg-red-50 border-red-100'}`}>
+                <label className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-widest mb-4 ${isRamadhan ? 'text-amber-500' : 'text-red-700'}`}>
+                    <Info size={14} /> Alasan Perubahan (Reason)
+                </label>
+                <textarea name="REASON" rows={2} value={formData['REASON']} onChange={handleChange} placeholder="JELASKAN ALASAN DISINI..."
+                  className={`w-full p-4 rounded-2xl border text-xs font-bold outline-none transition-all ${isRamadhan ? 'bg-[#020c09] border-amber-900 text-amber-50 focus:border-amber-500 placeholder:text-amber-900/30' : 'bg-white border-red-200'}`}></textarea>
               </div>
           )}
 
-          <div className="pt-4 border-t border-slate-100">
+          <div className="pt-10 border-t border-emerald-900/30">
             <button type="submit" disabled={saving}
-              className="w-full bg-emerald-600 text-white py-3 rounded-lg font-bold hover:bg-emerald-700 transition flex justify-center items-center gap-2 shadow-lg disabled:bg-slate-300">
+              className={`w-full py-5 rounded-[2rem] font-black text-[11px] uppercase tracking-[0.3em] transition-all flex justify-center items-center gap-3 shadow-2xl active:scale-95 disabled:grayscale disabled:cursor-not-allowed ${
+                isRamadhan ? 'bg-emerald-500 text-black hover:bg-emerald-400 shadow-emerald-500/20' : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}>
               {saving ? <Loader2 className="animate-spin" /> : <Save size={20} />}
-              {saving ? 'Menyimpan...' : 'Simpan Tracker'}
+              {saving ? 'PROSES SINKRONISASI...' : 'KIRIM DATA TRACKER'}
             </button>
           </div>
         </form>
@@ -336,13 +333,10 @@ function CreateTrackerContent() {
   );
 }
 
-// --- PEMBUNGKUS EXPORT DEFAULT ---
 export default function CreateTrackerPage() {
   return (
-    <div className="min-h-screen bg-slate-50 p-6 flex justify-center items-start font-sans">
-      <Suspense fallback={<div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-emerald-600" /></div>}>
-        <CreateTrackerContent />
-      </Suspense>
-    </div>
+    <Suspense fallback={<div className="flex h-screen items-center justify-center bg-[#020c09]"><Loader2 className="animate-spin text-emerald-500" /></div>}>
+      <CreateTrackerContent />
+    </Suspense>
   );
 }

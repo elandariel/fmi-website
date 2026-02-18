@@ -2,23 +2,24 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
+
+// PERBAIKAN: Memasukkan semua ikon yang digunakan agar tidak Error
 import { 
   Save, ArrowLeft, Loader2, ClipboardList, 
-  CheckCircle, TrendingUp, List 
-} from 'lucide-react'; // Tambah icon yang dibutuhkan modal
+  CheckCircle, TrendingUp, List, Star, Moon, Calendar, Zap, AlertCircle, Users, Activity
+} from 'lucide-react';
 
 import { toast } from 'sonner';
 import { logActivity } from '@/lib/logger';
 
 export default function CreateWOPage() {
+  const isRamadhan = true; // SAKLAR TEMA
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [teamList, setTeamList] = useState<any[]>([]); 
-  
-  // STATE BARU: Untuk kontrol Modal Custom
   const [showSolvedModal, setShowSolvedModal] = useState(false);
 
   const supabase = createBrowserClient(
@@ -63,7 +64,7 @@ export default function CreateWOPage() {
       }
     }
     fetchTeams();
-  }, []);
+  }, [supabase]);
 
   const handleChange = (e: any) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -71,14 +72,13 @@ export default function CreateWOPage() {
 
   const handleSave = async (e: any) => {
     e.preventDefault();
-    
     if (!formData['SUBJECT WO']) {
       toast.error('Subject WO wajib diisi!');
       return;
     }
 
     setSaving(true);
-    const toastId = toast.loading('Menyimpan Work Order...');
+    const toastId = toast.loading('Memproses penyimpanan data...');
 
     const payload = {
       ...formData,
@@ -94,7 +94,6 @@ export default function CreateWOPage() {
       toast.error('Gagal menyimpan: ' + error.message, { id: toastId });
       setSaving(false);
     } else {
-      
       const { data: { user } } = await supabase.auth.getUser();
       let actorName = 'System';
       if(user) {
@@ -108,24 +107,19 @@ export default function CreateWOPage() {
           actor: actorName
       });
 
-      // Hapus toast loading agar tidak numpuk
       toast.dismiss(toastId);
 
-      // --- LOGIC BARU DENGAN MODAL ---
       if (formData['STATUS'] === 'SOLVED') {
-        // Jika status SOLVED, jangan redirect dulu. Tampilkan Modal.
-        setSaving(false); // Stop loading di tombol
+        setSaving(false);
         setShowSolvedModal(true); 
       } else {
-        // Jika status PROGRESS/PENDING, langsung redirect biasa
-        toast.success('Work Order Disimpan!');
+        toast.success('Work Order Berhasil Disimpan!');
         router.push('/work-orders');
         router.refresh();
       }
     }
   };
 
-  // --- ACTIONS DARI MODAL ---
   const handleGoToTracker = () => {
     const subject = encodeURIComponent(formData['SUBJECT WO']);
     router.push(`/tracker/create?subject=${subject}`);
@@ -137,34 +131,35 @@ export default function CreateWOPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 flex justify-center items-start font-sans relative">
+    <div className={`min-h-screen p-6 flex justify-center items-start font-sans relative transition-colors duration-500 ${isRamadhan ? 'bg-[#020c09]' : 'bg-slate-50'}`}>
       
-      {/* --- CUSTOM MODAL (Pengganti Confirm) --- */}
+      {/* ORNAMEN BACKGROUND */}
+      {isRamadhan && (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <Moon className="absolute top-10 right-10 text-emerald-900/10" size={300} />
+          <Star className="absolute bottom-20 left-10 text-amber-500/5 animate-pulse" size={150} />
+        </div>
+      )}
+
+      {/* MODAL SOLVED - TETAP ADA */}
       {showSolvedModal && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 scale-100 animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-[#020c09]/80 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-[#041a14] rounded-[2.5rem] shadow-[0_0_50px_rgba(16,185,129,0.1)] w-full max-w-md overflow-hidden border border-emerald-800 scale-100 animate-in zoom-in-95 duration-300">
             <div className="p-8 text-center">
-              <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
-                <CheckCircle size={32} />
+              <div className="w-20 h-20 bg-emerald-500/10 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-6 border border-emerald-500/20">
+                <CheckCircle size={40} strokeWidth={2.5} />
               </div>
-              <h2 className="text-xl font-bold text-slate-800">Work Order Solved!</h2>
-              <p className="text-slate-500 mt-2 text-sm leading-relaxed">
-                Data berhasil disimpan. Apakah Anda ingin lanjut memasukkan data ini ke <strong>Tracker Pelanggan</strong>?
+              <h2 className="text-2xl font-black text-emerald-50 tracking-tighter uppercase mb-2">Work Order Solved!</h2>
+              <p className="text-emerald-700 font-medium text-sm leading-relaxed px-4">
+                Data berhasil diamankan. Apakah Anda ingin lanjut menginput data ini ke <span className="text-amber-500">Tracker Pelanggan</span>?
               </p>
             </div>
             
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex flex-col gap-3">
-              <button 
-                onClick={handleGoToTracker}
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition shadow-lg shadow-emerald-500/20 flex justify-center items-center gap-2"
-              >
+            <div className="p-6 bg-emerald-950/20 border-t border-emerald-800/50 flex flex-col gap-3">
+              <button onClick={handleGoToTracker} className="w-full py-4 bg-amber-500 hover:bg-amber-400 text-black rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all flex justify-center items-center gap-2 active:scale-95">
                 <TrendingUp size={18} /> Ya, Input ke Tracker
               </button>
-              
-              <button 
-                onClick={handleBackToList}
-                className="w-full py-3 bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 rounded-xl font-bold transition flex justify-center items-center gap-2"
-              >
+              <button onClick={handleBackToList} className="w-full py-4 bg-transparent border border-emerald-800 text-emerald-500 hover:bg-emerald-900/30 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all flex justify-center items-center gap-2 active:scale-95">
                 <List size={18} /> Tidak, Kembali ke List
               </button>
             </div>
@@ -172,41 +167,34 @@ export default function CreateWOPage() {
         </div>
       )}
 
-      {/* FORM UTAMA */}
-      <div className="w-full max-w-3xl bg-white rounded-xl shadow-lg border border-slate-200 p-8">
+      {/* CONTAINER FORM UTAMA */}
+      <div className={`w-full max-w-3xl rounded-[2.5rem] shadow-2xl border transition-all duration-500 z-10 ${isRamadhan ? 'bg-[#041a14] border-emerald-800/50 shadow-black/40' : 'bg-white border-slate-200'}`}>
         
-        <div className="flex items-center gap-4 mb-8 border-b pb-6">
-          <button onClick={() => router.back()} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500">
-            <ArrowLeft size={24} />
+        <div className={`p-8 border-b flex items-center gap-6 ${isRamadhan ? 'border-emerald-800/50 bg-emerald-950/20' : 'border-slate-100'}`}>
+          <button onClick={() => router.back()} className={`p-3 rounded-2xl transition-all ${isRamadhan ? 'bg-[#020c09] text-emerald-500 border border-emerald-800 hover:border-amber-500' : 'hover:bg-slate-100 text-slate-500'}`}>
+            <ArrowLeft size={20} strokeWidth={3} />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-              <ClipboardList className="text-blue-600" /> Buat Work Order Baru
+            <h1 className={`text-2xl font-black uppercase tracking-tighter flex items-center gap-3 ${isRamadhan ? 'text-emerald-50' : 'text-slate-800'}`}>
+              <Zap className={isRamadhan ? 'text-amber-500' : 'text-blue-600'} size={24} /> Create <span className={isRamadhan ? 'text-emerald-500' : ''}>Work Order</span>
             </h1>
-            <p className="text-sm text-slate-500">Input WO</p>
+            <p className={`text-[10px] font-bold uppercase tracking-[0.2em] mt-1 ${isRamadhan ? 'text-emerald-700' : 'text-slate-500'}`}>Sistem Manajemen Laporan NOC</p>
           </div>
         </div>
 
-        <form onSubmit={handleSave} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">Tanggal</label>
-              <input 
-                type="date" 
-                name="TANGGAL" 
-                value={formData['TANGGAL']} 
-                onChange={handleChange}
-                className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-700" 
-              />
+        <form onSubmit={handleSave} className="p-8 space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className={`text-[10px] font-black uppercase tracking-widest ml-1 flex items-center gap-2 ${isRamadhan ? 'text-emerald-600' : 'text-slate-500'}`}>
+                <Calendar size={12}/> Tanggal
+              </label>
+              <input type="date" name="TANGGAL" value={formData['TANGGAL']} onChange={handleChange} className={`w-full p-4 rounded-2xl text-sm font-bold outline-none border transition-all ${isRamadhan ? 'bg-[#020c09] border-emerald-800 text-emerald-50 focus:border-amber-500' : 'border-slate-300 text-slate-700'}`} />
             </div>
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">Status</label>
-              <select 
-                name="STATUS" 
-                value={formData['STATUS']} 
-                onChange={handleChange}
-                className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-700 bg-white"
-              >
+            <div className="space-y-2">
+              <label className={`text-[10px] font-black uppercase tracking-widest ml-1 flex items-center gap-2 ${isRamadhan ? 'text-emerald-600' : 'text-slate-500'}`}>
+                <Activity size={12}/> Status
+              </label>
+              <select name="STATUS" value={formData['STATUS']} onChange={handleChange} className={`w-full p-4 rounded-2xl text-sm font-bold outline-none border transition-all ${isRamadhan ? 'bg-[#020c09] border-emerald-800 text-emerald-50 focus:border-amber-500' : 'border-slate-300 bg-white'}`}>
                 <option value="PROGRESS">PROGRESS</option>
                 <option value="PENDING">PENDING</option>
                 <option value="SOLVED">SOLVED</option>
@@ -215,42 +203,27 @@ export default function CreateWOPage() {
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-1">Subject WO <span className="text-red-500">*</span></label>
-            <input 
-              type="text" 
-              name="SUBJECT WO" 
-              value={formData['SUBJECT WO']} 
-              onChange={handleChange} 
-              placeholder="Judul Pekerjaan"
-              className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-700 font-medium" 
-            />
+          <div className="space-y-2">
+            <label className={`text-[10px] font-black uppercase tracking-widest ml-1 flex items-center gap-2 ${isRamadhan ? 'text-emerald-600' : 'text-slate-500'}`}>
+              Subject WO <AlertCircle size={12} className="text-amber-500" />
+            </label>
+            <input type="text" name="SUBJECT WO" value={formData['SUBJECT WO']} onChange={handleChange} placeholder="Judul Pekerjaan..." className={`w-full p-4 rounded-2xl text-sm font-bold outline-none border transition-all ${isRamadhan ? 'bg-[#020c09] border-emerald-800 text-emerald-50 placeholder:text-emerald-950 focus:border-amber-500' : 'border-slate-300'}`} />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">Jenis WO</label>
-              <select 
-                name="JENIS WO" 
-                value={formData['JENIS WO']} 
-                onChange={handleChange}
-                className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-700 bg-white"
-              >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+             <div className="space-y-2">
+              <label className={`text-[10px] font-black uppercase tracking-widest ml-1 ${isRamadhan ? 'text-emerald-600' : 'text-slate-500'}`}>Jenis WO</label>
+              <select name="JENIS WO" value={formData['JENIS WO']} onChange={handleChange} className={`w-full p-4 rounded-2xl text-sm font-bold outline-none border transition-all ${isRamadhan ? 'bg-[#020c09] border-emerald-800 text-emerald-50 focus:border-amber-500' : 'border-slate-300 bg-white'}`}>
                 <option value="PERMANEN">PERMANEN</option>
                 <option value="SEMENTARA">SEMENTARA</option>
                 <option value="BOD">BOD</option>
               </select>
             </div>
-             
-             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">Nama Team</label>
-              <select 
-                name="NAMA TEAM" 
-                value={formData['NAMA TEAM']} 
-                onChange={handleChange}
-                className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-700 bg-white"
-              >
-                {teamList.length === 0 && <option value="">Loading teams...</option>}
+             <div className="space-y-2">
+              <label className={`text-[10px] font-black uppercase tracking-widest ml-1 flex items-center gap-2 ${isRamadhan ? 'text-emerald-600' : 'text-slate-500'}`}>
+                <Users size={12}/> Team Pelaksana
+              </label>
+              <select name="NAMA TEAM" value={formData['NAMA TEAM']} onChange={handleChange} className={`w-full p-4 rounded-2xl text-sm font-bold outline-none border transition-all ${isRamadhan ? 'bg-[#020c09] border-emerald-800 text-emerald-50 focus:border-amber-500' : 'border-slate-300 bg-white'}`}>
                 {teamList.map((team, index) => (
                   <option key={index} value={team}>{team}</option>
                 ))}
@@ -258,36 +231,14 @@ export default function CreateWOPage() {
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-1">Keterangan / Detail</label>
-            <textarea 
-              name="KETERANGAN" 
-              rows={3}
-              value={formData['KETERANGAN']} 
-              onChange={handleChange}
-              className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-700" 
-              placeholder="Deskripsi pekerjaan..."
-            ></textarea>
+          <div className="space-y-2">
+            <label className={`text-[10px] font-black uppercase tracking-widest ml-1 ${isRamadhan ? 'text-emerald-600' : 'text-slate-500'}`}>Keterangan</label>
+            <textarea name="KETERANGAN" rows={4} value={formData['KETERANGAN']} onChange={handleChange} placeholder="Deskripsi detail..." className={`w-full p-4 rounded-2xl text-sm font-bold outline-none border transition-all resize-none ${isRamadhan ? 'bg-[#020c09] border-emerald-800 text-emerald-50 placeholder:text-emerald-950 focus:border-amber-500' : 'border-slate-300'}`} />
           </div>
 
-           <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">Waktu Selesai (Jika Closed)</label>
-              <input 
-                type="date"
-                name="SELESAI ACTION" 
-                value={formData['SELESAI ACTION']} 
-                onChange={handleChange} 
-                className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-700" 
-              />
-            </div>
-
-          <div className="pt-4 border-t border-slate-100">
-            <button 
-              type="submit" 
-              disabled={saving}
-              className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition flex justify-center items-center gap-2 shadow-lg disabled:bg-slate-300"
-            >
-              {saving ? <Loader2 className="animate-spin" /> : <Save size={20} />}
+          <div className="pt-6">
+            <button type="submit" disabled={saving} className={`w-full py-5 rounded-[1.5rem] font-black text-[10px] uppercase tracking-[0.3em] transition-all flex justify-center items-center gap-3 shadow-2xl active:scale-95 disabled:opacity-50 ${isRamadhan ? 'bg-emerald-500 text-black hover:bg-emerald-400 shadow-emerald-900/40' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
+              {saving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} strokeWidth={3} />}
               {saving ? 'Menyimpan...' : 'Simpan Work Order'}
             </button>
           </div>

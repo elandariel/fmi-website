@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
-import { Lock, Mail, Eye, EyeOff, Loader2, Globe } from 'lucide-react';
-import { toast } from 'sonner'; // 1. IMPORT TOAST
+import { Lock, Mail, Eye, EyeOff, Loader2, Moon, Sparkles, Stars } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -22,8 +22,7 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
 
-    // 2. TOAST LOADING
-    const toastId = toast.loading('Memverifikasi akun...');
+    const toastId = toast.loading('Memverifikasi akun di malam yang berkah...');
 
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -32,16 +31,14 @@ export default function LoginPage() {
 
     if (error) {
       setLoading(false);
-      // 3. TOAST ERROR (Gantikan div merah)
       toast.error('Login Gagal!', {
-        id: toastId, // Ganti loading jadi error
+        id: toastId,
         description: error.message === 'Invalid login credentials' ? 'Email atau Password salah.' : error.message
       });
     } else {
-      // 4. TOAST SUCCESS
-      toast.success('Login Berhasil', {
+      toast.success('Selamat Datang!', {
         id: toastId,
-        description: 'Selamat datang kembali di Dashboard NOC.'
+        description: 'Berhasil masuk ke Dashboard NOC.'
       });
       router.push('/');
       router.refresh();
@@ -49,66 +46,76 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0f172a] flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Dekorasi Background Ornamen */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/20 rounded-full blur-[120px]" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-600/20 rounded-full blur-[120px]" />
+    <div className="min-h-screen bg-[#020c09] flex items-center justify-center p-4 relative overflow-hidden font-sans">
+      {/* Background Decor - Ramadhan Vibes */}
+      <div className="absolute top-[-10%] right-[-5%] opacity-10 pointer-events-none">
+        <Moon size={400} className="text-emerald-500 rotate-12" />
+      </div>
+      <div className="absolute bottom-[-5%] left-[-5%] opacity-10 pointer-events-none rotate-180">
+        <Sparkles size={300} className="text-emerald-500" />
+      </div>
 
       <div className="w-full max-w-md z-10">
-        {/* Logo / Brand Section */}
-        <div className="text-center mb-6 mt-4">
-        <div className="flex justify-center mb-0">
-          <div className="relative group">
-            <img 
-              src="/FMI.png" 
-              alt="Logo Fibermedia Indonesia" 
-              className="h-15 w-auto object-contain drop-shadow-[0_0_15px_rgba(59,130,246,0.5)] transition-transform duration-500 group-hover:scale-105"
-            />
+        {/* Logo & Header */}
+        <div className="text-center mb-10">
+          <div className="flex justify-center mb-6">
+            <div className="relative group">
+              <div className="absolute -inset-1 bg-emerald-500 rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
+              <img 
+                src="/FMI.png" 
+                alt="Logo" 
+                className="relative h-16 w-auto object-contain drop-shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+              />
+            </div>
           </div>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-[0.3em] mb-4">
+             <Stars size={12}/> Ramadhan Edition
+          </div>
+          <h1 className="text-3xl font-black text-white tracking-tighter uppercase italic">
+            NOC <span className="text-emerald-500">GATEWAY</span>
+          </h1>
+          <div className="w-24 h-1 bg-gradient-to-r from-transparent via-emerald-500 to-transparent mx-auto mt-2 opacity-50"></div>
         </div>
-            <h1 className="text-3xl font-black text-white tracking-tight">Network Operating Center</h1>
-            <p className="text-slate-400 mt-2 text-sm uppercase tracking-widest font-semibold">============================================</p>
-          </div>
 
         {/* Card Login */}
-        <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-8 rounded-3xl shadow-2xl">
-          <form onSubmit={handleLogin} className="space-y-6">
+        <div className="bg-[#041a14]/80 backdrop-blur-2xl border border-emerald-500/20 p-8 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+          <form onSubmit={handleLogin} className="space-y-5">
             
             {/* Input Email */}
-            <div>
-              <label className="block text-sm font-bold text-slate-300 mb-2 ml-1">Email Address</label>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-emerald-700 uppercase ml-1 tracking-[0.2em] italic">Access Key (Email)</label>
               <div className="relative group">
-                <Mail className="absolute left-3 top-3.5 text-slate-400 group-focus-within:text-blue-400 transition-colors" size={20} />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-900 group-focus-within:text-emerald-400 transition-colors" size={18} />
                 <input
                   type="email"
-                  placeholder="name@company.com"
+                  placeholder="operator@fmi.id"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full pl-11 pr-4 py-3 bg-white text-slate-900 rounded-xl border-0 ring-1 ring-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder:text-slate-400"
+                  className="w-full pl-12 pr-4 py-4 bg-[#020c09] text-emerald-100 rounded-2xl border border-emerald-900/50 focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/10 outline-none transition-all placeholder:text-emerald-900 font-bold text-sm"
                 />
               </div>
             </div>
 
             {/* Input Password */}
-            <div>
-              <label className="block text-sm font-bold text-slate-300 mb-2 ml-1">Password</label>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-emerald-700 uppercase ml-1 tracking-[0.2em] italic">Secret Token (Password)</label>
               <div className="relative group">
-                <Lock className="absolute left-3 top-3.5 text-slate-400 group-focus-within:text-blue-400 transition-colors" size={20} />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-900 group-focus-within:text-emerald-400 transition-colors" size={18} />
                 <input
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full pl-11 pr-12 py-3 bg-white text-slate-900 rounded-xl border-0 ring-1 ring-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder:text-slate-400"
+                  className="w-full pl-12 pr-12 py-4 bg-[#020c09] text-emerald-100 rounded-2xl border border-emerald-900/50 focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/10 outline-none transition-all placeholder:text-emerald-900 font-bold text-sm"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-emerald-900 hover:text-emerald-400 transition-colors"
                 >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
@@ -117,24 +124,29 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-4 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 text-white rounded-xl font-bold shadow-lg shadow-blue-500/30 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
+              className="w-full py-5 bg-emerald-500 hover:bg-emerald-400 disabled:bg-emerald-900 disabled:opacity-50 text-[#020c09] rounded-2xl font-black text-xs tracking-[0.2em] uppercase shadow-[0_10px_20px_rgba(16,185,129,0.2)] transition-all flex items-center justify-center gap-3 active:scale-[0.97] mt-8"
             >
               {loading ? (
                 <>
-                  <Loader2 className="animate-spin" size={20} />
-                  Mencoba Masuk...
+                  <Loader2 className="animate-spin" size={18} />
+                  MEMVERIFIKASI...
                 </>
               ) : (
-                'SIGN IN'
+                <>MASUK KE SISTEM</>
               )}
             </button>
           </form>
         </div>
 
         {/* Footer */}
-        <p className="text-center text-slate-500 text-xs mt-8 font-medium">
-          &copy; 2026 Fiber Media Indonesia. All rights reserved.
-        </p>
+        <div className="text-center mt-10">
+            <p className="text-emerald-900 text-[10px] font-black uppercase tracking-[0.3em] italic">
+              &copy; 2026 FIBER MEDIA INDONESIA
+            </p>
+            <p className="text-emerald-950 text-[9px] mt-1 font-bold">
+              Operational Intelligence & Security
+            </p>
+        </div>
       </div>
     </div>
   );

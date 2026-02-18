@@ -5,13 +5,14 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect, Suspense } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useRouter, useParams } from 'next/navigation';
-import { Save, ArrowLeft, Loader2, UserCog, Trash2 } from 'lucide-react';
+import { Save, ArrowLeft, Loader2, UserCog, Trash2, Database, Zap, Moon, Star } from 'lucide-react';
 import { logActivity } from '@/lib/logger';
 
-// --- 1. IMPORT TOAST (SONNER) ---
+// --- IMPORT TOAST (SONNER) ---
 import { toast } from 'sonner';
 
 function EditClientContent() {
+  const isRamadhan = true; // SAKLAR TEMA
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
@@ -19,13 +20,11 @@ function EditClientContent() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Setup Supabase
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL || '',
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
   );
 
-  // State Form
   const [formData, setFormData] = useState({
     'ID Pelanggan': '',
     'Nama Pelanggan': '',
@@ -38,7 +37,6 @@ function EditClientContent() {
     'RX ONT/SFP': ''
   });
 
-  // --- 1. AMBIL DATA LAMA ---
   useEffect(() => {
     async function fetchData() {
       const { data, error } = await supabase
@@ -48,7 +46,6 @@ function EditClientContent() {
         .single();
 
       if (error) {
-        // GANTI ALERT JADI TOAST ERROR
         toast.error('Gagal mengambil data: ' + error.message);
         router.push('/clients');
       } else if (data) {
@@ -58,18 +55,16 @@ function EditClientContent() {
     }
     
     if (id) fetchData();
-  }, [id, router]);
+  }, [id, router, supabase]);
 
   const handleChange = (e: any) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // --- 2. LOGIC UPDATE (+ KIRIM TELEGRAM) ---
   const handleUpdate = async (e: any) => {
     e.preventDefault();
     setSaving(true);
 
-    // Update Database
     const { error } = await supabase
       .from('Data Client Corporate')
       .update({
@@ -85,12 +80,9 @@ function EditClientContent() {
       .eq('id', id);
 
     if (error) {
-      // GANTI ALERT JADI TOAST ERROR
       toast.error('Gagal update: ' + error.message);
       setSaving(false);
     } else {
-      
-      // --- LOGIC TELEGRAM / LOGGER ---
       const { data: { user } } = await supabase.auth.getUser();
       let actorName = 'System';
       if(user) {
@@ -104,20 +96,17 @@ function EditClientContent() {
         actor: actorName
       });
 
-      // GANTI ALERT JADI TOAST SUKSES
-      toast.success('Data Berhasil Diperbarui!', {
-        description: 'Perubahan telah tersimpan di sistem.',
+      toast.success('Mubarak! Perubahan Disimpan', {
+        description: 'Data pelanggan telah diperbarui di pusat data.',
       });
 
-      router.push('/clients'); 
+      router.push(`/clients/${id}`); 
       router.refresh();
     }
   };
 
-  // --- 3. LOGIC HAPUS CLIENT ---
   const handleDelete = async () => {
-    // Confirm bawaan browser masih oke untuk tindakan kritis (safety)
-    if(!confirm('⚠️ PERINGATAN: Yakin ingin MENGHAPUS client ini secara permanen?')) return;
+    if(!confirm('⚠️ PERINGATAN KRITIS: Hapus data client ini secara permanen?')) return;
     
     setSaving(true);
     const { error } = await supabase.from('Data Client Corporate').delete().eq('id', id);
@@ -126,136 +115,152 @@ function EditClientContent() {
        toast.error("Gagal hapus: " + error.message);
        setSaving(false);
     } else {
-       // Log Hapus
        await logActivity({
           activity: 'Delete Client Corp',
           subject: formData['Nama Pelanggan'],
           actor: 'User'
        });
 
-       // TOAST SUKSES HAPUS
-       toast.success("Client Berhasil Dihapus", { 
-         description: "Data telah dihapus permanen dari database." 
-       });
-
+       toast.success("Data Dihapus Selamanya");
        router.push('/clients');
        router.refresh();
     }
   }
 
-  if (loading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-blue-600"/></div>;
+  if (loading) return (
+    <div className="h-screen flex items-center justify-center bg-[#020c09]">
+      <Loader2 className="animate-spin text-amber-500" size={40} />
+    </div>
+  );
 
   return (
-    <div className="w-full max-w-3xl bg-white rounded-xl shadow-lg border border-slate-200 p-8">
+    <div className={`w-full max-w-4xl rounded-[2.5rem] shadow-2xl border transition-all duration-500 overflow-hidden ${isRamadhan ? 'bg-[#041a14] border-emerald-800/50 shadow-emerald-950/50' : 'bg-white border-slate-200'}`}>
       
-      {/* HEADER */}
-      <div className="flex items-center justify-between mb-8 border-b pb-6">
-        <div className="flex items-center gap-4">
-            <button onClick={() => router.back()} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500">
-              <ArrowLeft size={24} />
-            </button>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                  <UserCog className="text-amber-500" /> Edit Data Client
-              </h1>
-              <p className="text-sm text-slate-500">Perbarui informasi pelanggan.</p>
-            </div>
+      {/* DECORATIVE HEADER */}
+      <div className={`p-8 relative overflow-hidden border-b ${isRamadhan ? 'bg-emerald-900/10 border-emerald-800/50' : 'bg-slate-50 border-slate-100'}`}>
+        <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
+          <Moon size={120} className="text-amber-500 -rotate-12" />
         </div>
         
-        {/* Tombol Hapus */}
-        <button onClick={handleDelete} className="text-rose-500 hover:bg-rose-50 p-2 rounded-lg transition" title="Hapus Client">
-            <Trash2 size={20}/>
-        </button>
+        <div className="flex items-center justify-between relative z-10">
+          <div className="flex items-center gap-5">
+            <button onClick={() => router.back()} className={`p-3 rounded-2xl transition-all ${isRamadhan ? 'bg-[#020c09] text-emerald-500 hover:text-amber-500 border border-emerald-800' : 'hover:bg-slate-100 text-slate-500'}`}>
+              <ArrowLeft size={20} strokeWidth={3} />
+            </button>
+            <div>
+              <h1 className={`text-2xl font-black uppercase tracking-tight flex items-center gap-2 ${isRamadhan ? 'text-emerald-50' : 'text-slate-800'}`}>
+                <UserCog className={isRamadhan ? 'text-amber-500' : 'text-blue-600'} /> Edit <span className={isRamadhan ? 'text-amber-500' : ''}>Konfigurasi</span>
+              </h1>
+              <p className={`text-[10px] font-bold uppercase tracking-[0.2em] mt-1 ${isRamadhan ? 'text-emerald-700' : 'text-slate-500'}`}>
+                ID Pelanggan: {formData['ID Pelanggan']}
+              </p>
+            </div>
+          </div>
+          
+          <button onClick={handleDelete} className={`group p-3 rounded-2xl transition-all border ${isRamadhan ? 'bg-rose-500/10 border-rose-500/20 text-rose-500 hover:bg-rose-500 hover:text-white' : 'text-rose-500 hover:bg-rose-50'}`}>
+            <Trash2 size={20} strokeWidth={2.5} />
+          </button>
+        </div>
       </div>
 
-      <form onSubmit={handleUpdate} className="space-y-6">
+      <form onSubmit={handleUpdate} className="p-8 space-y-8">
         
-        {/* GROUP 1: IDENTITAS */}
-        <div className="bg-slate-50 p-5 rounded-lg border border-slate-100">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">ID Pelanggan</label>
-              <input 
-                name="ID Pelanggan" 
-                value={formData['ID Pelanggan'] || ''} 
-                className="w-full p-2.5 border border-slate-300 rounded-lg outline-none font-mono text-slate-500 bg-slate-200 cursor-not-allowed" 
-                readOnly 
-              />
+        {/* IDENTITAS SECTION */}
+        <div className="space-y-6">
+          <div className="flex items-center gap-2">
+             <div className={`w-8 h-1 rounded-full ${isRamadhan ? 'bg-amber-500' : 'bg-blue-600'}`}></div>
+             <h3 className={`text-xs font-black uppercase tracking-[0.2em] ${isRamadhan ? 'text-emerald-600' : 'text-slate-400'}`}>Identitas Pelanggan</h3>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2 opacity-60">
+              <label className={`text-[10px] font-black uppercase tracking-widest ml-1 ${isRamadhan ? 'text-emerald-500' : 'text-slate-600'}`}>ID (Locked)</label>
+              <div className={`w-full p-4 rounded-2xl border font-mono text-sm ${isRamadhan ? 'bg-[#020c09] border-emerald-900 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                {formData['ID Pelanggan']}
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">Nama Pelanggan</label>
+            <div className="space-y-2">
+              <label className={`text-[10px] font-black uppercase tracking-widest ml-1 ${isRamadhan ? 'text-emerald-500' : 'text-slate-600'}`}>Nama Pelanggan</label>
               <input 
                 name="Nama Pelanggan" 
                 value={formData['Nama Pelanggan'] || ''} 
                 onChange={handleChange}
-                className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-medium text-slate-700" 
+                className={`w-full p-4 rounded-2xl border outline-none transition-all font-bold text-sm ${isRamadhan ? 'bg-[#020c09] border-emerald-800 text-emerald-50 focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20' : 'border-slate-200'}`} 
               />
             </div>
           </div>
-          <div className="mt-4">
-            <label className="block text-sm font-bold text-slate-700 mb-1">Alamat Instalasi</label>
+
+          <div className="space-y-2">
+            <label className={`text-[10px] font-black uppercase tracking-widest ml-1 ${isRamadhan ? 'text-emerald-500' : 'text-slate-600'}`}>Alamat Instalasi</label>
             <textarea 
               name="ALAMAT" 
               rows={2}
               value={formData['ALAMAT'] || ''} 
               onChange={handleChange}
-              className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-700" 
+              className={`w-full p-4 rounded-2xl border outline-none transition-all text-sm ${isRamadhan ? 'bg-[#020c09] border-emerald-800 text-emerald-50 focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20' : 'border-slate-200'}`} 
             ></textarea>
           </div>
         </div>
 
-        {/* GROUP 2: TEKNIS */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">VLAN / VMAN</label>
-            <input name="VMAN / VLAN" value={formData['VMAN / VLAN'] || ''} onChange={handleChange} className="w-full p-2 border border-slate-300 rounded-lg outline-none font-mono text-blue-600" />
+        {/* TEKNIS SECTION */}
+        <div className="space-y-6">
+          <div className="flex items-center gap-2">
+             <div className={`w-8 h-1 rounded-full ${isRamadhan ? 'bg-amber-500' : 'bg-blue-600'}`}></div>
+             <h3 className={`text-xs font-black uppercase tracking-[0.2em] ${isRamadhan ? 'text-emerald-600' : 'text-slate-400'}`}>Spesifikasi & Node</h3>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Kapasitas</label>
-            <input name="Kapasitas" value={formData['Kapasitas'] || ''} onChange={handleChange} className="w-full p-2 border border-slate-300 rounded-lg outline-none text-slate-700" />
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="space-y-2">
+              <label className={`text-[9px] font-black uppercase tracking-widest ml-1 ${isRamadhan ? 'text-emerald-700' : 'text-slate-500'}`}>VLAN ID</label>
+              <input name="VMAN / VLAN" value={formData['VMAN / VLAN'] || ''} onChange={handleChange} className={`w-full p-3 rounded-xl border outline-none font-mono text-sm ${isRamadhan ? 'bg-[#020c09] border-emerald-800 text-amber-500' : 'text-blue-600'}`} />
+            </div>
+            <div className="space-y-2">
+              <label className={`text-[9px] font-black uppercase tracking-widest ml-1 ${isRamadhan ? 'text-emerald-700' : 'text-slate-500'}`}>Kapasitas</label>
+              <input name="Kapasitas" value={formData['Kapasitas'] || ''} onChange={handleChange} className={`w-full p-3 rounded-xl border outline-none text-sm font-bold ${isRamadhan ? 'bg-[#020c09] border-emerald-800 text-emerald-50' : ''}`} />
+            </div>
+            <div className="space-y-2">
+              <label className={`text-[9px] font-black uppercase tracking-widest ml-1 ${isRamadhan ? 'text-emerald-700' : 'text-slate-500'}`}>RX Level (dBm)</label>
+              <input name="RX ONT/SFP" value={formData['RX ONT/SFP'] || ''} onChange={handleChange} className={`w-full p-3 rounded-xl border outline-none font-mono text-sm ${isRamadhan ? 'bg-[#020c09] border-emerald-800 text-emerald-50' : ''}`} />
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Sinyal RX</label>
-            <input name="RX ONT/SFP" value={formData['RX ONT/SFP'] || ''} onChange={handleChange} className="w-full p-2 border border-slate-300 rounded-lg outline-none font-mono text-slate-700" />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="space-y-2">
+              <label className={`text-[9px] font-black uppercase tracking-widest ml-1 ${isRamadhan ? 'text-emerald-700' : 'text-slate-500'}`}>Near End (POP)</label>
+              <input name="Near End" value={formData['Near End'] || ''} onChange={handleChange} className={`w-full p-3 rounded-xl border outline-none text-sm font-bold ${isRamadhan ? 'bg-[#020c09] border-emerald-800 text-emerald-50' : ''}`} />
+            </div>
+            <div className="space-y-2">
+              <label className={`text-[9px] font-black uppercase tracking-widest ml-1 ${isRamadhan ? 'text-emerald-700' : 'text-slate-500'}`}>Far End (CPE)</label>
+              <input name="Far End" value={formData['Far End'] || ''} onChange={handleChange} className={`w-full p-3 rounded-xl border outline-none text-sm font-bold ${isRamadhan ? 'bg-[#020c09] border-emerald-800 text-emerald-50' : ''}`} />
+            </div>
           </div>
         </div>
 
-        {/* GROUP 3: PERANGKAT */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Near End (POP)</label>
-            <input name="Near End" value={formData['Near End'] || ''} onChange={handleChange} className="w-full p-2 border border-slate-300 rounded-lg outline-none text-slate-700" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Far End (CPE)</label>
-            <input name="Far End" value={formData['Far End'] || ''} onChange={handleChange} className="w-full p-2 border border-slate-300 rounded-lg outline-none text-slate-700" />
-          </div>
-        </div>
-
-        {/* Status */}
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Status Layanan</label>
+        {/* STATUS SECTION */}
+        <div className={`p-6 rounded-[2rem] border ${isRamadhan ? 'bg-emerald-950/20 border-emerald-800/50' : 'bg-slate-50 border-slate-100'}`}>
+          <label className={`block text-[10px] font-black uppercase tracking-[0.3em] mb-3 text-center ${isRamadhan ? 'text-amber-500' : 'text-slate-500'}`}>Status Layanan</label>
           <select 
             name="STATUS" 
             value={formData['STATUS'] || ''} 
             onChange={handleChange}
-            className="w-full p-2 border border-slate-300 rounded-lg outline-none bg-white text-slate-700"
+            className={`w-full p-4 rounded-2xl border outline-none text-sm font-black text-center appearance-none cursor-pointer transition-all ${isRamadhan ? 'bg-[#020c09] border-emerald-800 text-emerald-50 hover:border-amber-500/50' : 'bg-white'}`}
           >
-            <option value="Active">Active</option>
-            <option value="Deactive">Berhenti Sementara</option>
-            <option value="Berhenti Berlangganan">Berhenti Berlangganan</option>
-            <option value="Dismantle">Dismantle</option>
+            <option value="Active">🟢 ACTIVE</option>
+            <option value="Deactive">🟡 BERHENTI SEMENTARA</option>
+            <option value="Berhenti Berlangganan">🔴 BERHENTI BERLANGGANAN</option>
+            <option value="Dismantle">⚫ DISMANTLE</option>
           </select>
         </div>
 
-        <div className="pt-4 border-t border-slate-100">
+        {/* SUBMIT BUTTON */}
+        <div className="pt-4">
           <button 
             type="submit" 
             disabled={saving}
-            className="w-full bg-amber-500 text-white py-3 rounded-lg font-bold hover:bg-amber-600 transition flex justify-center items-center gap-2 shadow-lg disabled:bg-slate-300 disabled:cursor-not-allowed"
+            className={`w-full py-5 rounded-2xl font-black text-xs uppercase tracking-[0.3em] transition-all flex justify-center items-center gap-3 shadow-xl active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${isRamadhan ? 'bg-amber-500 text-black hover:bg-amber-400 shadow-amber-900/20' : 'bg-blue-600 text-white shadow-blue-500/30'}`}
           >
-            {saving ? <Loader2 className="animate-spin" /> : <Save size={20} />}
-            {saving ? 'Menyimpan Perubahan...' : 'Update Data Client'}
+            {saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} strokeWidth={3} />}
+            {saving ? 'Sinkronisasi Data...' : 'Update & Simpan Konfigurasi'}
           </button>
         </div>
 
@@ -264,11 +269,11 @@ function EditClientContent() {
   );
 }
 
-// Export Default dengan Suspense
 export default function EditClientPage() {
+  const isRamadhan = true;
   return (
-    <div className="min-h-screen bg-slate-50 p-6 flex justify-center items-start font-sans">
-      <Suspense fallback={<div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-blue-600" /></div>}>
+    <div className={`min-h-screen p-6 flex justify-center items-start font-sans transition-colors duration-500 ${isRamadhan ? 'bg-[#020c09]' : 'bg-slate-50'}`}>
+      <Suspense fallback={<div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-amber-500" /></div>}>
         <EditClientContent />
       </Suspense>
     </div>

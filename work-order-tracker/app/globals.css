@@ -3,6 +3,11 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* Ramadhan Core Colors */
+  --ramadhan-primary: #064e3b; /* Deep Emerald */
+  --ramadhan-secondary: #065f46; /* Emerald Green */
+  --ramadhan-gold: #d97706; /* Golden Amber */
+  --ramadhan-gold-light: #fcd34d;
 }
 
 @theme inline {
@@ -19,20 +24,139 @@
   }
 }
 
+/* === 🌙 RAMADHAN MODE TOTAL OVERRIDE === */
+.ramadhan-mode {
+  --background: #fdfaf0; 
+  --foreground: #042f2e;
+}
+
+.ramadhan-mode.dark, 
+.ramadhan-mode [data-theme='dark'] {
+  --background: #011a14;
+  --foreground: #ecfdf5;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  transition: all 0.5s ease;
+}
+
+/* Efek Cahaya Emas pada Teks */
+.ramadhan-mode .gold-glow {
+  text-shadow: 0 0 15px rgba(217, 119, 6, 0.6);
+  color: var(--ramadhan-gold);
+}
+
+/* Background Pattern Arabesque Global */
+.ramadhan-mode::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: url("https://www.transparenttextures.com/patterns/arabesque.png");
+  opacity: 0.12; 
+  pointer-events: none;
+  z-index: 0;
 }
 
 /* app/globals.css */
 @layer components {
+  /* Container Tabel Ramadhan Edition */
   .table-container {
     @apply w-full overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm;
     -webkit-overflow-scrolling: touch;
   }
   
+  .ramadhan-mode .table-container {
+    @apply border-emerald-200 shadow-xl shadow-emerald-900/10;
+    background-color: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(10px);
+  }
+
+  .ramadhan-mode th {
+    @apply bg-emerald-900 text-amber-200 border-b border-emerald-800 font-bold uppercase tracking-wider text-[11px];
+  }
+
+  .ramadhan-mode tr:nth-child(even) {
+    background-color: rgba(6, 95, 70, 0.03);
+  }
+
+  .ramadhan-mode td {
+    @apply border-b border-emerald-50/50;
+  }
+  
   table {
     @apply min-w-[600px] md:min-w-full;
   }
+
+  /* === AKSEN CARD RAMADHAN === */
+  .ramadhan-mode .bg-white.p-6.rounded-xl,
+  .ramadhan-mode .card-ramadhan {
+    @apply relative overflow-hidden border-emerald-100 shadow-md shadow-emerald-900/5 transition-all hover:shadow-xl hover:border-emerald-300;
+    background: linear-gradient(135deg, #ffffff 0%, #fefcf5 100%);
+    border-bottom: 4px solid var(--ramadhan-gold);
+  }
+
+  /* Pattern Arabesque di pojok Card */
+  .ramadhan-mode .bg-white.p-6.rounded-xl::after {
+    content: "";
+    position: absolute;
+    top: -15px;
+    right: -15px;
+    width: 80px;
+    height: 80px;
+    background-image: url("https://www.transparenttextures.com/patterns/arabesque.png");
+    opacity: 0.15;
+    background-size: contain;
+    transform: rotate(15deg);
+    pointer-events: none;
+  }
+
+  /* Styling Icon Wrapper di dalam Card */
+  .ramadhan-mode .icon-box {
+    @apply bg-amber-50 text-amber-600 border border-amber-100 shadow-inner;
+  }
+
+  /* Animasi Lentera/Ornamen */
+  .animate-float {
+    animation: float 4s ease-in-out infinite;
+  }
+
+  .animate-sway {
+    animation: sway 3s ease-in-out infinite;
+    transform-origin: top center;
+  }
+}
+
+/* Keyframes */
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-15px); }
+  100% { transform: translateY(0px); }
+}
+
+@keyframes sway {
+  0% { transform: rotate(-5deg); }
+  50% { transform: rotate(5deg); }
+  100% { transform: rotate(-5deg); }
+}
+
+/* Custom Scrollbar */
+.ramadhan-mode .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--ramadhan-gold);
+  border-radius: 10px;
+}
+
+.ramadhan-mode .custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(6, 78, 59, 0.1);
+}
+
+/* Override untuk Button Biru agar jadi Emerald/Gold */
+.ramadhan-mode .bg-blue-600 {
+  @apply bg-emerald-700 hover:bg-emerald-800 text-amber-50 border-b-4 border-emerald-900 shadow-lg shadow-emerald-900/20;
+}
+
+.ramadhan-mode .text-blue-600 {
+  @apply text-emerald-700;
 }
