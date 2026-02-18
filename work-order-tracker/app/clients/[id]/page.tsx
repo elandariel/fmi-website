@@ -193,7 +193,7 @@ function ClientDetailContent() {
             </div>
 
             <div className={`p-6 rounded-3xl border text-center min-w-[160px] ${isRamadhan ? 'bg-emerald-900/10 border-emerald-800/50' : 'bg-slate-50 border-slate-100'}`}>
-              <p className={`text-[10px] font-black uppercase tracking-[0.2em] mb-2 ${isRamadhan ? 'text-emerald-700' : 'text-slate-400'}`}>Redaman Saat Ini</p>
+              <p className={`text-[10px] font-black uppercase tracking-[0.2em] mb-2 ${isRamadhan ? 'text-emerald-700' : 'text-slate-400'}`}>Redaman Aktivasi</p>
               <p className={`text-4xl font-black tracking-tighter ${isRamadhan ? 'text-amber-500' : 'text-blue-600'}`}>
                 {client['RX ONT/SFP'] || '0.00'}
               </p>

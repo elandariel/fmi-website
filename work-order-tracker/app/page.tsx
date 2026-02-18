@@ -374,5 +374,5 @@ function ShiftRow({ label, hours, names, isRamadhan }: any) {
 }
 
 function DashboardSkeleton() {
-  return <div className="p-10 min-h-screen bg-slate-900 animate-pulse flex items-center justify-center text-emerald-500 font-black uppercase tracking-[0.5em]">Loading Marhaban...</div>;
+  return <div className="p-10 min-h-screen bg-slate-900 animate-pulse flex items-center justify-center text-emerald-500 font-black uppercase tracking-[0.5em]">Loading...</div>;
 }

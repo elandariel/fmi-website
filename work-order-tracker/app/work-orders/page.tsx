@@ -201,7 +201,7 @@ export default function WorkOrderPage() {
           </div>
           {isRamadhan && (
             <div className="col-span-2 md:col-span-3 flex items-center justify-end px-6 italic text-[10px] text-emerald-900 font-bold tracking-widest">
-               NOC WORK-ORDER MANAGEMENT SYSTEM • VERSION 2026.4
+               NOC MANAGEMENT SYSTEM • ALL RIGHTS RESERVED
             </div>
           )}
       </div>

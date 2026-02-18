@@ -87,7 +87,7 @@ export default function ClientListPage() {
             </h1>
           </div>
           <p className={`text-xs font-bold uppercase tracking-[0.2em] ${isRamadhan ? 'text-emerald-700' : 'text-slate-400'}`}>
-            Manajemen Database Pelanggan Korporat
+            Manajemen Database Pelanggan
           </p>
         </div>
         
