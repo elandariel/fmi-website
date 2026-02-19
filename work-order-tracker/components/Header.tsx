@@ -172,9 +172,9 @@ export default function Header() {
             </div>
             <div>
               <h1 className={`text-xs md:text-sm font-black uppercase tracking-tighter ${isRamadhan ? 'text-emerald-50' : 'text-slate-800'}`}>
-                NOC Command {isRamadhan && <span className="text-amber-400 ml-1">✦</span>}
+                NOC FMI {isRamadhan && <span className="text-amber-400 ml-1">✦</span>}
               </h1>
-              <p className={`text-[8px] md:text-[9px] font-bold uppercase tracking-widest ${isRamadhan ? 'text-emerald-500' : 'text-slate-500'}`}>Database System</p>
+              <p className={`text-[8px] md:text-[9px] font-bold uppercase tracking-widest ${isRamadhan ? 'text-emerald-500' : 'text-slate-500'}`}>=============</p>
             </div>
           </div>
           <div className="flex items-center gap-3 md:hidden">
