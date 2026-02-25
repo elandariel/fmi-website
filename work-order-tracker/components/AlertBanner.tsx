@@ -4,8 +4,13 @@ import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { 
   AlertTriangle, ChevronLeft, ChevronRight, 
-  CheckCircle, X, XCircle, Loader2, Star, Moon
+  Calendar, CheckCircle2, X, XCircle, CheckCircle, Loader2, ShieldAlert,
+  Plus, ExternalLink 
 } from 'lucide-react';
+// FIX: Tambahkan import Link di bawah ini
+import Link from 'next/link'; 
+import { format, differenceInDays } from 'date-fns';
+import { id as indonesia } from 'date-fns/locale';
 import { hasAccess, PERMISSIONS, Role } from '@/lib/permissions';
 
 export default function AlertBanner() {
@@ -14,6 +19,8 @@ export default function AlertBanner() {
   const [userRole, setUserRole] = useState<Role | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  
+  const [today, setToday] = useState<Date | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [processingId, setProcessingId] = useState<number | null>(null);
   const [selectedTeams, setSelectedTeams] = useState<Record<number, string>>({});
@@ -23,6 +30,26 @@ export default function AlertBanner() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
   );
 
+  // Helper Ekstrak Tanggal
+  const extractDateFromText = (text: string, defaultDate: string) => {
+    if (!text) return new Date(defaultDate);
+    const regex = /(\d{1,2})\s+(Januari|Februari|Maret|April|Mei|Juni|Juli|Agustus|September|Oktober|November|Desember|Jan|Feb|Mar|Apr|Mei|Jun|Jul|Agu|Sep|Okt|Nov|Des)[a-z]*\s+(\d{4})/i;
+    const match = text.match(regex);
+    if (match) {
+      const day = parseInt(match[1]);
+      const monthStr = match[2].toLowerCase();
+      const year = parseInt(match[3]);
+      const monthMap: Record<string, number> = {
+        januari: 0, jan: 0, februari: 1, feb: 1, maret: 2, mar: 2,
+        april: 3, apr: 3, mei: 4, juni: 5, jun: 5, juli: 6, jul: 6,
+        agustus: 7, agu: 7, september: 8, sep: 8, oktober: 9, okt: 9,
+        november: 10, nov: 10, desember: 11, des: 11
+      };
+      if (monthMap.hasOwnProperty(monthStr)) return new Date(year, monthMap[monthStr], day);
+    }
+    return new Date(defaultDate);
+  };
+
   async function fetchData() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -30,115 +57,175 @@ export default function AlertBanner() {
         const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
         setUserRole(profile?.role as Role);
       }
-      const { data: woData } = await supabase.from('Report Bulanan').select('*')
-        .in('STATUS', ['PENDING', 'PROGRESS', 'ON PROGRESS', 'OPEN']).order('id', { ascending: false });
+
+      // Ambil WO Pending & Progress dari Report Bulanan (Tabel 1)
+      const { data: woData } = await supabase
+        .from('Report Bulanan')
+        .select('*')
+        .in('STATUS', ['PENDING', 'PROGRESS', 'ON PROGRESS', 'OPEN'])
+        .order('id', { ascending: false });
+
       if (woData) setAlerts(woData);
+
       const { data: teamData } = await supabase.from('Index').select('TEAM').not('TEAM', 'is', null);
-      if (teamData) setTeamList(Array.from(new Set(teamData.map((t: any) => t.TEAM))) as string[]);
-    } catch (err) { console.error(err); } finally { setLoading(false); }
+      if (teamData) {
+        const unique = Array.from(new Set(teamData.map((t: any) => t.TEAM)));
+        setTeamList(unique as string[]);
+      }
+    } catch (err) {
+      console.error("Error AlertBanner:", err);
+    } finally {
+      setLoading(false);
+    }
   }
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    setToday(new Date());
+    fetchData();
+  }, []);
 
+  // Fungsi Solved Langsung dari Banner
   const handleUpdateStatus = async (id: number, actionType: string) => {
-    if (!hasAccess(userRole, PERMISSIONS.OVERVIEW_ACTION)) return alert("Izin ditolak.");
+    if (!hasAccess(userRole, PERMISSIONS.OVERVIEW_ACTION)) {
+      alert("Izin ditolak.");
+      return;
+    }
+
     const teamName = selectedTeams[id];
-    if (actionType === 'SOLVED' && !teamName) return alert('Pilih Team Eksekutor dulu!');
+    if (actionType === 'SOLVED' && !teamName) {
+      alert('Pilih Team Eksekutor dulu!');
+      return;
+    }
+
     setProcessingId(id);
-    const { error } = await supabase.from('Report Bulanan').update({
+    const todayDate = new Date().toISOString().split('T')[0];
+    
+    const payload = {
       'STATUS': actionType,
       'KETERANGAN': actionType === 'SOLVED' ? 'DONE' : 'CANCELLED',
-      'SELESAI ACTION': new Date().toISOString().split('T')[0],
+      'SELESAI ACTION': todayDate,
       'NAMA TEAM': teamName || 'System'
-    }).eq('id', id);
-    if (!error) {
+    };
+
+    const { error } = await supabase.from('Report Bulanan').update(payload).eq('id', id);
+
+    if (error) {
+      alert('Gagal: ' + error.message);
+    } else {
       setAlerts(prev => prev.filter(item => item.id !== id));
       if (alerts.length <= 1) setIsModalOpen(false);
     }
     setProcessingId(null);
   };
 
-  if (loading || alerts.length === 0) return null;
+  if (loading) return <div className="h-28 bg-white rounded-xl shadow-sm animate-pulse mb-8"></div>;
+
+  if (alerts.length === 0) return null;
+
   const item = alerts[currentIndex];
+  const targetDate = extractDateFromText(item['KETERANGAN'], item['TANGGAL']);
+  const diffDays = today ? differenceInDays(today, targetDate) : 0; 
   
   return (
-    <div className="w-full block"> 
-      {/* BOX UTAMA */}
-      <div className="bg-[#0a1f12] rounded-[2.5rem] border border-emerald-500/20 overflow-hidden shadow-2xl flex flex-col md:flex-row relative">
-        {/* Indikator Samping */}
-        <div className="w-full md:w-3 bg-gradient-to-b from-amber-500 to-amber-600 shadow-[0_0_20px_rgba(245,158,11,0.3)]"></div>
-        
-        <div className="flex-1 p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-start gap-5">
-            <div className="bg-amber-500/10 p-4 rounded-3xl border border-amber-500/20 text-amber-500 shadow-inner">
-              <AlertTriangle size={28} className="animate-pulse" />
+    <>
+      {/* BANNER UTAMA */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 mb-8 relative overflow-hidden">
+        <div className="absolute top-0 bottom-0 left-0 w-1.5 bg-rose-600"></div>
+        <div className="p-6 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+               <span className="bg-rose-100 text-rose-700 px-2 py-0.5 rounded text-[10px] font-black uppercase flex items-center gap-1 border border-rose-200">
+                  <AlertTriangle size={12} /> URGENT WO
+               </span>
+               <span className="text-[10px] font-mono text-slate-400">{currentIndex + 1} / {alerts.length}</span>
             </div>
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <span className="text-[10px] font-black text-amber-500 uppercase tracking-[0.2em] bg-amber-500/5 px-3 py-1 rounded-lg border border-amber-500/10">Urgent WO</span>
-                <span className="text-[10px] font-bold text-emerald-500/40 uppercase">{currentIndex + 1} / {alerts.length}</span>
-              </div>
-              <h3 className="text-white font-black text-xl md:text-2xl leading-tight uppercase tracking-tight line-clamp-1">{item['SUBJECT WO']}</h3>
-              <p className="text-emerald-500/50 text-xs italic mt-2 border-l-2 border-emerald-500/20 pl-3">"{item['KETERANGAN'] || 'No additional info'}"</p>
-            </div>
+            <h3 className="text-xl font-black text-slate-800 truncate">{item['SUBJECT WO']}</h3>
+            <p className="text-xs text-slate-500 italic mt-1 line-clamp-1">"{item['KETERANGAN'] || '-'}"</p>
           </div>
+          <div className="flex items-center gap-4">
+            <div className="flex gap-1">
+              <button 
+                    onClick={() => setCurrentIndex(p => (p - 1 + alerts.length) % alerts.length)} 
+                    className="p-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-900 transition-colors"
+                  >
+                    <ChevronLeft size={16}/>
+                  </button>
 
-          <div className="flex items-center gap-4 shrink-0 w-full md:w-auto">
-            <div className="flex bg-black/40 rounded-2xl p-1 border border-emerald-500/10 flex-1 md:flex-none justify-center">
-              <button onClick={() => setCurrentIndex(p => (p - 1 + alerts.length) % alerts.length)} className="p-3 hover:text-white text-emerald-600 transition-colors"><ChevronLeft size={24}/></button>
-              <button onClick={() => setCurrentIndex(p => (p + 1) % alerts.length)} className="p-3 hover:text-white text-emerald-600 transition-colors"><ChevronRight size={24}/></button>
+                  <button 
+                    onClick={() => setCurrentIndex(p => (p + 1) % alerts.length)} 
+                    className="p-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-900 transition-colors"
+                  >
+                    <ChevronRight size={16}/>
+                  </button>
             </div>
-            <button onClick={() => setIsModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest border-b-4 border-emerald-800 transition-all active:scale-95 shadow-xl">
-              Cek Semua ({alerts.length})
-            </button>
+            <button onClick={() => setIsModalOpen(true)} className="px-4 py-2 bg-rose-600 text-white rounded-lg font-bold text-xs shadow-md">Lihat Semua ({alerts.length})</button>
           </div>
         </div>
       </div>
 
-      {/* MODAL (Fixed, Outside Flow) */}
+      {/* MODAL LIHAT SEMUA */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] bg-[#051109]/95 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#0a1f12] border border-emerald-500/20 w-full max-w-5xl max-h-[85vh] rounded-[3rem] flex flex-col shadow-[0_0_100px_rgba(0,0,0,0.8)] animate-in fade-in zoom-in duration-300">
-            <div className="p-8 border-b border-emerald-500/10 flex justify-between items-center bg-emerald-950/20">
-              <div className="flex items-center gap-4">
-                <div className="bg-amber-500 p-3 rounded-2xl shadow-lg"><Star className="text-[#0a1f12]" fill="currentColor" size={24} /></div>
-                <h2 className="text-xl font-black text-white uppercase tracking-widest">Antrean Pekerjaan</h2>
+        <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-5xl max-h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95">
+            <div className="p-5 border-b bg-slate-50 flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                  <AlertTriangle className="text-rose-500" size={24} /> Antrean WO Pending & Progress
+                </h2>
+                <p className="text-sm text-slate-500 mt-1">Total {alerts.length} item membutuhkan tindakan segera.</p>
               </div>
-              <button onClick={() => setIsModalOpen(false)} className="text-emerald-500 hover:text-white p-2 transition-colors"><X size={32}/></button>
+              <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-200 rounded-full text-slate-500"><X size={24} /></button>
             </div>
-            <div className="flex-1 overflow-y-auto p-8 space-y-4">
+
+            <div className="p-6 overflow-y-auto bg-slate-100/50 flex-1 space-y-4">
               {alerts.map((alert) => (
-                <div key={alert.id} className="bg-[#051109] border border-emerald-500/10 p-6 rounded-[2rem] flex flex-col md:flex-row justify-between items-start md:items-center gap-6 hover:border-emerald-500/30 transition-all">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                        <span className="text-[10px] font-black text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-lg">#{alert.id}</span>
-                        <span className="text-[10px] font-bold text-emerald-700 uppercase">{alert.STATUS}</span>
+                <div key={alert.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col lg:flex-row gap-4 items-center">
+                  <div className="flex-1 w-full">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded border uppercase bg-amber-50 text-amber-700 border-amber-200">{alert['STATUS']}</span>
+                      <span className="text-xs text-slate-400 font-mono">#{alert.id}</span>
                     </div>
-                    <h4 className="text-white font-black text-lg uppercase tracking-tight">{alert['SUBJECT WO']}</h4>
+                    <h3 className="font-bold text-slate-800 text-base">{alert['SUBJECT WO']}</h3>
+                    <p className="text-xs text-slate-500 mt-1 italic">"{alert['KETERANGAN'] || '-'}"</p>
+                    
                     {hasAccess(userRole, PERMISSIONS.OVERVIEW_ACTION) && (
-                      <div className="mt-4 flex items-center gap-3">
-                        <span className="text-[10px] font-bold text-emerald-900 uppercase">Team:</span>
-                        <select 
-                          className="bg-[#0a1f12] border border-emerald-500/20 text-emerald-400 text-xs rounded-xl px-4 py-2 outline-none focus:border-amber-500 transition-all"
-                          value={selectedTeams[alert.id] || alert['NAMA TEAM'] || ''}
-                          onChange={(e) => setSelectedTeams({...selectedTeams, [alert.id]: e.target.value})}
-                        >
-                          <option value="">Pilih Team Eksekutor</option>
-                          {teamList.map((t, i) => <option key={i} value={t}>{t}</option>)}
-                        </select>
+                      <div className="mt-3 flex items-center gap-2">
+                         <span className="text-xs font-bold text-slate-500">Pilih Team:</span>
+                         <select className="text-xs border rounded px-2 py-1 bg-slate-50 text-slate-700 outline-none"
+                           value={selectedTeams[alert.id] || alert['NAMA TEAM'] || ''}
+                           onChange={(e) => setSelectedTeams({...selectedTeams, [alert.id]: e.target.value})}
+                         >
+                           <option value="">- Pilih Eksekutor -</option>
+                           {teamList.map((t, i) => <option key={i} value={t}>{t}</option>)}
+                         </select>
                       </div>
                     )}
                   </div>
-                  <div className="flex gap-3 w-full md:w-auto shrink-0">
-                    <button onClick={() => handleUpdateStatus(alert.id, 'SOLVED')} className="flex-1 md:flex-none bg-emerald-600 text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase shadow-lg hover:bg-emerald-500 transition-all">Solved</button>
-                    <button onClick={() => handleUpdateStatus(alert.id, 'CANCEL')} className="flex-1 md:flex-none bg-rose-500/10 text-rose-500 border border-rose-500/20 px-6 py-3 rounded-xl font-black text-[10px] uppercase hover:bg-rose-500 hover:text-white transition-all">Cancel</button>
+
+                  <div className="flex flex-col items-end gap-3 shrink-0">
+                    <div className="flex gap-2">
+                      {hasAccess(userRole, PERMISSIONS.OVERVIEW_ACTION) && (
+                        <>
+                          <button onClick={() => handleUpdateStatus(alert.id, 'CANCEL')} disabled={processingId === alert.id} className="px-3 py-1.5 bg-rose-50 text-rose-600 text-xs font-bold rounded border border-rose-200 flex items-center gap-1">
+                            {processingId === alert.id ? <Loader2 size={12} className="animate-spin"/> : <XCircle size={12} />} Cancel
+                          </button>
+                          <button onClick={() => handleUpdateStatus(alert.id, 'SOLVED')} disabled={processingId === alert.id} className="px-3 py-1.5 bg-emerald-50 text-emerald-600 text-xs font-bold rounded border border-emerald-200 flex items-center gap-1">
+                            {processingId === alert.id ? <Loader2 size={12} className="animate-spin"/> : <CheckCircle size={12} />} Solved
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
+
+            <div className="p-4 bg-white border-t flex justify-between items-center">
+              <button onClick={() => setIsModalOpen(false)} className="px-6 py-2 bg-slate-800 text-white rounded-lg font-bold text-sm">Tutup</button>
+            </div>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

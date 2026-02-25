@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
+import { useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { createBrowserClient } from '@supabase/ssr';
 import Link from 'next/link';
 import { 
   Search, RefreshCcw, Download, ChevronDown, X, 
-  TrendingUp, UserPlus, Server, Globe, Plus, Calendar, Moon, Star, Filter, LayoutDashboard
+  TrendingUp, UserPlus, Server, Globe, Plus, Calendar
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { hasAccess, PERMISSIONS, Role } from '@/lib/permissions';
@@ -15,6 +16,7 @@ import MonthlySummary from '@/components/MonthlySummary';
 
 const ReactApexChart = dynamic(() => import('react-apexcharts'), { ssr: false });
 
+// --- FIX 1: UPDATE KEY MAPPING AGAR SESUAI DEFAULT STATE ---
 const TABLE_MAP = {
   'Berlangganan': 'Berlangganan 2026',
   'Berhenti Berlangganan': 'Berhenti Berlangganan 2026',
@@ -24,14 +26,17 @@ const TABLE_MAP = {
 };
 
 export default function TrackerPage() {
-  const isRamadhan = true; // SAKLAR TEMA
   const [selectedCategory, setSelectedCategory] = useState('Berlangganan');
   const [dataList, setDataList] = useState<any[]>([]); 
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [userRole, setUserRole] = useState<Role | null>(null);
   const summaryRef = useRef<any>(null);
+  
+  // --- TAMBAHAN STATE UNTUK FILTER BULANAN ---
   const [targetMonth, setTargetMonth] = useState('2026-01');
+   
+  // State Modal Global Stats
   const [showModal, setShowModal] = useState(false);
   const [modalChartMode, setModalChartMode] = useState('ISP');
   const [globalStats, setGlobalStats] = useState<any>({ 
@@ -39,6 +44,7 @@ export default function TrackerPage() {
     byIsp: [], byBts: []
   });
 
+  // State Chart Halaman Utama
   const [chartTrend, setChartTrend] = useState<any>({ series: [], options: {} });
   const [chartTeam, setChartTeam] = useState<any>({ series: [], options: {} });
 
@@ -47,29 +53,51 @@ export default function TrackerPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
   );
 
+  // --- 1. FETCH DATA UTAMA & ROLE ---
   async function fetchData() {
     setLoading(true);
+    
+    // A. Ambil Role User
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
       if(profile) setUserRole(profile.role as Role);
     }
 
+    // B. Ambil Data Table
     const tableName = TABLE_MAP[selectedCategory as keyof typeof TABLE_MAP];
+    
+    // --- FIX 2: SAFETY CHECK (Anti Crash) ---
+    // Jika nama tabel tidak ketemu, hentikan proses jangan sampai Supabase error
     if (!tableName) {
+        console.error("Mapping tabel tidak ditemukan untuk kategori:", selectedCategory);
+        toast.error(`Kategori '${selectedCategory}' belum di-mapping ke database.`);
         setLoading(false);
         return;
     }
 
-    const { data, error } = await supabase.from(tableName).select('*').order('TANGGAL', { ascending: false });
-    if (!error) {
+    const { data, error } = await supabase
+      .from(tableName)
+      .select('*')
+      .order('TANGGAL', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching:', error);
+      toast.error("Gagal memuat data: " + error.message);
+    } else {
       setDataList(data || []);
       processMainCharts(data || [], selectedCategory);
     }
     setLoading(false);
   }
 
+  // --- 2. FETCH GLOBAL STATS ---
   async function fetchGlobalStats() {
+    // Kita bungkus try-catch biar aman
     try {
         const [resPasang, resPutus, resCuti] = await Promise.all([
           supabase.from('Berlangganan 2026').select('id, ISP, BTS'),
@@ -80,6 +108,7 @@ export default function TrackerPage() {
         const pasang = resPasang.data?.length || 0;
         const putus = resPutus.data?.length || 0;
         const cuti = resCuti.data?.length || 0;
+        
         const ispMap: any = {};
         const btsMap: any = {};
     
@@ -96,12 +125,15 @@ export default function TrackerPage() {
           byIsp: Object.keys(ispMap).map(k => ({ name: k, data: ispMap[k] })).sort((a,b) => b.data - a.data).slice(0, 15),
           byBts: Object.keys(btsMap).map(k => ({ name: k, data: btsMap[k] })).sort((a,b) => b.data - a.data).slice(0, 15)
         });
-    } catch (err) { console.error(err); }
+    } catch (err) {
+        console.error("Gagal load global stats", err);
+    }
   }
 
   useEffect(() => { fetchData(); }, [selectedCategory]);
   useEffect(() => { fetchGlobalStats(); }, []);
 
+  // --- 3. PROSES CHART ---
   const processMainCharts = (data: any[], category: string) => {
     const dateMap: any = {};
     data.forEach(row => {
@@ -112,25 +144,28 @@ export default function TrackerPage() {
     });
     const sortedDates = Object.keys(dateMap).sort();
     
-    let color = isRamadhan ? '#10b981' : '#3b82f6'; 
-    if(category.includes('Berhenti')) color = '#f43f5e'; 
-    if(category.includes('Upgrade')) color = '#f59e0b'; 
+    let color = '#10b981'; 
+    if(category.includes('Berhenti') || category.includes('Cuti')) color = '#ef4444'; 
+    if(category.includes('Upgrade') || category.includes('Downgrade')) color = '#3b82f6'; 
 
-    setChartTrend({
-      series: [{ name: 'Total', data: sortedDates.map(d => dateMap[d]) }],
+setChartTrend({
+      series: [{ name: 'Jumlah', data: sortedDates.map(d => dateMap[d]) }],
       options: {
-        chart: { type: 'area', toolbar: { show: false }, fontFamily: 'inherit' },
-        xaxis: { 
-            categories: sortedDates,
-            labels: { style: { colors: isRamadhan ? '#334155' : '#64748b' } } 
-        },
-        yaxis: { labels: { style: { colors: isRamadhan ? '#334155' : '#64748b' } } },
+        chart: { type: 'area', toolbar: { show: false } },
+        xaxis: { categories: sortedDates },
         colors: [color],
-        grid: { borderColor: isRamadhan ? '#06281e' : '#f1f5f9' },
-        stroke: { curve: 'smooth', width: 3 },
-        fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0 } },
-        title: { text: `TREN DATA ${category.toUpperCase()}`, style: { color: isRamadhan ? '#ecfdf5' : '#1e293b', fontWeight: 900 } },
-        tooltip: { theme: 'dark' }
+        stroke: { curve: 'smooth' },
+        title: { text: `Tren ${category}`, style: { color: '#030303' } },
+        tooltip: {
+          enabled: true,
+          theme: 'dark',
+          style: {
+            fontSize: '12px',
+          },
+          y: {
+            formatter: (val) => `${val} Data`
+          }
+        },
       }
     });
 
@@ -142,20 +177,47 @@ export default function TrackerPage() {
     const sortedTeams = Object.keys(teamMap).sort((a,b) => teamMap[b] - teamMap[a]).slice(0, 5);
 
     setChartTeam({
-      series: [{ name: 'Eksekusi', data: sortedTeams.map(t => teamMap[t]) }],
+      series: [{ name: 'Total WO', data: sortedTeams.map(t => teamMap[t]) }],
       options: {
         chart: { type: 'bar', toolbar: { show: false } },
-        xaxis: { categories: sortedTeams, labels: { style: { colors: isRamadhan ? '#334155' : '#64748b' } } },
-        colors: [isRamadhan ? '#f59e0b' : '#3b82f6'],
-        plotOptions: { bar: { borderRadius: 8, columnWidth: '40%' } },
-        title: { text: 'TOP TEAM PERFORMANCE', style: { color: isRamadhan ? '#ecfdf5' : '#1e293b', fontWeight: 900 } },
-        tooltip: { theme: 'dark' },
-        dataLabels: { enabled: false }
+        xaxis: { categories: sortedTeams },
+        colors: [color],
+        title: { text: 'TOP PERFORMANCE TEAM', style: { color: '#000000', fontWeight: 'bold' } },
+        
+        // --- TAMBAHKAN TOOLTIP DI SINI ---
+        tooltip: {
+          theme: 'dark', // Tulisan jadi putih terang, background gelap
+          style: {
+            fontSize: '12px',
+          },
+          marker: {
+            show: true, // Menampilkan titik warna kategori
+          },
+        },
+
+        // --- BONUS: BIAR ANGKA MUNCUL DI ATAS BATANG (DATALABELS) ---
+        dataLabels: {
+          enabled: true,
+          style: {
+            colors: ['#fff'], // Angka di dalam batang warna putih
+            fontSize: '11px'
+          },
+          offsetY: -2, // Posisi angka
+        },
+
+        // --- BIAR BATANGNYA AGAK MELENGKUNG (BIAR MODERN) ---
+        plotOptions: {
+          bar: {
+            borderRadius: 6,
+            columnWidth: '50%',
+          }
+        }
       }
     });
-  };
+    };
 
   const getSubject = (row: any) => {
+    // Helper subject yang lebih aman
     return row['SUBJECT BERLANGGANAN'] || row['SUBJECT BERHENTI BERLANGGANAN'] || 
            row['SUBJECT BERHENTI SEMENTARA'] || row['SUBJECT UPGRADE'] || 
            row['SUBJECT DOWNGRADE'] || row['SUBJECT'] || 
@@ -170,254 +232,259 @@ export default function TrackerPage() {
     return subject.includes(s) || bts.includes(s) || team.includes(s);
   });
 
+  // LOGIKA RBAC: Cek izin input
   const canInput = hasAccess(userRole, PERMISSIONS.TRACKER_INPUT);
 
   return (
-    <div className={`min-h-screen p-4 md:p-8 font-sans transition-colors duration-500 ${isRamadhan ? 'bg-[#020c09]' : 'bg-slate-50'}`}>
+    <div className="p-6 bg-slate-50 min-h-screen font-sans">
       
-      {/* BACKGROUND DECOR */}
-      {isRamadhan && (
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <Moon className="absolute top-10 right-20 text-emerald-900/10" size={300} />
-          <Star className="absolute top-40 left-20 text-amber-500/5 animate-pulse" size={50} />
-        </div>
-      )}
-
-      <div className="max-w-7xl mx-auto relative z-10">
-        
-        {/* HEADER */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-10">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <LayoutDashboard className={isRamadhan ? 'text-amber-500' : 'text-blue-600'} size={18} />
-              <p className={`font-black text-[10px] uppercase tracking-[0.3em] ${isRamadhan ? 'text-emerald-500' : 'text-blue-600'}`}>
-                Operational Tracker
-              </p>
+      {/* HEADER UTAMA */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
+            <div className="p-2 bg-emerald-100 rounded-lg">
+                <UserPlus className="text-emerald-600" size={24} />
             </div>
-            <h1 className={`text-4xl font-black tracking-tighter uppercase ${isRamadhan ? 'text-emerald-50' : 'text-slate-900'}`}>
-              Weekly <span className={isRamadhan ? 'text-emerald-500' : 'text-slate-400'}>Report</span>
-            </h1>
+            Weekly Report
+          </h1>
+          <p className="text-slate-500 text-sm mt-1">Monitoring status perubahan Client</p>
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 text-sm font-bold shadow-sm transition-all">
+            <TrendingUp size={18} className="text-indigo-600" /> Global Stats
+          </button>
+          
+          {/* TOMBOL INPUT BARU (Hanya untuk SUPER_DEV & AKTIVATOR) */}
+          {canInput && (
+            <Link href="/tracker/create">
+              <button className="flex items-center gap-2 px-5 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition shadow-lg shadow-emerald-200">
+                <Plus size={20} /> Input Baru
+              </button>
+            </Link>
+          )}
+        </div>
+      </div>
+
+      {/* NAVIGASI TAB KATEGORI */}
+      <div className="flex flex-wrap gap-2 mb-8 bg-slate-200/50 p-1.5 rounded-xl w-fit border border-slate-200">
+        {Object.keys(TABLE_MAP).map((cat) => (
+          <button
+            key={cat}
+            onClick={() => setSelectedCategory(cat)}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+              selectedCategory === cat
+                ? 'bg-white text-blue-600 shadow-sm'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+
+      {/* CHARTS ROW */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+          <div className="h-72">
+            {chartTrend.series.length > 0 && <ReactApexChart options={chartTrend.options} series={chartTrend.series} type="area" height="100%" />}
+          </div>
+        </div>
+        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+          <div className="h-72">
+            {chartTeam.series.length > 0 && <ReactApexChart options={chartTeam.options} series={chartTeam.series} type="bar" height="100%" />}
+          </div>
+        </div>
+      </div>
+
+      {/* --- SECTION BARU: MONTHLY SUMMARY REPORT --- */}
+      <div className="mb-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+          <div>
+            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+              <Calendar className="text-blue-500" size={20} />
+              Monthly Summary Report
+            </h3>
+            <p className="text-xs text-slate-500">Rekapitulasi performa bulanan dan status pelanggan</p>
           </div>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Tombol Export */}
+            <div className="flex items-center bg-white rounded-xl shadow-sm border border-slate-200 p-1">
+              {/* HUBUNGKAN ONCLICK KE REF */}
             <button 
-              onClick={() => setShowModal(true)} 
-              className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all border ${
-                isRamadhan ? 'bg-emerald-950/30 border-emerald-800 text-emerald-400 hover:border-amber-500' : 'bg-white text-slate-700'
-              }`}
+              onClick={() => summaryRef.current?.handleExport()}
+              className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded-lg transition-all border-r border-slate-100"
             >
-              <TrendingUp size={16} className="text-amber-500" /> Global Stats
+              <Download size={14} /> Excel
             </button>
-            
-            {canInput && (
-              <Link href="/tracker/create">
-                <button className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all shadow-2xl active:scale-95 ${
-                  isRamadhan ? 'bg-emerald-500 text-black hover:bg-emerald-400' : 'bg-blue-600 text-white'
-                }`}>
-                  <Plus size={18} strokeWidth={3} /> Input Baru
-                </button>
-              </Link>
-            )}
-          </div>
-        </div>
-
-        {/* TAB NAV */}
-        <div className={`inline-flex p-1.5 rounded-2xl border mb-10 overflow-x-auto max-w-full ${isRamadhan ? 'bg-emerald-950/20 border-emerald-800/50' : 'bg-slate-200/50 border-slate-200'}`}>
-          {Object.keys(TABLE_MAP).map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${
-                selectedCategory === cat
-                  ? (isRamadhan ? 'bg-emerald-500 text-black shadow-lg' : 'bg-white text-blue-600 shadow-sm')
-                  : (isRamadhan ? 'text-emerald-700 hover:text-emerald-400' : 'text-slate-500')
-              }`}
-            >
-              {cat}
+            <button onClick={() => window.print()} className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-50 rounded-lg transition-all">
+              <Download size={14} /> PDF
             </button>
-          ))}
-        </div>
-
-        {/* CHARTS */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-          <div className={`p-6 rounded-[2.5rem] border transition-all ${isRamadhan ? 'bg-[#041a14] border-emerald-800/50' : 'bg-white border-slate-200'}`}>
-            <div className="h-72">
-              {chartTrend.series.length > 0 && <ReactApexChart options={chartTrend.options} series={chartTrend.series} type="area" height="100%" />}
             </div>
-          </div>
-          <div className={`p-6 rounded-[2.5rem] border transition-all ${isRamadhan ? 'bg-[#041a14] border-emerald-800/50' : 'bg-white border-slate-200'}`}>
-            <div className="h-72">
-              {chartTeam.series.length > 0 && <ReactApexChart options={chartTeam.options} series={chartTeam.series} type="bar" height="100%" />}
-            </div>
-          </div>
-        </div>
 
-        {/* SUMMARY SECTION */}
-        <div className={`mb-12 p-8 rounded-[3rem] border ${isRamadhan ? 'bg-emerald-950/10 border-emerald-800/30' : 'bg-white'}`}>
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
-                <div className="flex items-center gap-4">
-                    <div className={`p-4 rounded-2xl ${isRamadhan ? 'bg-emerald-500/10 text-emerald-400' : 'bg-blue-50 text-blue-600'}`}>
-                        <Calendar size={24} />
-                    </div>
-                    <div>
-                        <h3 className={`text-xl font-black uppercase tracking-tighter ${isRamadhan ? 'text-emerald-50' : 'text-slate-800'}`}>Monthly Summary</h3>
-                        <p className={`text-[10px] font-bold uppercase tracking-widest ${isRamadhan ? 'text-emerald-700' : 'text-slate-500'}`}>Rekap Performa Bulanan</p>
-                    </div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-4">
-                    <div className={`flex items-center gap-2 p-1 rounded-xl border ${isRamadhan ? 'bg-[#020c09] border-emerald-800' : 'bg-white border-slate-200'}`}>
-                        <button onClick={() => summaryRef.current?.handleExport()} className="px-4 py-2 text-[9px] font-black uppercase tracking-widest text-emerald-500 hover:bg-emerald-500/10 rounded-lg">Excel</button>
-                        <button onClick={() => window.print()} className="px-4 py-2 text-[9px] font-black uppercase tracking-widest text-rose-500 hover:bg-rose-500/10 rounded-lg">PDF</button>
-                    </div>
-                    <div className={`flex items-center gap-3 px-4 py-2 rounded-xl border ${isRamadhan ? 'bg-[#020c09] border-emerald-800' : 'bg-white border-slate-200'}`}>
-                        <Filter size={14} className="text-emerald-700" />
-                        <input type="month" value={targetMonth} onChange={(e) => setTargetMonth(e.target.value)} className={`bg-transparent text-xs font-bold outline-none cursor-pointer ${isRamadhan ? 'text-emerald-400' : 'text-blue-600'}`} />
-                    </div>
-                </div>
-            </div>
-            <MonthlySummary ref={summaryRef} selectedMonth={targetMonth} />
-        </div>
-
-        {/* DATA TABLE */}
-        <div className={`rounded-[2.5rem] border overflow-hidden transition-all ${isRamadhan ? 'bg-[#041a14] border-emerald-800/50 shadow-2xl shadow-black/60' : 'bg-white border-slate-200'}`}>
-          <div className={`p-8 border-b flex flex-col md:flex-row justify-between items-center gap-6 ${isRamadhan ? 'border-emerald-800/50' : 'border-slate-100'}`}>
-            <div className="flex items-center gap-4">
-                <h3 className={`font-black uppercase tracking-widest text-xs ${isRamadhan ? 'text-emerald-50' : 'text-slate-800'}`}>Data {selectedCategory}</h3>
-                <span className={`px-3 py-1 rounded-full text-[10px] font-black ${isRamadhan ? 'bg-emerald-500 text-black' : 'bg-blue-600 text-white'}`}>
-                    {filteredData.length}
-                </span>
-            </div>
-            <div className="relative w-full md:w-96 group">
-              <Search className={`absolute left-4 top-3 transition-colors ${isRamadhan ? 'text-emerald-800 group-focus-within:text-amber-500' : 'text-slate-400'}`} size={18} />
+            {/* Input Periode */}
+            <div className="flex items-center gap-3 bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm">
+              <span className="text-[10px] font-bold text-slate-400 uppercase ml-2 tracking-wider">Periode:</span>
               <input 
-                type="text" 
-                placeholder="Cari Pelanggan / BTS / Team..." 
-                value={search} 
-                onChange={(e) => setSearch(e.target.value)} 
-                className={`w-full pl-12 pr-6 py-3 rounded-2xl text-xs font-bold outline-none border transition-all ${
-                    isRamadhan 
-                    ? 'bg-[#020c09] border-emerald-800 text-emerald-50 focus:border-amber-500 placeholder:text-emerald-950' 
-                    : 'bg-slate-50 border-slate-200'
-                }`} 
+                type="month" 
+                value={targetMonth} 
+                onChange={(e) => setTargetMonth(e.target.value)}
+                className="text-xs font-bold text-blue-600 outline-none bg-transparent cursor-pointer pr-2"
               />
             </div>
           </div>
+        </div>
+        
+        <MonthlySummary ref={summaryRef} selectedMonth={targetMonth} />
+    </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className={`text-[9px] font-black uppercase tracking-[0.2em] border-b ${isRamadhan ? 'bg-emerald-950/20 border-emerald-800/50 text-emerald-700' : 'bg-slate-50 text-slate-400'}`}>
+      {/* TABEL DATA */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="flex items-center gap-3">
+            <h3 className="font-bold text-slate-800">List {selectedCategory}</h3>
+            <span className="bg-blue-50 text-blue-600 px-2.5 py-0.5 rounded-full text-xs font-bold border border-blue-100">
+                {filteredData.length}
+            </span>
+          </div>
+          <div className="relative group w-full md:w-80">
+            <Search className="absolute left-3 top-2.5 text-slate-400 group-focus-within:text-blue-500" size={18} />
+            <input 
+              type="text" 
+              placeholder="Cari Subject / BTS / Team..." 
+              value={search} 
+              onChange={(e) => setSearch(e.target.value)} 
+              className="pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none w-full transition-all" 
+            />
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50/50 text-slate-900 font-bold uppercase text-[10px] tracking-widest border-b border-slate-100">
                 <tr>
-                  <th className="px-8 py-5">Tanggal</th>
-                  <th className="px-8 py-5">Subject Pelanggan</th>
-                  <th className="px-8 py-5">Provider</th> 
-                  <th className="px-8 py-5">Team</th>
-                  <th className="px-8 py-5">BTS</th>
+                  <th className="px-6 py-4">Tanggal</th>
+                  <th className="px-6 py-4">Subject Pelanggan</th>
+                  <th className="px-6 py-4 text-emerald-600">Provider (ISP)</th> 
+                  <th className="px-6 py-4">Team Eksekusi</th>
+                  <th className="px-6 py-4">BTS Area</th>
                 </tr>
               </thead>
-              <tbody className={`divide-y ${isRamadhan ? 'divide-emerald-900/30' : 'divide-slate-100'}`}>
+              <tbody className="divide-y divide-slate-100">
                 {loading ? (
-                  <tr><td colSpan={5} className="p-20 text-center text-[10px] font-black uppercase tracking-widest text-emerald-900 animate-pulse">SINKRONISASI DATA...</td></tr>
+                  <tr><td colSpan={5} className="p-10 text-center text-slate-400">Memuat data...</td></tr>
                 ) : filteredData.length > 0 ? (
                   filteredData.map((row, idx) => (
-                    <tr key={idx} className={`transition-colors group ${isRamadhan ? 'hover:bg-emerald-500/5' : 'hover:bg-slate-50'}`}>
-                      <td className={`px-8 py-5 text-[11px] font-bold ${isRamadhan ? 'text-emerald-500' : 'text-slate-600'}`}>
+                    <tr key={idx} className="hover:bg-slate-50/80 transition-colors group">
+                      <td className="px-6 py-4 text-slate-800 font-medium">
                         {row.TANGGAL ? format(new Date(row.TANGGAL), 'dd/MM/yyyy') : '-'}
                       </td>
-                      <td className="px-8 py-5">
-                        <div className={`font-black text-xs uppercase tracking-tight ${isRamadhan ? 'text-emerald-50' : 'text-slate-800'}`}>{getSubject(row)}</div>
-                        <div className={`text-[10px] font-medium italic mt-1 truncate max-w-xs ${isRamadhan ? 'text-emerald-800' : 'text-slate-400'}`}>
+                      <td className="px-6 py-4">
+                        <div className="font-bold text-slate-800">{getSubject(row)}</div>
+                        <div className="text-[10px] text-slate-400 italic truncate max-w-[200px]">
                           {row['PROBLEM'] || row['REASON'] || row['KETERANGAN'] || ''}
                         </div>
                       </td>
-                      <td className="px-8 py-5">
-                        <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border ${
-                            isRamadhan ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-emerald-50 text-emerald-700'
-                        }`}>
+                      
+                      {/* UPDATE ISI KOLOM ISP DI SINI */}
+                      <td className="px-6 py-4">
+                        <span className="px-2 py-1 bg-emerald-50 text-emerald-700 rounded-md text-[11px] font-black border border-emerald-100 uppercase">
                           {row.ISP || 'INTERNAL'}
                         </span>
                       </td>
-                      <td className={`px-8 py-5 text-[10px] font-black uppercase ${isRamadhan ? 'text-emerald-600' : 'text-slate-700'}`}>
-                         {row.TEAM || '-'}
+
+                      <td className="px-6 py-4">
+                          <span className="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-md text-xs font-bold uppercase">
+                              {row.TEAM || '-'}
+                          </span>
                       </td>
-                      <td className="px-8 py-5">
-                          <div className={`flex items-center gap-2 text-[10px] font-bold ${isRamadhan ? 'text-emerald-700' : 'text-slate-600'}`}>
-                              <Server size={12} />
-                              <span className="font-mono">{row.BTS || '-'}</span>
+                      <td className="px-6 py-4">
+                          <div className="flex items-center gap-1.5 text-slate-600">
+                              <Server size={14} className="text-slate-400" />
+                              <span className="font-mono text-xs">{row.BTS || '-'}</span>
                           </div>
                       </td>
                     </tr>
                   ))
                 ) : (
-                  <tr><td colSpan={5} className="p-20 text-center text-[10px] font-black uppercase tracking-widest text-emerald-900">DATA TIDAK DITEMUKAN</td></tr>
+                  <tr><td colSpan={5} className="p-10 text-center text-slate-400 italic">Data tidak ditemukan.</td></tr>
                 )}
               </tbody>
             </table>
-          </div>
         </div>
       </div>
 
-      {/* MODAL GLOBAL STATS */}
+      {/* --- MODAL GLOBAL STATS --- */}
       {showModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#020c09]/90 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-[#041a14] rounded-[3rem] border border-emerald-800 w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col shadow-[0_0_100px_rgba(16,185,129,0.1)]">
-            <div className="p-8 border-b border-emerald-800/50 flex justify-between items-center">
-              <div>
-                  <h2 className="text-2xl font-black text-emerald-50 uppercase tracking-tighter flex items-center gap-3">
-                    <TrendingUp className="text-amber-500" /> Summary Growth 2026
-                  </h2>
-                  <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest mt-1">Akumulasi Seluruh Data Berlangganan</p>
-              </div>
-              <button onClick={() => setShowModal(false)} className="p-3 bg-emerald-950/50 text-emerald-500 rounded-2xl hover:bg-rose-500/10 hover:text-rose-500 transition-all">
+        <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white">
+              <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <TrendingUp className="text-blue-600" /> Summary Growth 2026
+              </h2>
+              <button onClick={() => setShowModal(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
                 <X size={24} />
               </button>
             </div>
 
-            <div className="p-10 overflow-y-auto flex-1 space-y-10">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                <div className="bg-emerald-500 p-6 rounded-3xl shadow-xl shadow-emerald-900/20">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-emerald-950">Net Growth</p>
-                  <h3 className="text-4xl font-black text-black mt-2">{globalStats.netGrowth}</h3>
+            <div className="p-8 overflow-y-auto flex-1 bg-slate-50/30">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div className="bg-blue-600 p-5 rounded-2xl text-white shadow-lg shadow-blue-200">
+                  <p className="text-[10px] font-bold uppercase opacity-100">Net Growth</p>
+                  <h3 className="text-3xl font-black mt-1">{globalStats.netGrowth}</h3>
                 </div>
-                <div className="bg-[#020c09] border border-emerald-800 p-6 rounded-3xl">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Pasang</p>
-                  <h3 className="text-4xl font-black text-emerald-500 mt-2">{globalStats.pasang}</h3>
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                  <p className="text-[10px] font-bold uppercase text-slate-800">Berlangganan</p>
+                  <h3 className="text-3xl font-black text-emerald-600 mt-1">{globalStats.pasang}</h3>
                 </div>
-                <div className="bg-[#020c09] border border-emerald-800 p-6 rounded-3xl">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Putus</p>
-                  <h3 className="text-4xl font-black text-rose-500 mt-2">{globalStats.putus}</h3>
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                  <p className="text-[10px] font-bold uppercase text-slate-800">Berhenti Berlangganan</p>
+                  <h3 className="text-3xl font-black text-red-600 mt-1">{globalStats.putus}</h3>
                 </div>
-                <div className="bg-[#020c09] border border-emerald-800 p-6 rounded-3xl">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Cuti</p>
-                  <h3 className="text-4xl font-black text-amber-500 mt-2">{globalStats.cuti}</h3>
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                  <p className="text-[10px] font-bold uppercase text-slate-800">Berhenti Sementara</p>
+                  <h3 className="text-3xl font-black text-amber-500 mt-1">{globalStats.cuti}</h3>
                 </div>
               </div>
 
-              <div className="bg-[#020c09] p-8 rounded-[2.5rem] border border-emerald-800/50">
-                 <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
-                    <h4 className="font-black text-emerald-50 uppercase tracking-widest text-xs">Distribusi Pasang Baru</h4>
-                    <div className="flex bg-emerald-950/30 p-1.5 rounded-2xl border border-emerald-800/50">
-                        <button onClick={() => setModalChartMode('ISP')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${modalChartMode === 'ISP' ? 'bg-emerald-500 text-black shadow-lg' : 'text-emerald-700'}`}>PER ISP</button>
-                        <button onClick={() => setModalChartMode('BTS')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${modalChartMode === 'BTS' ? 'bg-emerald-500 text-black shadow-lg' : 'text-emerald-700'}`}>PER BTS</button>
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                 <div className="flex justify-between items-center mb-6">
+                    <h4 className="font-bold text-slate-800">Distribusi Pelanggan Pasang</h4>
+                    <div className="flex bg-slate-100 p-1 rounded-xl">
+                        <button onClick={() => setModalChartMode('ISP')} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${modalChartMode === 'ISP' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-800'}`}>PER ISP</button>
+                        <button onClick={() => setModalChartMode('BTS')} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${modalChartMode === 'BTS' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-800'}`}>PER BTS</button>
                     </div>
                  </div>
-                 <div className="h-[450px]">
+                 <div className="h-[400px]">
                     <ReactApexChart 
                       type="bar" 
                       height="100%"
                       series={[{ name: 'Total', data: modalChartMode === 'ISP' ? globalStats.byIsp.map((i:any) => i.data) : globalStats.byBts.map((i:any) => i.data) }]}
                       options={{
-                        chart: { toolbar: { show: false }, fontFamily: 'inherit' },
-                        plotOptions: { bar: { horizontal: true, borderRadius: 10, barHeight: '60%' } },
-                        colors: [modalChartMode === 'ISP' ? '#10b981' : '#f59e0b'],
-                        xaxis: { 
-                            categories: modalChartMode === 'ISP' ? globalStats.byIsp.map((i:any) => i.name) : globalStats.byBts.map((i:any) => i.name),
-                            labels: { style: { colors: '#064e3b', fontWeight: 'bold' } }
+                        chart: { toolbar: { show: false } },
+                        plotOptions: { bar: { horizontal: true, borderRadius: 6, barHeight: '70%' } },
+                        colors: [modalChartMode === 'ISP' ? '#3b82f6' : '#8b5cf6'],
+                        xaxis: { categories: modalChartMode === 'ISP' ? globalStats.byIsp.map((i:any) => i.name) : globalStats.byBts.map((i:any) => i.name) },
+                        grid: { borderColor: '#f1f5f9' },
+                        tooltip: {
+                          theme: 'dark',
+                          x: { show: true },
+                          y: {
+                            formatter: (val) => `${val} Pelanggan`
+                          }
                         },
-                        yaxis: { labels: { style: { colors: '#ecfdf5', fontWeight: 'bold' } } },
-                        grid: { borderColor: '#06281e' },
-                        tooltip: { theme: 'dark' },
-                        dataLabels: { enabled: true, style: { colors: ['#000'], fontWeight: '900' } }
+                        dataLabels: {
+                          enabled: true,
+                          textAnchor: 'start',
+                          style: {
+                            colors: ['#fff'],
+                            fontWeight: 'bold'
+                          },
+                          formatter: (val) => val,
+                          offsetX: 0,
+                        }
                       }}
                     />
                  </div>
@@ -426,6 +493,7 @@ export default function TrackerPage() {
           </div>
         </div>
       )}
+
     </div>
   );
 }

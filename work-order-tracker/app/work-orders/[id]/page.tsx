@@ -2,14 +2,13 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Tag, User, Calendar, Info, Pencil, Star, Moon, ShieldCheck, Zap } from 'lucide-react';
+import { ArrowLeft, Tag, User, Calendar, Info, Pencil } from 'lucide-react';
 
 export default async function DetailWorkOrder({ 
   params 
 }: { 
   params: Promise<{ id: string }> 
 }) {
-  const isRamadhan = true; // SAKLAR TEMA
   const { id } = await params;
   const cookieStore = await cookies();
   
@@ -25,6 +24,7 @@ export default async function DetailWorkOrder({
     }
   );
 
+  // Ambil data dari tabel 'Report Bulanan'
   const { data: wo, error } = await supabase
     .from('Report Bulanan')
     .select('*')
@@ -36,122 +36,95 @@ export default async function DetailWorkOrder({
   }
 
   return (
-    <div className={`min-h-screen p-4 md:p-8 font-sans transition-colors duration-500 relative overflow-hidden ${isRamadhan ? 'bg-[#020c09]' : 'bg-slate-50'}`}>
-      
-      {/* BACKGROUND ORNAMENT */}
-      {isRamadhan && (
-        <div className="absolute inset-0 pointer-events-none opacity-10">
-          <Moon className="absolute -top-20 -right-20 text-emerald-500" size={400} />
-          <Star className="absolute top-40 left-10 text-amber-500 animate-pulse" size={40} />
-          <Star className="absolute bottom-40 right-20 text-emerald-500 animate-pulse" size={30} />
-        </div>
-      )}
-
-      <div className="max-w-4xl mx-auto relative z-10">
+    <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans text-slate-900">
+      <div className="max-w-4xl mx-auto">
         {/* Tombol Kembali */}
         <Link 
           href="/work-orders" 
-          className={`inline-flex items-center gap-2 transition-all mb-8 group ${isRamadhan ? 'text-emerald-700 hover:text-amber-500' : 'text-slate-500 hover:text-blue-600'}`}
+          className="inline-flex items-center gap-2 text-slate-500 hover:text-blue-600 transition-colors mb-6 group"
         >
-          <div className={`p-2 rounded-xl transition-all ${isRamadhan ? 'bg-emerald-950/30 group-hover:bg-amber-500/10' : 'bg-white shadow-sm'}`}>
-            <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
-          </div>
-          <span className="text-[10px] font-black uppercase tracking-[0.2em]">Kembali ke List</span>
+          <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
+          <span className="text-sm font-bold uppercase tracking-wider">Kembali ke Daftar</span>
         </Link>
 
         {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className={isRamadhan ? 'text-amber-500' : 'text-blue-600'} size={16} />
-              <p className={`font-black text-[10px] uppercase tracking-[0.3em] ${isRamadhan ? 'text-emerald-500' : 'text-blue-600'}`}>
-                Arsip Digital NOC
-              </p>
-            </div>
-            <h1 className={`text-4xl font-black tracking-tighter uppercase leading-none ${isRamadhan ? 'text-emerald-50' : 'text-slate-900'}`}>
-              WO <span className={isRamadhan ? 'text-amber-500' : 'text-slate-400'}>#{wo.id}</span>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+          <div>
+            <p className="text-blue-600 font-black text-xs uppercase tracking-[0.2em] mb-1">Work Order Detail</p>
+            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 uppercase leading-none">
+              #{wo.id} - <span className="text-slate-500">Detail Laporan</span>
             </h1>
           </div>
 
+          {/* Action Buttons (Tombol Edit & Status) */}
           <div className="flex items-center gap-3">
+            {/* TOMBOL EDIT - Sesuai request kotak merah */}
             <Link 
               href={`/work-orders/${id}/edit`}
-              className={`flex items-center gap-3 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 border ${
-                isRamadhan 
-                ? 'bg-emerald-950/50 border-emerald-800 text-emerald-400 hover:border-amber-500 hover:text-amber-500 shadow-xl shadow-black/40' 
-                : 'bg-white border-slate-200 text-slate-600 hover:border-blue-500 hover:text-blue-600'
-              }`}
+              className="flex items-center gap-2 px-5 py-2.5 bg-white border-2 border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 hover:border-blue-500 hover:text-blue-600 transition-all shadow-sm group"
             >
-              <Pencil size={14} strokeWidth={3} /> Edit WO
+              <Pencil size={14} className="group-hover:rotate-12 transition-transform" />
+              <span className="text-xs font-black uppercase tracking-widest">Edit WO</span>
             </Link>
 
-            <div className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl border ${
-              wo.STATUS === 'SOLVED' 
-              ? (isRamadhan ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400' : 'bg-emerald-500 text-white')
-              : (isRamadhan ? 'bg-amber-500/10 border-amber-500/50 text-amber-500' : 'bg-amber-500 text-white')
+            {/* Status Label */}
+            <div className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest shadow-sm text-white ${
+              wo.STATUS === 'SOLVED' ? 'bg-emerald-500' : 'bg-amber-500'
             }`}>
-              {wo.STATUS}
+              Status: {wo.STATUS}
             </div>
           </div>
         </div>
         
         {/* Main Content Card */}
-        <div className={`rounded-[3rem] shadow-2xl overflow-hidden border transition-all duration-500 ${isRamadhan ? 'bg-[#041a14] border-emerald-800/50 shadow-black/60' : 'bg-white border-slate-200'}`}>
-          <div className="p-10">
-            <div className="grid grid-cols-1 gap-12">
+        <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
+          <div className="p-8">
+            <div className="grid grid-cols-1 gap-8">
               
-              {/* Subject Section */}
-              <div className="space-y-4">
-                <div className={`flex items-center gap-2 ${isRamadhan ? 'text-emerald-800' : 'text-slate-400'}`}>
-                  <Tag size={16} />
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em]">Subject Perihal</span>
+              {/* Subject */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-slate-400">
+                  <Tag size={14} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Subject Work Order</span>
                 </div>
-                <p className={`text-2xl md:text-3xl font-black tracking-tight leading-tight ${isRamadhan ? 'text-emerald-50' : 'text-slate-900'}`}>
-                  {wo['SUBJECT WO'] || 'N/A'}
+                <p className="text-xl font-bold text-slate-900 border-l-4 border-blue-600 pl-4 py-1">
+                  {wo['SUBJECT WO'] || 'Tidak ada subject'}
                 </p>
-                <div className={`h-1 w-20 rounded-full ${isRamadhan ? 'bg-amber-500/50' : 'bg-blue-600'}`}></div>
               </div>
 
-              {/* Info Grid */}
-              <div className={`grid grid-cols-1 md:grid-cols-3 gap-8 p-8 rounded-[2rem] border transition-colors ${isRamadhan ? 'bg-emerald-950/20 border-emerald-800/30' : 'bg-slate-50 border-slate-100'}`}>
-                <div className="space-y-2">
-                  <div className={`flex items-center gap-2 ${isRamadhan ? 'text-emerald-800' : 'text-slate-400'}`}>
+              {/* Grid Info */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-slate-100">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-slate-400">
                     <User size={14} />
-                    <span className="text-[9px] font-black uppercase tracking-widest">Team Exec</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest">Nama Team</span>
                   </div>
-                  <p className={`font-bold text-sm uppercase ${isRamadhan ? 'text-emerald-400' : 'text-slate-800'}`}>{wo['NAMA TEAM'] || '-'}</p>
+                  <p className="font-bold text-slate-800 uppercase">{wo['NAMA TEAM'] || '-'}</p>
                 </div>
                 
-                <div className="space-y-2">
-                  <div className={`flex items-center gap-2 ${isRamadhan ? 'text-emerald-800' : 'text-slate-400'}`}>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-slate-400">
                     <Calendar size={14} />
-                    <span className="text-[9px] font-black uppercase tracking-widest">Entry Date</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest">Tanggal Laporan</span>
                   </div>
-                  <p className={`font-bold text-sm ${isRamadhan ? 'text-emerald-400' : 'text-slate-800'}`}>{wo.TANGGAL || '-'}</p>
+                  <p className="font-bold text-slate-800">{wo.TANGGAL || '-'}</p>
                 </div>
 
-                <div className="space-y-2">
-                  <div className={`flex items-center gap-2 ${isRamadhan ? 'text-emerald-800' : 'text-slate-400'}`}>
-                    <Zap size={14} />
-                    <span className="text-[9px] font-black uppercase tracking-widest">Work Type</span>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-slate-400">
+                    <Info size={14} />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Jenis WO</span>
                   </div>
-                  <p className={`font-bold text-sm uppercase ${isRamadhan ? 'text-emerald-400' : 'text-slate-800'}`}>{wo['JENIS WO'] || '-'}</p>
+                  <p className="font-bold text-slate-800 uppercase">{wo['JENIS WO'] || '-'}</p>
                 </div>
               </div>
 
-              {/* Keterangan */}
-              <div className="space-y-4">
-                <div className={`flex items-center gap-2 ${isRamadhan ? 'text-emerald-800' : 'text-slate-400'}`}>
-                  <Info size={16} />
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em]">Dokumentasi Pekerjaan</span>
-                </div>
-                <div className={`p-8 rounded-[2rem] border-l-8 transition-all ${
-                  isRamadhan 
-                  ? 'bg-[#020c09] border-emerald-500 text-emerald-100 shadow-inner' 
-                  : 'bg-slate-50 border-blue-600 text-slate-700 shadow-sm'
-                }`}>
-                  <p className="text-sm md:text-base leading-relaxed whitespace-pre-wrap font-medium">
-                    {wo['KETERANGAN'] || 'Tidak ada catatan tambahan.'}
+              {/* Detail/Keterangan */}
+              <div className="pt-6 border-t border-slate-100">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-3">Keterangan / Detail Pekerjaan</span>
+                <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                  <p className="text-slate-700 leading-relaxed whitespace-pre-wrap italic">
+                    "{wo['KETERANGAN'] || 'Tidak ada catatan detail untuk pekerjaan ini.'}"
                   </p>
                 </div>
               </div>
@@ -160,14 +133,9 @@ export default async function DetailWorkOrder({
           </div>
           
           {/* Footer Card */}
-          <div className={`px-10 py-6 flex justify-between items-center ${isRamadhan ? 'bg-emerald-950/40' : 'bg-slate-900'}`}>
-             <div className="flex items-center gap-2">
-               <div className={`w-2 h-2 rounded-full animate-pulse ${isRamadhan ? 'bg-emerald-500' : 'bg-blue-500'}`}></div>
-               <span className={`text-[9px] font-black tracking-[0.3em] uppercase ${isRamadhan ? 'text-emerald-700' : 'text-slate-500'}`}>System Secured</span>
-             </div>
-             <span className={`text-[9px] font-black uppercase tracking-widest ${isRamadhan ? 'text-emerald-900' : 'text-slate-500'}`}>
-               © {new Date().getFullYear()} NOC RAMADHAN CORE
-             </span>
+          <div className="px-8 py-4 bg-slate-900 flex justify-between items-center">
+             <span className="text-[9px] text-slate-500 font-bold tracking-widest uppercase">NOC FMI</span>
+             <span className="text-[9px] text-slate-500 font-bold uppercase">{new Date().getFullYear()}</span>
           </div>
         </div>
       </div>

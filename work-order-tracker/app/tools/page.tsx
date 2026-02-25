@@ -5,8 +5,8 @@ import { createBrowserClient } from '@supabase/ssr';
 import { 
   Wrench, Calculator, Activity, FileText, Shuffle, 
   Copy, Download, RefreshCcw, ArrowLeft, ArrowRight,
-  Search, CheckCircle, Lock, Server, Calendar,
-  Loader2, User, Database, Moon, Stars, Sparkles, Send
+  Search, CheckCircle, Lock, Server, RotateCcw, Calendar,
+  Loader2, User, Database // <-- User sudah ditambahin di sini biar gak error
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
@@ -20,11 +20,12 @@ const supabase = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 );
 
+// --- DAFTAR TOOLS ---
 const TOOLS = [
-  { id: 'ipcalc', label: 'IP Subnet Calculator', icon: Calculator, desc: 'Hitung subnet, range IP, dan broadcast.', color: 'text-amber-400', bg: 'bg-amber-400/10', border: 'border-amber-500/20' },
-  { id: 'speedtest', label: 'Server Speed Test', icon: Activity, desc: 'Cek bandwidth & latensi server lokal.', color: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-emerald-500/20' },
-  { id: 'backbone', label: 'Report Generator', icon: FileText, desc: 'Buat draft laporan teknis (.txt) otomatis.', color: 'text-sky-400', bg: 'bg-sky-400/10', border: 'border-sky-500/20' },
-  { id: 'distributor', label: 'WO Distributor', icon: Shuffle, desc: 'Bagikan tiket WO ke tim teknisi.', color: 'text-purple-400', bg: 'bg-purple-400/10', border: 'border-purple-500/20', restricted: true },
+  { id: 'ipcalc', label: 'IP Subnet Calculator', icon: Calculator, desc: 'Hitung subnet, range IP, dan broadcast.', color: 'text-blue-600', bg: 'bg-blue-100' },
+  { id: 'speedtest', label: 'Server Speed Test', icon: Activity, desc: 'Cek bandwidth & latensi server lokal.', color: 'text-emerald-600', bg: 'bg-emerald-100' },
+  { id: 'backbone', label: 'Report Generator', icon: FileText, desc: 'Buat draft laporan teknis (.txt) otomatis.', color: 'text-amber-600', bg: 'bg-amber-100' },
+  { id: 'distributor', label: 'WO Distributor', icon: Shuffle, desc: 'Bagikan tiket WO ke tim teknisi.', color: 'text-purple-600', bg: 'bg-purple-100', restricted: true },
 ];
 
 export default function ToolsPage() {
@@ -42,24 +43,20 @@ export default function ToolsPage() {
     getRole();
   }, []);
 
+  // --- RENDER MENU UTAMA (GRID) ---
   if (!activeTool) {
     return (
-      <div className="p-8 bg-[#020c09] min-h-screen font-sans relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none">
-          <Moon size={400} className="text-emerald-500" />
-        </div>
-
-        <div className="max-w-6xl mx-auto relative z-10">
-          <div className="mb-12 text-center md:text-left">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-[0.3em] mb-4">
-               <Sparkles size={12}/> Ramadhan Tech Suite
+      <div className="p-8 bg-slate-50 min-h-screen font-sans">
+        <div className="max-w-5xl mx-auto">
+          <div className="mb-10 text-center">
+            <div className="inline-flex p-4 bg-white rounded-2xl shadow-sm mb-4">
+               <Wrench size={48} className="text-slate-800" />
             </div>
-            <h1 className="text-4xl md:text-5xl font-black text-white tracking-tighter uppercase italic">
-              NOC <span className="text-emerald-500">WORKSHOP</span>
-            </h1>
+            <h1 className="text-3xl font-bold text-slate-800">Tools & Utilities</h1>
+            <p className="text-slate-500 mt-2">Pilih alat bantu operasional yang Anda butuhkan.</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {TOOLS.map((tool) => {
               const isRestricted = tool.restricted && !hasAccess(userRole, PERMISSIONS.TOOLS_WO_DISTRIBUTOR_VIEW) && userRole !== 'CS';
               return (
@@ -67,19 +64,25 @@ export default function ToolsPage() {
                   key={tool.id}
                   disabled={isRestricted}
                   onClick={() => setActiveTool(tool.id)}
-                  className={`relative p-8 rounded-[2.5rem] border transition-all duration-500 group overflow-hidden flex flex-col items-center text-center ${
+                  className={`relative p-6 rounded-2xl border text-left transition-all duration-300 group overflow-hidden ${
                     isRestricted 
-                      ? 'bg-slate-900/50 border-white/5 cursor-not-allowed opacity-50 grayscale' 
-                      : `bg-[#041a14]/80 backdrop-blur-md ${tool.border} hover:border-emerald-500/50 hover:shadow-[0_20px_40px_-15px_rgba(16,185,129,0.2)] hover:-translate-y-2`
+                      ? 'bg-slate-100 border-slate-200 cursor-not-allowed opacity-70' 
+                      : 'bg-white border-slate-200 hover:border-blue-300 hover:shadow-xl hover:-translate-y-1'
                   }`}
                 >
-                  <div className={`p-5 rounded-3xl mb-6 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6 ${tool.bg} ${tool.color}`}>
-                    {isRestricted ? <Lock size={32}/> : <tool.icon size={36} />}
+                  <div className={`p-4 rounded-xl w-fit mb-4 ${tool.bg} ${tool.color}`}>
+                    {isRestricted ? <Lock size={24}/> : <tool.icon size={28} />}
                   </div>
-                  <h3 className="text-lg font-black text-white mb-3 uppercase tracking-tight">{tool.label}</h3>
-                  <p className="text-[11px] text-emerald-900 font-bold leading-relaxed uppercase tracking-tighter italic">
-                    {isRestricted ? 'AKSES DIBATASI' : tool.desc}
+                  <h3 className="text-lg font-bold text-slate-800 group-hover:text-blue-600 transition-colors">{tool.label}</h3>
+                  <p className="text-sm text-slate-500 mt-2 leading-relaxed">
+                    {isRestricted ? 'Akses terbatas untuk role Anda.' : tool.desc}
                   </p>
+                  
+                  {!isRestricted && (
+                    <div className="absolute right-6 bottom-6 opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-2 group-hover:translate-x-0">
+                      <ArrowRight className="text-blue-400" />
+                    </div>
+                  )}
                 </button>
               );
             })}
@@ -89,20 +92,18 @@ export default function ToolsPage() {
     );
   }
 
+  // --- RENDER ACTIVE TOOL ---
   return (
-    <div className="p-4 md:p-6 bg-[#020c09] min-h-screen font-sans">
+    <div className="p-6 bg-slate-50 min-h-screen font-sans">
       <div className="max-w-7xl mx-auto">
         <button 
           onClick={() => setActiveTool(null)} 
-          className="group flex items-center gap-3 text-emerald-800 hover:text-emerald-400 font-black text-[10px] uppercase tracking-[0.3em] mb-8 transition-all"
+          className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-bold mb-6 transition-colors"
         >
-          <div className="p-2 rounded-xl bg-[#041a14] border border-emerald-900/50 group-hover:border-emerald-500/50">
-            <ArrowLeft size={16} />
-          </div>
-          Kembali ke Menu
+          <ArrowLeft size={20} /> Kembali ke Menu
         </button>
 
-        <div className="bg-[#041a14] rounded-[3rem] shadow-2xl border border-emerald-900/30 overflow-hidden min-h-[700px]">
+        <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden min-h-[600px]">
           {activeTool === 'ipcalc' && <IpCalculator />}
           {activeTool === 'speedtest' && <SpeedTest />}
           {activeTool === 'backbone' && <ReportBackbone userRole={userRole} />}
@@ -114,61 +115,103 @@ export default function ToolsPage() {
 }
 
 // ==========================================
-// 1. IP CALCULATOR (Re-Verified)
+// 1. IP SUBNET CALCULATOR (Fix Visibility with Inline Style)
 // ==========================================
 function IpCalculator() {
   const [ipInput, setIpInput] = useState('');
   const [cidr, setCidr] = useState(24);
   const [result, setResult] = useState<any>(null);
 
-  const handleCalculate = () => {
-    if (!ipInput) return toast.error("IP wajib diisi!");
-    const ipParts = ipInput.split('.').map(Number);
-    if (ipParts.length !== 4) return toast.error("Format IP Salah!");
-    
-    const ipInt = (ipParts[0] << 24) | (ipParts[1] << 16) | (ipParts[2] << 8) | ipParts[3];
-    const mask = 0xffffffff << (32 - cidr);
-    const networkInt = ipInt & mask; 
-    const broadcastInt = networkInt | (~mask); 
-    const intToIp = (int: number) => [(int >>> 24) & 0xFF, (int >>> 16) & 0xFF, (int >>> 8) & 0xFF, int & 0xFF].join('.');
+  const validateIP = (ip: string) => {
+    const pattern = /^(\d{1,3}\.){3}\d{1,3}$/;
+    if (!pattern.test(ip)) return false;
+    return ip.split('.').every(num => parseInt(num) >= 0 && parseInt(num) <= 255);
+  };
 
-    setResult({
-        network: intToIp(networkInt),
-        broadcast: intToIp(broadcastInt),
-        netmask: intToIp(mask),
-        hosts: (Math.pow(2, 32 - cidr) - (cidr >= 31 ? 0 : 2)).toLocaleString(),
-        firstUsable: intToIp(cidr >= 31 ? networkInt : networkInt + 1),
-        lastUsable: intToIp(cidr >= 31 ? broadcastInt : broadcastInt - 1),
-        cidr
-    });
-    toast.success("Kalkulasi Selesai");
+  const intToIp = (int: number) => {
+    return [(int >>> 24) & 0xFF, (int >>> 16) & 0xFF, (int >>> 8) & 0xFF, int & 0xFF].join('.');
+  };
+
+  const handleCalculate = () => {
+    if (!ipInput) return toast.error("IP Address wajib diisi!");
+    if (!validateIP(ipInput)) return toast.error("Format IP Salah (ex: 192.168.1.1)");
+
+    try {
+        const ipParts = ipInput.split('.').map(Number);
+        const ipInt = (ipParts[0] << 24) | (ipParts[1] << 16) | (ipParts[2] << 8) | ipParts[3];
+        const mask = 0xffffffff << (32 - cidr);
+        
+        const networkInt = ipInt & mask; 
+        const broadcastInt = networkInt | (~mask); 
+        
+        let firstUsableInt = networkInt + 1;
+        let lastUsableInt = broadcastInt - 1;
+        let hosts = Math.pow(2, 32 - cidr) - 2;
+
+        if(cidr >= 31) { 
+            firstUsableInt = networkInt;
+            lastUsableInt = broadcastInt;
+            hosts = cidr === 32 ? 1 : 2;
+        }
+
+        setResult({
+            network: intToIp(networkInt),
+            broadcast: intToIp(broadcastInt),
+            netmask: intToIp(mask),
+            hosts: hosts.toLocaleString(),
+            firstUsable: intToIp(firstUsableInt),
+            lastUsable: intToIp(lastUsableInt),
+            cidr: cidr
+        });
+        toast.success("Kalkulasi Selesai");
+    } catch (e) { toast.error("Error kalkulasi"); }
   };
 
   return (
-    <div className="p-8 md:p-12 h-full">
-      <div className="flex items-center gap-5 mb-10">
-        <div className="p-4 bg-amber-500 text-black rounded-3xl shadow-lg shadow-amber-500/20"><Calculator size={32}/></div>
-        <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter">IP SUBNET <span className="text-amber-500">CALC</span></h2>
+    <div className="p-8">
+      <div className="flex items-center gap-3 mb-8 border-b pb-4">
+        <div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><Calculator size={24}/></div>
+        <h2 className="text-xl font-bold text-slate-800">IP Subnet Calculator</h2>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-        <div className="lg:col-span-4 bg-[#020c09] p-8 rounded-[2.5rem] border border-emerald-900/40">
-           <label className="text-[10px] font-black text-emerald-800 uppercase mb-3 block italic tracking-widest">IP Address</label>
-           <input type="text" value={ipInput} onChange={(e)=>setIpInput(e.target.value)} className="w-full p-4 bg-[#041a14] border border-emerald-900/50 rounded-2xl mb-6 font-mono font-black text-amber-500 focus:ring-2 focus:ring-amber-500 outline-none" placeholder="192.168.1.1"/>
-           <label className="text-[10px] font-black text-emerald-800 uppercase mb-3 block flex justify-between tracking-widest italic">Prefix <span>/{cidr}</span></label>
-           <input type="range" min="1" max="32" value={cidr} onChange={(e)=>setCidr(Number(e.target.value))} className="w-full mb-8 accent-amber-500"/>
-           <button onClick={handleCalculate} className="w-full py-5 bg-amber-500 text-black rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-amber-500/20">HITUNG SEKARANG</button>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-1 bg-slate-50 p-6 rounded-xl border border-slate-200 h-fit">
+           <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">IP Address</label>
+           {/* FIX: PAKSA WARNA HITAM VIA STYLE */}
+           <input 
+             type="text" 
+             value={ipInput} 
+             onChange={(e)=>setIpInput(e.target.value)} 
+             style={{ color: 'black' }} 
+             className="w-full p-3 border border-slate-300 bg-white rounded-lg mb-4 font-mono font-bold text-black placeholder:text-gray-500 focus:ring-2 focus:ring-blue-500 outline-none" 
+             placeholder="192.168.1.1"
+           />
+           
+           <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">CIDR (/{cidr})</label>
+           <input type="range" min="1" max="32" value={cidr} onChange={(e)=>setCidr(Number(e.target.value))} className="w-full mb-2 accent-blue-600"/>
+           <div className="text-right font-bold text-blue-600 mb-6">/{cidr}</div>
+
+           <button onClick={handleCalculate} className="w-full py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-200">
+             Hitung Sekarang
+           </button>
         </div>
-        <div className="lg:col-span-8">
+
+        <div className="lg:col-span-2">
            {result ? (
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-right-4">
-                <ResultCard label="Network" value={`${result.network}/${result.cidr}`} highlight />
-                <ResultCard label="Total Hosts" value={result.hosts} />
-                <ResultCard label="Netmask" value={result.netmask} />
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-4">
+                <ResultCard label="Network Address" value={`${result.network}/${result.cidr}`} highlight />
+                <ResultCard label="Total Usable Hosts" value={result.hosts} />
+                <ResultCard label="Subnet Mask" value={result.netmask} />
                 <ResultCard label="Broadcast" value={result.broadcast} />
                 <ResultCard label="First IP" value={result.firstUsable} />
                 <ResultCard label="Last IP" value={result.lastUsable} />
              </div>
-           ) : <div className="h-full min-h-[300px] border-4 border-dashed border-emerald-900/20 rounded-[3rem] flex items-center justify-center text-emerald-900 font-black uppercase tracking-widest text-xs">Waiting for input...</div>}
+           ) : (
+             <div className="h-full flex flex-col items-center justify-center text-slate-300 border-2 border-dashed border-slate-200 rounded-xl min-h-[300px]">
+                <Server size={48} className="mb-2 opacity-50"/>
+                <p>Masukkan IP untuk melihat hasil</p>
+             </div>
+           )}
         </div>
       </div>
     </div>
@@ -176,119 +219,211 @@ function IpCalculator() {
 }
 
 function ResultCard({label, value, highlight}: any) {
+    const copy = () => { navigator.clipboard.writeText(value); toast.success("Disalin!"); };
     return (
-        <div className={`p-6 rounded-[2rem] border flex justify-between items-center ${highlight ? 'bg-amber-500 border-amber-400 text-black' : 'bg-[#020c09] border-emerald-900/30 text-white'}`}>
+        <div className={`p-4 rounded-xl border flex justify-between items-center group ${highlight ? 'bg-slate-800 text-white border-slate-700' : 'bg-white border-slate-100 shadow-sm'}`}>
             <div>
-                <p className={`text-[9px] font-black uppercase mb-1 tracking-widest opacity-60`}>{label}</p>
-                <p className="font-mono font-black text-lg">{value}</p>
+                <p className={`text-[10px] font-bold uppercase mb-1 ${highlight ? 'text-slate-400' : 'text-slate-400'}`}>{label}</p>
+                <p className={`font-mono font-bold text-lg ${highlight ? 'text-white' : 'text-slate-700'}`}>{value}</p>
             </div>
-            <button onClick={() => {navigator.clipboard.writeText(value); toast.success("Copied!");}} className="p-2 hover:opacity-50 transition"><Copy size={18}/></button>
+            <button onClick={copy} className={`p-2 rounded-lg opacity-0 group-hover:opacity-100 transition ${highlight ? 'hover:bg-slate-700' : 'hover:bg-slate-100 text-slate-400'}`}>
+                <Copy size={16}/>
+            </button>
         </div>
-    );
+    )
 }
 
 // ==========================================
-// 2. SPEED TEST (Verified)
+// 2. SPEED TEST 
 // ==========================================
 function SpeedTest() {
   return (
-    <div className="h-full bg-black">
-        <div className="p-6 bg-[#041a14] border-b border-emerald-900/30 flex items-center gap-4">
-            <Activity size={24} className="text-emerald-500" />
-            <h2 className="text-lg font-black text-white uppercase tracking-tighter italic">Server Speed Test</h2>
-        </div>
-        <iframe src="https://openspeedtest.com/Get-widget.php" className="w-full h-[650px] border-0 grayscale invert opacity-70"></iframe>
+    <div className="flex flex-col h-full">
+       <div className="p-6 border-b flex items-center gap-3">
+          <div className="p-2 bg-emerald-100 text-emerald-600 rounded-lg"><Activity size={24}/></div>
+          <h2 className="text-xl font-bold text-slate-800">Server Speed Test</h2>
+       </div>
+       <div className="flex-1 bg-slate-100 p-1">
+          <iframe src="https://openspeedtest.com/Get-widget.php" className="w-full h-full border-0 min-h-[600px]"></iframe>
+       </div>
     </div>
   );
 }
 
 // ==========================================
-// 3. REPORT GENERATOR (RESTORED MISSING FIELDS)
+// 3. REPORT GENERATOR (Fix Visibility with Inline Style)
 // ==========================================
 function ReportBackbone({ userRole }: { userRole: Role | null }) {
-  const [form, setForm] = useState({ tiket: '', impact: '', status: 'Solved', problem: '', action: '', tagging: '', power: '' });
+  const [form, setForm] = useState({
+    tiket: '',
+    impact: '',
+    status: 'Solved',
+    problem: '',
+    action: '',
+    tagging: '',
+    power: ''
+  });
   const isCS = userRole === 'CS';
 
   const handleDownload = () => {
-    if (isCS) return toast.error("Akses Ditolak!");
-    const text = `SUMMARY REPORT BACKBONE PROBLEM\n===============================\n\nTiket\t: ${form.tiket || '-'}\nImpact\t: ${form.impact || '-'}\nStatus\t: ${form.status}\n\nProblem analysis details :\n${form.problem || '-'}\n\nAction :\n${form.action || '-'}\n\nData Tagging\n${form.tagging || '-'}\n\nRecord Power After Maintenance :\n${form.power || '-'}\n`;
+    if (isCS) return toast.error("Akses Ditolak: CS Mode View Only.");
+    
+    // FORMAT BARU SESUAI REQUEST
+    const text = `SUMMARY REPORT BACKBONE PROBLEM
+===============================
+
+Tiket\t: ${form.tiket || '-'}
+Impact\t: ${form.impact || '-'}
+Status\t: ${form.status}
+
+Problem analysis details :
+${form.problem || '-'}
+
+Action :
+${form.action || '-'}
+
+Data Tagging
+${form.tagging || '-'}
+
+Record Power After Maintenance :
+${form.power || '-'}
+`;
 
     const file = new Blob([text], {type: 'text/plain'});
     const element = document.createElement("a");
     element.href = URL.createObjectURL(file);
-    element.download = `Report_${form.tiket.substring(0, 10) || 'Backbone'}.txt`;
+    const fileNameSafe = form.tiket.replace(/[^a-z0-9]/gi, '_').substring(0, 20) || 'Report';
+    element.download = `Report_${fileNameSafe}.txt`;
     element.click();
-    toast.success("Report diunduh!");
+    toast.success("Report Backbone berhasil diunduh");
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-       <div className="p-8 border-b border-emerald-900/30 flex items-center gap-5">
-          <div className="p-4 bg-sky-500 text-black rounded-3xl shadow-lg shadow-sky-500/20"><FileText size={32}/></div>
-          <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter">REPORT <span className="text-sky-500">GENERATOR</span></h2>
+    <div className="flex flex-col h-full">
+       <div className="p-6 border-b flex items-center gap-3">
+          <div className="p-2 bg-amber-100 text-amber-600 rounded-lg"><FileText size={24}/></div>
+          <h2 className="text-xl font-bold text-slate-800">Report Generator</h2>
        </div>
        
-       <div className="grid grid-cols-1 lg:grid-cols-3 gap-0 flex-1 overflow-hidden">
-          {/* KOLOM INPUT (Scrollable) */}
-          <div className="lg:col-span-2 p-8 space-y-6 overflow-y-auto custom-scrollbar bg-[#020c09]/30">
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-[#041a14] p-6 rounded-[2rem] border border-emerald-900/30">
-                <div className="md:col-span-2">
-                    <label className="text-[10px] font-black text-emerald-800 uppercase mb-2 block italic tracking-widest">Tiket / Subject</label>
-                    <input style={{ color: '#bae6fd' }} className="w-full p-4 bg-[#020c09] border border-emerald-900/50 rounded-2xl outline-none text-sm font-bold" placeholder="HT155..." onChange={(e)=>setForm({...form, tiket: e.target.value})} />
-                </div>
+       <div className="grid grid-cols-1 lg:grid-cols-3 gap-0 flex-1 min-h-[600px]">
+          
+          {/* KOLOM INPUT */}
+          <div className="lg:col-span-2 p-8 space-y-5 overflow-y-auto border-r border-slate-100">
+             
+             {/* HEADERS */}
+             <div className="space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
                 <div>
-                    <label className="text-[10px] font-black text-emerald-800 uppercase mb-2 block italic tracking-widest">Impact</label>
-                    <input style={{ color: '#bae6fd' }} className="w-full p-4 bg-[#020c09] border border-emerald-900/50 rounded-2xl outline-none text-sm font-bold" placeholder="CCC <> KARAWANG" onChange={(e)=>setForm({...form, impact: e.target.value})} />
+                    <label className="text-xs font-bold text-slate-600 uppercase">Tiket (Subject Lengkap)</label>
+                    <input 
+                      style={{ color: 'black' }}
+                      className="w-full p-2.5 border border-slate-300 bg-white rounded-lg mt-1 focus:ring-2 focus:ring-amber-500 outline-none text-sm font-bold text-black placeholder:text-gray-500" 
+                      placeholder="HT155380 - Major - Backbone - Karawang <> CCC 2x10G..." 
+                      onChange={(e)=>setForm({...form, tiket: e.target.value})} 
+                    />
                 </div>
-                <div>
-                    <label className="text-[10px] font-black text-emerald-800 uppercase mb-2 block italic tracking-widest">Status</label>
-                    <select style={{ color: '#bae6fd' }} className="w-full p-4 bg-[#020c09] border border-emerald-900/50 rounded-2xl outline-none text-sm font-bold" onChange={(e)=>setForm({...form, status: e.target.value})}>
-                        <option>Solved</option><option>Monitoring</option><option>Open</option>
-                    </select>
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="text-xs font-bold text-slate-600 uppercase">Impact</label>
+                        <input 
+                          style={{ color: 'black' }}
+                          className="w-full p-2.5 border border-slate-300 bg-white rounded-lg mt-1 focus:ring-2 focus:ring-amber-500 outline-none text-sm font-bold text-black placeholder:text-gray-500" 
+                          placeholder="CCC <> KARAWANG 200G" 
+                          onChange={(e)=>setForm({...form, impact: e.target.value})} 
+                        />
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold text-slate-600 uppercase">Status</label>
+                        <select 
+                          style={{ color: 'black' }}
+                          className="w-full p-2.5 border border-slate-300 rounded-lg mt-1 bg-white focus:ring-2 focus:ring-amber-500 outline-none text-sm font-bold text-black" 
+                          onChange={(e)=>setForm({...form, status: e.target.value})}
+                        >
+                            <option>Solved</option><option>Monitoring</option><option>Open</option>
+                        </select>
+                    </div>
                 </div>
              </div>
 
-             {/* TEXT AREAS - SEMUA FIELD DIKEMBALIKAN */}
-             <div className="space-y-6">
-                <div>
-                    <label className="text-[10px] font-black text-emerald-800 uppercase mb-2 block italic tracking-widest">Problem Analysis</label>
-                    <textarea rows={3} style={{ color: '#bae6fd' }} className="w-full p-4 bg-[#020c09] border border-emerald-900/50 rounded-2xl outline-none text-sm font-medium" placeholder="Analisa masalah..." onChange={(e)=>setForm({...form, problem: e.target.value})} />
-                </div>
-                <div>
-                    <label className="text-[10px] font-black text-emerald-800 uppercase mb-2 block italic tracking-widest">Action Taken</label>
-                    <textarea rows={3} style={{ color: '#bae6fd' }} className="w-full p-4 bg-[#020c09] border border-emerald-900/50 rounded-2xl outline-none text-sm font-medium" placeholder="Tindakan..." onChange={(e)=>setForm({...form, action: e.target.value})} />
-                </div>
-                <div>
-                    <label className="text-[10px] font-black text-emerald-800 uppercase mb-2 block italic tracking-widest text-sky-500">Data Tagging (Lokasi/Core/Maps)</label>
-                    <textarea rows={3} style={{ color: '#bae6fd' }} className="w-full p-4 bg-[#020c09] border border-emerald-900/50 rounded-2xl outline-none text-sm font-mono" placeholder="Closure titik 8,7 km..." onChange={(e)=>setForm({...form, tagging: e.target.value})} />
-                </div>
-                <div>
-                    <label className="text-[10px] font-black text-emerald-800 uppercase mb-2 block italic tracking-widest text-sky-500">Record Power After Maintenance</label>
-                    <textarea rows={3} style={{ color: '#bae6fd' }} className="w-full p-4 bg-[#020c09] border border-emerald-900/50 rounded-2xl outline-none text-sm font-mono" placeholder="- SISI KARAWANG : -20.96..." onChange={(e)=>setForm({...form, power: e.target.value})} />
-                </div>
+             {/* DETAILS */}
+             <div>
+                <label className="text-xs font-bold text-slate-600 uppercase">Problem Analysis Details</label>
+                <textarea 
+                  rows={3} 
+                  style={{ color: 'black' }}
+                  className="w-full p-3 border border-slate-300 bg-white rounded-lg mt-1 focus:ring-2 focus:ring-amber-500 outline-none text-sm font-bold text-black placeholder:text-gray-500" 
+                  placeholder="- Link low power..." 
+                  onChange={(e)=>setForm({...form, problem: e.target.value})} 
+                />
              </div>
+             <div>
+                <label className="text-xs font-bold text-slate-600 uppercase">Action Taken</label>
+                <textarea 
+                  rows={4} 
+                  style={{ color: 'black' }}
+                  className="w-full p-3 border border-slate-300 bg-white rounded-lg mt-1 focus:ring-2 focus:ring-amber-500 outline-none text-sm font-bold text-black placeholder:text-gray-500" 
+                  placeholder="- Pengecekan di sisi BTS..." 
+                  onChange={(e)=>setForm({...form, action: e.target.value})} 
+                />
+             </div>
+             
+             {/* DATA TAGGING */}
+             <div>
+                <label className="text-xs font-bold text-slate-600 uppercase">Data Tagging (Lokasi/Core/Maps)</label>
+                <textarea 
+                  rows={4} 
+                  style={{ color: 'black' }}
+                  className="w-full p-3 border border-slate-300 bg-white rounded-lg mt-1 focus:ring-2 focus:ring-amber-500 outline-none text-sm font-mono font-bold text-black placeholder:text-gray-500" 
+                  placeholder="Closure titik 8,7 km... (Paste Info Lengkap)" 
+                  onChange={(e)=>setForm({...form, tagging: e.target.value})} 
+                />
+             </div>
+
+             {/* RECORD POWER */}
+             <div>
+                <label className="text-xs font-bold text-slate-600 uppercase">Record Power After Maintenance</label>
+                <textarea 
+                  rows={4} 
+                  style={{ color: 'black' }}
+                  className="w-full p-3 border border-slate-300 bg-white rounded-lg mt-1 focus:ring-2 focus:ring-amber-500 outline-none text-sm font-mono font-bold text-black placeholder:text-gray-500" 
+                  placeholder="- SISI KARAWANG : -20.96..." 
+                  onChange={(e)=>setForm({...form, power: e.target.value})} 
+                />
+             </div>
+
           </div>
 
-          {/* PREVIEW */}
-          <div className="lg:col-span-1 bg-[#020c09] p-8 flex flex-col border-l border-emerald-900/30 h-full overflow-hidden">
-             <div className="bg-[#041a14] p-6 rounded-[2rem] border border-emerald-900/30 mb-6 flex-1 overflow-y-auto custom-scrollbar shadow-2xl">
-                <h4 className="font-black text-emerald-500 mb-4 text-[10px] uppercase tracking-[0.3em] flex items-center gap-2 border-b border-emerald-900/30 pb-3">
-                   <Stars size={14}/> LIVE PREVIEW
+          {/* KOLOM PREVIEW */}
+          <div className="lg:col-span-1 bg-slate-50 p-6 flex flex-col border-l border-slate-200">
+             <div className="bg-white p-5 rounded-xl border border-slate-200 mb-6 shadow-sm flex-1 overflow-y-auto max-h-[600px]">
+                <h4 className="font-bold text-slate-700 mb-4 text-sm uppercase tracking-wider border-b pb-2 flex items-center gap-2">
+                   <FileText size={16}/> Preview Report
                 </h4>
-                <div className="text-[10px] text-emerald-100 font-mono space-y-4 whitespace-pre-wrap leading-relaxed italic opacity-70">
-                    <p className="font-bold border-b border-emerald-900/50 pb-2">SUMMARY REPORT BACKBONE</p>
-                    <p>Tiket: {form.tiket || '-'}</p>
-                    <p>Status: {form.status}</p>
-                    <p className="text-sky-500 font-bold">Action Taken:</p>
-                    <p>{form.action || '-'}</p>
-                    <p className="text-sky-500 font-bold">Data Tagging:</p>
-                    <p>{form.tagging || '-'}</p>
-                    <p className="text-sky-500 font-bold">Power Record:</p>
-                    <p>{form.power || '-'}</p>
+                <div className="text-[10px] text-slate-600 font-mono space-y-3 whitespace-pre-wrap leading-relaxed">
+                    <p className="font-bold">SUMMARY REPORT BACKBONE PROBLEM</p>
+                    <hr className="border-slate-200"/>
+                    <p><span className="font-bold text-slate-800">Tiket:</span> {form.tiket || '...'}</p>
+                    <p><span className="font-bold text-slate-800">Impact:</span> {form.impact || '...'}</p>
+                    <p><span className="font-bold text-slate-800">Status:</span> {form.status}</p>
+                    <div className="pt-2">
+                        <span className="font-bold text-slate-800 underline">Problem Analysis:</span>
+                        <p className="mt-1">{form.problem || '-'}</p>
+                    </div>
+                    <div>
+                        <span className="font-bold text-slate-800 underline">Action:</span>
+                        <p className="mt-1">{form.action || '-'}</p>
+                    </div>
+                    <div className="p-2 bg-slate-50 rounded border border-slate-100">
+                        <span className="font-bold text-slate-800">Data Tagging:</span>
+                        <p className="mt-1">{form.tagging || '-'}</p>
+                    </div>
                 </div>
              </div>
-             <button onClick={handleDownload} disabled={isCS} className="w-full py-5 bg-sky-500 text-black rounded-[1.5rem] font-black text-[10px] tracking-widest uppercase hover:bg-sky-400 active:scale-95 transition-all shadow-xl shadow-sky-500/20">
-                {isCS ? 'RESTRICTED' : 'DOWNLOAD REPORT (.TXT)'}
+             <button 
+                onClick={handleDownload} 
+                disabled={isCS}
+                className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg transition ${isCS ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-slate-900 text-white hover:bg-slate-800'}`}
+             >
+               <Download size={18}/> {isCS ? 'Restricted' : 'Download .TXT'}
              </button>
           </div>
        </div>
@@ -297,7 +432,7 @@ function ReportBackbone({ userRole }: { userRole: Role | null }) {
 }
 
 // ==========================================
-// 4. WO DISTRIBUTOR (RESTORED TICKET FORMATTING LOGIC)
+// 4. WO DISTRIBUTOR (FIXED HEIGHT & INTERNAL SCROLL)
 // ==========================================
 function WoDistributor({ userRole }: { userRole: Role | null }) {
   const [woList, setWoList] = useState<any[]>([]);
@@ -314,18 +449,32 @@ function WoDistributor({ userRole }: { userRole: Role | null }) {
     setLoading(true);
     setSelectedWO([]);
     try {
-      const dateObj = new Date(filterDate);
-      const searchString = format(dateObj, 'd MMMM yyyy', { locale: idLocale });
-      const { data, error } = await supabase.from('Report Bulanan')
-        .select('*')
-        .or('STATUS.eq.PENDING,STATUS.eq.PROGRESS,STATUS.eq.OPEN')
-        .ilike('KETERANGAN', `%${searchString}%`)
-        .order('id', { ascending: false }).limit(100);
-      
+      let query = supabase.from('Report Bulanan').select('*');
+      if (filterDate) {
+        const dateObj = new Date(filterDate);
+        const searchString = format(dateObj, 'd MMMM yyyy', { locale: idLocale });
+        query = query.or('STATUS.eq.PENDING,STATUS.eq.PROGRESS,STATUS.eq.OPEN').ilike('KETERANGAN', `%${searchString}%`);
+      } else {
+        query = query.in('STATUS', ['PENDING', 'OPEN', 'PROGRESS']).is('NAMA TEAM', null);
+      }
+      const { data, error } = await query.order('id', { ascending: false }).limit(100);
       if (error) throw error;
       setWoList(data || []);
       toast.success(`${data?.length || 0} WO ditemukan`);
-    } catch (err) { toast.error("Gagal ambil data"); } finally { setLoading(false); }
+    } catch (err: any) {
+      toast.error("Gagal ambil data: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleWO = (id: string) => {
+    setSelectedWO(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]);
+  };
+
+  const toggleAllWO = () => {
+    if (selectedWO.length === woList.length) setSelectedWO([]);
+    else setSelectedWO(woList.map(wo => wo.id));
   };
 
   useEffect(() => {
@@ -337,100 +486,165 @@ function WoDistributor({ userRole }: { userRole: Role | null }) {
     getTechs();
   }, [canDistribute]);
 
-  const distributeWO = async () => {
-    if (selectedTechs.length === 0 || selectedWO.length === 0) return toast.error("Pilih Tim & WO!");
+  const toggleTech = (name: string) => {
+    setSelectedTechs(prev => prev.includes(name) ? prev.filter(t => t !== name) : [...prev, name]);
+  };
+
+const distributeWO = async () => {
+    if (selectedTechs.length === 0 || selectedWO.length === 0) {
+      return toast.error("Pilih minimal 1 tim dan 1 WO!");
+    }
+
     setDistributing(true);
+
+    // Fungsi untuk membuat singkatan nama (Hilangkan Vokal)
+    const getAbbreviation = (name: string) => {
+      return name.toUpperCase().replace(/[AEIOU\s]/g, '').slice(0, 4);
+    };
+
     try {
-      const woIds = woList.filter(wo => selectedWO.includes(wo.id)).map(w => w.id);
-      
+      const targetWOs = woList.filter(wo => selectedWO.includes(wo.id));
+      const woIds = targetWOs.map(w => w.id);
+
       const inboxPromises = selectedTechs.map(async (techName) => {
-        const { count } = await supabase.from('inbox_tugas').select('*', { count: 'exact', head: true });
-        // Restore abbreviation logic
-        const nameAbbr = techName.toUpperCase().replace(/[AEIOU\s]/g, '').slice(0, 4);
-        const customId = `PND/PRG-${nameAbbr}-${String((count || 0) + 1).padStart(5, '0')}`;
+        // 1. Ambil jumlah tiket saat ini untuk membuat nomor urut (00001)
+        const { count } = await supabase
+          .from('inbox_tugas')
+          .select('*', { count: 'exact', head: true });
         
-        return supabase.from('inbox_tugas').insert({ 
-          id_tiket_custom: customId, 
-          assigned_to: techName, 
-          wo_ids: woIds, 
-          status: 'OPEN' 
+        const nextNumber = (count || 0) + 1;
+        const formattedNumber = String(nextNumber).padStart(5, '0');
+        const nameAbbr = getAbbreviation(techName);
+        
+        // 2. Format Tiket: PND/PRG-ILHM-00001
+        const customTicketId = `PND/PRG-${nameAbbr}-${formattedNumber}`;
+
+        return supabase.from('inbox_tugas').insert({
+          id_tiket_custom: customTicketId, // Simpan ke kolom baru
+          assigned_to: techName,
+          wo_ids: woIds,
+          status: 'OPEN'
         });
       });
 
-      await Promise.all([
-        ...inboxPromises, 
-        supabase.from('Report Bulanan').update({ 'NAMA TEAM': selectedTechs.join(', '), 'STATUS': 'OPEN' }).in('id', woIds)
-      ]);
+      // Update Report Bulanan
+      const woUpdate = supabase
+        .from('Report Bulanan')
+        .update({ 
+          'NAMA TEAM': selectedTechs.join(', '), 
+          'STATUS': 'OPEN' 
+        })
+        .in('id', woIds);
+
+      await Promise.all([...inboxPromises, woUpdate]);
+      toast.success(`Berhasil! Tiket grup telah dibuat.`);
       
-      toast.success(`Distribusi Berhasil!`);
       fetchWO(); setSelectedWO([]); setSelectedTechs([]);
-    } catch (error) { toast.error("Gagal!"); } finally { setDistributing(false); }
+    } catch (error: any) {
+      console.error(error);
+      toast.error("Gagal: " + error.message);
+    } finally {
+      setDistributing(false);
+    }
   };
 
   return (
-    <div className="p-6 md:p-8 h-[700px] flex flex-col">
-       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 shrink-0">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-purple-500 text-black rounded-2xl"><Shuffle size={24}/></div>
-            <h2 className="text-xl font-black text-white uppercase italic">WO Distributor</h2>
+    // Grid Utama: Kita kunci tinggi maksimalnya di sini agar tidak memanjang ke bawah
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6 items-start text-slate-800 font-sans">
+       
+       {/* PANEL KIRI: LIST WO (Scrollable Internal) */}
+       <div className="lg:col-span-2 flex flex-col border border-slate-200 rounded-3xl overflow-hidden bg-white shadow-sm h-[65vh] min-h-[500px]">
+          <div className="p-4 bg-slate-50 border-b flex justify-between items-center shrink-0">
+             <div className="flex items-center gap-3">
+                <input 
+                  type="checkbox" 
+                  className="w-4 h-4 rounded border-slate-300 text-blue-600 cursor-pointer"
+                  checked={selectedWO.length === woList.length && woList.length > 0}
+                  onChange={toggleAllWO}
+                />
+                <h3 className="font-bold text-sm text-slate-700">Terpilih: {selectedWO.length} WO</h3>
+             </div>
+             <div className="flex items-center gap-2">
+                <input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} className="px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-bold text-black outline-none bg-white"/>
+                <button onClick={fetchWO} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2">
+                   {loading ? <Loader2 size={14} className="animate-spin"/> : <RefreshCcw size={14} />} Get Data
+                </button>
+             </div>
           </div>
-          <div className="flex items-center gap-3 bg-[#020c09] p-2 rounded-xl border border-emerald-900/50">
-             <input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} className="bg-transparent text-emerald-400 font-bold text-xs px-2 outline-none uppercase" />
-             <button onClick={fetchWO} className="bg-emerald-500 text-black px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-emerald-400">
-                {loading ? <Loader2 size={12} className="animate-spin"/> : <RefreshCcw size={12} />} GET DATA
-             </button>
+
+          {/* AREA SCROLL KIRI */}
+          <div className="flex-1 p-4 space-y-3 overflow-y-auto bg-slate-50/20 custom-scrollbar">
+             {woList.length === 0 ? (
+               <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-2 border-2 border-dashed rounded-2xl">
+                  <Search size={32} className="opacity-20"/>
+                  <p className="text-xs italic">Cari data berdasarkan tanggal di atas.</p>
+               </div>
+             ) : (
+               woList.map((wo, idx) => (
+                 <label 
+                   key={idx} 
+                   className={`p-4 border rounded-2xl flex items-center gap-4 cursor-pointer transition-all hover:border-blue-300 ${
+                     selectedWO.includes(wo.id) ? 'bg-blue-50 border-blue-400 shadow-sm' : 'bg-white border-slate-200'
+                   }`}
+                 >
+                    <input 
+                      type="checkbox" 
+                      className="w-5 h-5 rounded border-slate-300 text-blue-600 shrink-0"
+                      checked={selectedWO.includes(wo.id)}
+                      onChange={() => toggleWO(wo.id)}
+                    />
+                    <div className="flex-1 min-w-0">
+                       <div className="flex items-center gap-2 mb-1">
+                          <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 uppercase">
+                             {wo.TANGGAL && !isNaN(new Date(wo.TANGGAL).getTime()) 
+                               ? format(new Date(wo.TANGGAL), 'dd/MM/yyyy') 
+                               : 'No Date'}
+                          </span>
+                          <span className={`text-[9px] px-2 py-0.5 rounded font-black uppercase border ${
+                            wo.STATUS === 'PROGRESS' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-amber-100 text-amber-700 border-amber-200'
+                          }`}>
+                             {wo.STATUS}
+                          </span>
+                       </div>
+                       <p className="text-xs font-bold text-slate-800 line-clamp-1 uppercase tracking-tight">{wo['SUBJECT WO'] || 'No Subject'}</p>
+                       <p className="text-[10px] text-slate-500 line-clamp-1 italic mt-0.5">{wo['KETERANGAN'] || '-'}</p>
+                    </div>
+                 </label>
+               ))
+             )}
           </div>
        </div>
 
-       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 overflow-hidden">
-          {/* WO PANEL */}
-          <div className="lg:col-span-2 flex flex-col bg-[#020c09] rounded-[2rem] border border-emerald-900/30 overflow-hidden">
-             <div className="p-4 border-b border-emerald-900/30 bg-[#041a14]/50 flex justify-between items-center italic">
-                <span className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">{selectedWO.length} WO SELECTED</span>
-                <button onClick={() => setSelectedWO(selectedWO.length === woList.length ? [] : woList.map(w => w.id))} className="text-[9px] font-black text-emerald-500 underline">SELECT ALL</button>
-             </div>
-             <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
-                {woList.map((wo) => (
-                   <label key={wo.id} className={`flex items-center gap-4 p-4 border rounded-2xl cursor-pointer transition-all ${selectedWO.includes(wo.id) ? 'bg-emerald-500/10 border-emerald-500' : 'bg-[#041a14] border-emerald-900/20'}`}>
-                      <input type="checkbox" className="w-4 h-4 rounded border-emerald-900 bg-black" checked={selectedWO.includes(wo.id)} onChange={() => {
-                         setSelectedWO(prev => prev.includes(wo.id) ? prev.filter(i => i !== wo.id) : [...prev, wo.id]);
-                      }} />
-                      <div className="min-w-0">
-                         <p className="text-[9px] text-emerald-800 font-black uppercase mb-1 tracking-tighter">
-                            {wo.TANGGAL ? format(new Date(wo.TANGGAL), 'dd/MM/yyyy') : 'NO DATE'} | {wo.STATUS}
-                         </p>
-                         <p className="text-xs font-black text-white truncate italic tracking-tight">{wo['SUBJECT WO'] || 'No Subject'}</p>
-                      </div>
-                   </label>
-                ))}
-             </div>
+       {/* PANEL KANAN: PILIH TIM & TOMBOL DISTRIBUSI (Sticky di dalam kontainer) */}
+       <div className="flex flex-col border border-slate-200 rounded-3xl p-5 bg-white shadow-sm h-[65vh] min-h-[500px] overflow-hidden">
+          <h3 className="font-bold text-sm text-slate-800 mb-5 flex items-center gap-2 shrink-0 underline decoration-purple-200 decoration-2">
+             <User size={18} className="text-purple-600"/> Pilih Tim Teknisi
+          </h3>
+          
+          {/* AREA SCROLL KANAN */}
+          <div className="flex-1 space-y-2 overflow-y-auto pr-2 mb-4 custom-scrollbar">
+             {technicians.map((tech) => (
+                <label key={tech.id} className={`flex items-center gap-3 p-4 rounded-2xl border cursor-pointer transition-all ${selectedTechs.includes(tech.full_name) ? 'bg-blue-50 border-blue-300 shadow-inner' : 'border-slate-100 hover:bg-slate-50'}`}>
+                   <input type="checkbox" checked={selectedTechs.includes(tech.full_name)} onChange={() => toggleTech(tech.full_name)} className="rounded text-blue-600 w-4 h-4"/>
+                   <div className="min-w-0">
+                      <p className="text-sm font-bold text-slate-700 leading-none truncate">{tech.full_name}</p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase mt-1.5 tracking-tighter">{tech.role}</p>
+                   </div>
+                </label>
+             ))}
           </div>
-
-          {/* TECH PANEL */}
-          <div className="flex flex-col bg-[#041a14] rounded-[2rem] border border-emerald-900/30 overflow-hidden">
-             <div className="p-5 border-b border-emerald-900/30 bg-purple-500/5">
-                <h3 className="text-[10px] font-black text-purple-400 uppercase tracking-widest flex items-center gap-2 italic">
-                  <User size={14}/> PILIH TIM TEKNISI
-                </h3>
-             </div>
-             <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
-                {technicians.map((tech) => (
-                   <label key={tech.id} className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${selectedTechs.includes(tech.full_name) ? 'bg-purple-500/20 border-purple-500' : 'bg-[#020c09] border-emerald-900/20'}`}>
-                      <input type="checkbox" checked={selectedTechs.includes(tech.full_name)} onChange={() => {
-                         setSelectedTechs(prev => prev.includes(tech.full_name) ? prev.filter(t => t !== tech.full_name) : [...prev, tech.full_name]);
-                      }} className="rounded-full text-purple-600 bg-black border-emerald-900" />
-                      <div>
-                         <p className="text-xs font-black text-white italic">{tech.full_name}</p>
-                         <p className="text-[8px] text-emerald-900 font-bold uppercase tracking-widest">{tech.role}</p>
-                      </div>
-                   </label>
-                ))}
-             </div>
-             <div className="p-6 bg-[#020c09] border-t border-emerald-900/30">
-                <button onClick={distributeWO} disabled={distributing || selectedWO.length === 0} className="w-full py-4 bg-emerald-500 text-black rounded-xl font-black text-[10px] tracking-widest uppercase hover:bg-emerald-400 flex items-center justify-center gap-2">
-                   {distributing ? <Loader2 size={14} className="animate-spin"/> : <Send size={14}/>} DISTRIBUSI SEKARANG
-                </button>
-             </div>
+          
+          {/* TOMBOL DISTRIBUSI (Selalu di bawah panel kanan) */}
+          <div className="pt-4 border-t shrink-0">
+            <button 
+              onClick={distributeWO} 
+              disabled={!canDistribute || selectedTechs.length === 0 || selectedWO.length === 0 || distributing} 
+              className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold text-sm hover:bg-slate-800 disabled:opacity-50 transition-all shadow-xl active:scale-95 flex justify-center items-center gap-2 mb-2"
+            >
+               {distributing ? <Loader2 size={18} className="animate-spin"/> : <Shuffle size={18}/>}
+               Distribusi {selectedWO.length} Tiket
+            </button>
+            <p className="text-[9px] text-center text-slate-400 font-bold uppercase tracking-widest leading-tight">Status WO otomatis berubah menjadi OPEN</p>
           </div>
        </div>
     </div>

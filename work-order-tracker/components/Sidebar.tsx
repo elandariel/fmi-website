@@ -6,6 +6,7 @@ export default function Sidebar({ userRole }: { userRole: Role }) {
   const menuItems = [
     { name: 'Overview', href: '/', roles: ['SUPER_DEV', 'NOC', 'AKTIVATOR', 'ADMIN', 'CS'] },
     { name: 'Data Client', href: '/clients', roles: ['SUPER_DEV', 'NOC', 'AKTIVATOR', 'ADMIN', 'CS'] },
+    { name: 'Data Interkoneksi', href: '/interkoneksi', roles: ['SUPER_DEV', 'NOC', 'AKTIVATOR', 'ADMIN', 'CS'] },
     { name: 'Work Orders', href: '/work-orders', roles: ['SUPER_DEV', 'NOC', 'AKTIVATOR', 'ADMIN', 'CS'] },
     { name: 'VLAN Master', href: '/vlan', roles: ['SUPER_DEV', 'NOC', 'AKTIVATOR', 'ADMIN', 'CS'] },
     { name: 'Broadcast', href: '/broadcast', roles: PERMISSIONS.BROADCAST_ACCESS }, // Hidden for NOC/AKT/CS
