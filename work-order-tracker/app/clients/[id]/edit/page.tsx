@@ -5,12 +5,13 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect, Suspense } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useRouter, useParams } from 'next/navigation';
-import { Save, ArrowLeft, Loader2, UserCog, Trash2 } from 'lucide-react';
+import { Save, ArrowLeft, Loader2, UserCog, Trash2, AlertTriangle } from 'lucide-react';
 import { logActivity } from '@/lib/logger';
-
-// --- 1. IMPORT TOAST (SONNER) ---
 import { toast } from 'sonner';
 
+// ─────────────────────────────────────────────
+// FORM CONTENT
+// ─────────────────────────────────────────────
 function EditClientContent() {
   const router = useRouter();
   const params = useParams();
@@ -18,14 +19,13 @@ function EditClientContent() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  // Setup Supabase
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL || '',
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
   );
 
-  // State Form
   const [formData, setFormData] = useState({
     'ID Pelanggan': '',
     'Nama Pelanggan': '',
@@ -38,7 +38,6 @@ function EditClientContent() {
     'RX ONT/SFP': ''
   });
 
-  // --- 1. AMBIL DATA LAMA ---
   useEffect(() => {
     async function fetchData() {
       const { data, error } = await supabase
@@ -46,9 +45,7 @@ function EditClientContent() {
         .select('*')
         .eq('id', id)
         .single();
-
       if (error) {
-        // GANTI ALERT JADI TOAST ERROR
         toast.error('Gagal mengambil data: ' + error.message);
         router.push('/clients');
       } else if (data) {
@@ -56,24 +53,20 @@ function EditClientContent() {
       }
       setLoading(false);
     }
-    
     if (id) fetchData();
-  }, [id, router]);
+  }, [id]);
 
   const handleChange = (e: any) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // --- 2. LOGIC UPDATE (+ KIRIM TELEGRAM) ---
   const handleUpdate = async (e: any) => {
     e.preventDefault();
     setSaving(true);
-
-    // Update Database
     const { error } = await supabase
       .from('Data Client Corporate')
       .update({
-        'Nama Pelanggan': formData['Nama Pelanggan'], 
+        'Nama Pelanggan': formData['Nama Pelanggan'],
         'ALAMAT': formData['ALAMAT'],
         'VMAN / VLAN': formData['VMAN / VLAN'],
         'Near End': formData['Near End'],
@@ -85,190 +78,250 @@ function EditClientContent() {
       .eq('id', id);
 
     if (error) {
-      // GANTI ALERT JADI TOAST ERROR
       toast.error('Gagal update: ' + error.message);
       setSaving(false);
     } else {
-      
-      // --- LOGIC TELEGRAM / LOGGER ---
       const { data: { user } } = await supabase.auth.getUser();
       let actorName = 'System';
-      if(user) {
-         const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single();
-         actorName = profile?.full_name || 'User';
+      if (user) {
+        const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single();
+        actorName = profile?.full_name || 'User';
       }
-
-      await logActivity({
-        activity: 'Edit Client Corp', 
-        subject: formData['Nama Pelanggan'],
-        actor: actorName
-      });
-
-      // GANTI ALERT JADI TOAST SUKSES
-      toast.success('Data Berhasil Diperbarui!', {
-        description: 'Perubahan telah tersimpan di sistem.',
-      });
-
-      router.push('/clients'); 
+      await logActivity({ activity: 'Edit Client Corp', subject: formData['Nama Pelanggan'], actor: actorName });
+      toast.success('Data Berhasil Diperbarui!', { description: 'Perubahan telah tersimpan di sistem.' });
+      router.push('/clients');
       router.refresh();
     }
   };
 
-  // --- 3. LOGIC HAPUS CLIENT ---
   const handleDelete = async () => {
-    // Confirm bawaan browser masih oke untuk tindakan kritis (safety)
-    if(!confirm('⚠️ PERINGATAN: Yakin ingin MENGHAPUS client ini secara permanen?')) return;
-    
     setSaving(true);
+    setShowDeleteModal(false);
     const { error } = await supabase.from('Data Client Corporate').delete().eq('id', id);
-    
-    if(error) {
-       toast.error("Gagal hapus: " + error.message);
-       setSaving(false);
+    if (error) {
+      toast.error('Gagal hapus: ' + error.message);
+      setSaving(false);
     } else {
-       // Log Hapus
-       await logActivity({
-          activity: 'Delete Client Corp',
-          subject: formData['Nama Pelanggan'],
-          actor: 'User'
-       });
-
-       // TOAST SUKSES HAPUS
-       toast.success("Client Berhasil Dihapus", { 
-         description: "Data telah dihapus permanen dari database." 
-       });
-
-       router.push('/clients');
-       router.refresh();
+      await logActivity({ activity: 'Delete Client Corp', subject: formData['Nama Pelanggan'], actor: 'User' });
+      toast.success('Client Berhasil Dihapus', { description: 'Data telah dihapus permanen dari database.' });
+      router.push('/clients');
+      router.refresh();
     }
-  }
+  };
 
-  if (loading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-blue-600"/></div>;
+  if (loading) return (
+    <div className="h-64 flex items-center justify-center">
+      <Loader2 className="animate-spin text-blue-600" size={24} />
+    </div>
+  );
 
   return (
-    <div className="w-full max-w-3xl bg-white rounded-xl shadow-lg border border-slate-200 p-8">
-      
-      {/* HEADER */}
-      <div className="flex items-center justify-between mb-8 border-b pb-6">
-        <div className="flex items-center gap-4">
-            <button onClick={() => router.back()} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500">
-              <ArrowLeft size={24} />
-            </button>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                  <UserCog className="text-amber-500" /> Edit Data Client
-              </h1>
-              <p className="text-sm text-slate-500">Perbarui informasi pelanggan.</p>
+    <div className="w-full max-w-3xl" style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>
+
+      {/* ── DELETE MODAL ── */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden border border-slate-200">
+            <div className="p-6 text-center">
+              <div className="w-14 h-14 bg-rose-50 border border-rose-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle size={26} className="text-rose-500" />
+              </div>
+              <h2 className="text-base font-bold text-slate-800">Hapus Client Permanen?</h2>
+              <p className="text-sm text-slate-500 mt-1.5">
+                Tindakan ini <span className="text-rose-600 font-semibold">tidak bisa dibatalkan</span>.<br />
+                Data akan hilang selamanya.
+              </p>
             </div>
+            <div className="px-5 pb-5 flex gap-2.5">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold text-sm transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleDelete}
+                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-semibold text-sm transition-colors"
+              >
+                Ya, Hapus
+              </button>
+            </div>
+          </div>
         </div>
-        
-        {/* Tombol Hapus */}
-        <button onClick={handleDelete} className="text-rose-500 hover:bg-rose-50 p-2 rounded-lg transition" title="Hapus Client">
-            <Trash2 size={20}/>
+      )}
+
+      {/* ── HEADER ── */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.back()}
+            className="p-2 hover:bg-white hover:shadow-sm border border-transparent hover:border-slate-200 rounded-lg transition-all text-slate-500"
+          >
+            <ArrowLeft size={18} />
+          </button>
+          <div>
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              <div className="p-1.5 bg-amber-50 rounded-lg text-amber-600">
+                <UserCog size={17} />
+              </div>
+              Edit Data Client
+            </h1>
+            <p className="text-xs text-slate-400 mt-0.5 ml-0.5">Perbarui informasi pelanggan.</p>
+          </div>
+        </div>
+
+        <button
+          onClick={() => setShowDeleteModal(true)}
+          disabled={saving}
+          className="flex items-center gap-2 px-3.5 py-2 bg-white border border-rose-200 text-rose-500 hover:bg-rose-50 rounded-lg font-semibold text-xs shadow-sm transition-all disabled:opacity-50"
+          title="Hapus Client"
+        >
+          <Trash2 size={13} />
+          Hapus
         </button>
       </div>
 
-      <form onSubmit={handleUpdate} className="space-y-6">
-        
-        {/* GROUP 1: IDENTITAS */}
-        <div className="bg-slate-50 p-5 rounded-lg border border-slate-100">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">ID Pelanggan</label>
-              <input 
-                name="ID Pelanggan" 
-                value={formData['ID Pelanggan'] || ''} 
-                className="w-full p-2.5 border border-slate-300 rounded-lg outline-none font-mono text-slate-500 bg-slate-200 cursor-not-allowed" 
-                readOnly 
+      <form onSubmit={handleUpdate} className="space-y-4">
+
+        {/* ── GROUP 1: IDENTITAS ── */}
+        <FormSection title="Identitas Pelanggan">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField label="ID Pelanggan">
+              <input
+                name="ID Pelanggan"
+                value={formData['ID Pelanggan'] || ''}
+                readOnly
+                className="input font-mono bg-slate-100 text-slate-400 cursor-not-allowed"
               />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">Nama Pelanggan</label>
-              <input 
-                name="Nama Pelanggan" 
-                value={formData['Nama Pelanggan'] || ''} 
+            </FormField>
+            <FormField label="Nama Pelanggan">
+              <input
+                name="Nama Pelanggan"
+                value={formData['Nama Pelanggan'] || ''}
                 onChange={handleChange}
-                className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-medium text-slate-700" 
+                className="input"
               />
-            </div>
+            </FormField>
           </div>
-          <div className="mt-4">
-            <label className="block text-sm font-bold text-slate-700 mb-1">Alamat Instalasi</label>
-            <textarea 
-              name="ALAMAT" 
+          <FormField label="Alamat Instalasi">
+            <textarea
+              name="ALAMAT"
               rows={2}
-              value={formData['ALAMAT'] || ''} 
+              value={formData['ALAMAT'] || ''}
               onChange={handleChange}
-              className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-700" 
-            ></textarea>
-          </div>
-        </div>
+              className="input resize-none"
+            />
+          </FormField>
+        </FormSection>
 
-        {/* GROUP 2: TEKNIS */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">VLAN / VMAN</label>
-            <input name="VMAN / VLAN" value={formData['VMAN / VLAN'] || ''} onChange={handleChange} className="w-full p-2 border border-slate-300 rounded-lg outline-none font-mono text-blue-600" />
+        {/* ── GROUP 2: TEKNIS ── */}
+        <FormSection title="Spesifikasi Teknis">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <FormField label="VLAN / VMAN">
+              <input
+                name="VMAN / VLAN"
+                value={formData['VMAN / VLAN'] || ''}
+                onChange={handleChange}
+                className="input font-mono text-blue-600"
+              />
+            </FormField>
+            <FormField label="Kapasitas">
+              <input
+                name="Kapasitas"
+                value={formData['Kapasitas'] || ''}
+                onChange={handleChange}
+                className="input"
+              />
+            </FormField>
+            <FormField label="Sinyal RX (dBm)">
+              <input
+                name="RX ONT/SFP"
+                value={formData['RX ONT/SFP'] || ''}
+                onChange={handleChange}
+                className="input font-mono"
+              />
+            </FormField>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Kapasitas</label>
-            <input name="Kapasitas" value={formData['Kapasitas'] || ''} onChange={handleChange} className="w-full p-2 border border-slate-300 rounded-lg outline-none text-slate-700" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField label="Near End (POP)">
+              <input
+                name="Near End"
+                value={formData['Near End'] || ''}
+                onChange={handleChange}
+                className="input"
+              />
+            </FormField>
+            <FormField label="Far End (CPE)">
+              <input
+                name="Far End"
+                value={formData['Far End'] || ''}
+                onChange={handleChange}
+                className="input"
+              />
+            </FormField>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Sinyal RX</label>
-            <input name="RX ONT/SFP" value={formData['RX ONT/SFP'] || ''} onChange={handleChange} className="w-full p-2 border border-slate-300 rounded-lg outline-none font-mono text-slate-700" />
-          </div>
-        </div>
+          <FormField label="Status Layanan">
+            <select
+              name="STATUS"
+              value={formData['STATUS'] || ''}
+              onChange={handleChange}
+              className="input bg-white"
+            >
+              <option value="Active">Active</option>
+              <option value="Deactive">Berhenti Sementara</option>
+              <option value="Berhenti Berlangganan">Berhenti Berlangganan</option>
+              <option value="Dismantle">Dismantle</option>
+            </select>
+          </FormField>
+        </FormSection>
 
-        {/* GROUP 3: PERANGKAT */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Near End (POP)</label>
-            <input name="Near End" value={formData['Near End'] || ''} onChange={handleChange} className="w-full p-2 border border-slate-300 rounded-lg outline-none text-slate-700" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Far End (CPE)</label>
-            <input name="Far End" value={formData['Far End'] || ''} onChange={handleChange} className="w-full p-2 border border-slate-300 rounded-lg outline-none text-slate-700" />
-          </div>
-        </div>
-
-        {/* Status */}
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Status Layanan</label>
-          <select 
-            name="STATUS" 
-            value={formData['STATUS'] || ''} 
-            onChange={handleChange}
-            className="w-full p-2 border border-slate-300 rounded-lg outline-none bg-white text-slate-700"
-          >
-            <option value="Active">Active</option>
-            <option value="Deactive">Berhenti Sementara</option>
-            <option value="Berhenti Berlangganan">Berhenti Berlangganan</option>
-            <option value="Dismantle">Dismantle</option>
-          </select>
-        </div>
-
-        <div className="pt-4 border-t border-slate-100">
-          <button 
-            type="submit" 
-            disabled={saving}
-            className="w-full bg-amber-500 text-white py-3 rounded-lg font-bold hover:bg-amber-600 transition flex justify-center items-center gap-2 shadow-lg disabled:bg-slate-300 disabled:cursor-not-allowed"
-          >
-            {saving ? <Loader2 className="animate-spin" /> : <Save size={20} />}
-            {saving ? 'Menyimpan Perubahan...' : 'Update Data Client'}
-          </button>
-        </div>
+        {/* ── SUBMIT ── */}
+        <button
+          type="submit"
+          disabled={saving}
+          className="w-full bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white py-2.5 rounded-lg font-semibold text-sm transition-colors flex justify-center items-center gap-2 shadow-sm"
+        >
+          {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+          {saving ? 'Menyimpan Perubahan...' : 'Update Data Client'}
+        </button>
 
       </form>
     </div>
   );
 }
 
-// Export Default dengan Suspense
+// ─────────────────────────────────────────────
+// HELPER COMPONENTS
+// ─────────────────────────────────────────────
+function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
+      <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{title}</h3>
+      {children}
+    </div>
+  );
+}
+
+function FormField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="text-xs font-semibold text-slate-600">{label}</label>
+      {children}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// PAGE EXPORT
+// ─────────────────────────────────────────────
 export default function EditClientPage() {
   return (
-    <div className="min-h-screen bg-slate-50 p-6 flex justify-center items-start font-sans">
-      <Suspense fallback={<div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-blue-600" /></div>}>
+    <div className="min-h-screen p-6 md:p-8 flex justify-center items-start" style={{ background: '#f4f6f9', fontFamily: "'IBM Plex Sans', sans-serif" }}>
+      <Suspense fallback={
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 className="animate-spin text-blue-600" size={24} />
+        </div>
+      }>
         <EditClientContent />
       </Suspense>
     </div>

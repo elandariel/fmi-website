@@ -1,36 +1,28 @@
 'use client';
 
-// Tetap pertahankan ini biar aman
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, Suspense } from 'react'; 
+import { useState, useEffect, Suspense } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Save, ArrowLeft, Loader2, UserPlus, FileText } from 'lucide-react';
-
-// Import Logger Helper
+import { Save, ArrowLeft, Loader2, UserPlus, FileText, Network, Settings } from 'lucide-react';
 import { logActivity } from '@/lib/logger';
-
-// --- 1. IMPORT TOAST (SONNER) ---
 import { toast } from 'sonner';
 
-// --- BAGIAN 1: LOGIKA FORM DIPISAH KE SINI ---
+// ─────────────────────────────────────────────
+// FORM CONTENT
+// ─────────────────────────────────────────────
 function CreateClientContent() {
   const router = useRouter();
-  const searchParams = useSearchParams(); 
-  
-  // Ambil nama dari URL (jika ada kiriman dari Tracker)
+  const searchParams = useSearchParams();
   const nameFromTracker = searchParams.get('name') || '';
-
   const [saving, setSaving] = useState(false);
 
-  // Setup Supabase
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL || '',
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
   );
 
-  // State Form
   const [formData, setFormData] = useState({
     'ID Pelanggan': '',
     'Nama Pelanggan': '',
@@ -38,15 +30,14 @@ function CreateClientContent() {
     'VMAN / VLAN': '',
     'Near End': '',
     'Far End': '',
-    'STATUS': 'Active', 
+    'STATUS': 'Active',
     'Kapasitas': '',
     'RX ONT/SFP': '',
-    'SN ONT': '',       // Input Tambahan (TXT Only)
-    'Data Teknis': '',  // Input Tambahan (TXT Only)
-    'Konfigurasi': ''   // Input Tambahan (TXT Only)
+    'SN ONT': '',
+    'Data Teknis': '',
+    'Konfigurasi': ''
   });
 
-  // Effect: Isi nama otomatis jika ada data dari Tracker
   useEffect(() => {
     if (nameFromTracker) {
       setFormData(prev => ({ ...prev, 'Nama Pelanggan': nameFromTracker }));
@@ -57,9 +48,7 @@ function CreateClientContent() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // --- FUNGSI GENERATE & DOWNLOAD TXT ---
   const downloadTxt = (data: any) => {
-    // Format Template
     const content = `Dear All,
 
 Telah diregister dan diluruskan client di bawah ini :
@@ -83,15 +72,11 @@ ${data['Data Teknis'] || '-'}
 Konfigurasi : 
 ${data['Konfigurasi'] || '-'}
 `;
-
-    // Proses Download File
     const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    // Nama file: Register_NamaPT.txt (Spasi diganti underscore)
-    const fileName = `Register_${data['Nama Pelanggan'] ? data['Nama Pelanggan'].replace(/\s+/g, '_') : 'Client'}.txt`;
-    link.download = fileName;
+    link.download = `Register_${data['Nama Pelanggan'] ? data['Nama Pelanggan'].replace(/\s+/g, '_') : 'Client'}.txt`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -101,255 +86,255 @@ ${data['Konfigurasi'] || '-'}
     e.preventDefault();
     setSaving(true);
 
-    // Validasi Sederhana (GANTI ALERT JADI TOAST ERROR)
     if (!formData['ID Pelanggan'] || !formData['Nama Pelanggan']) {
-      toast.error('Wajib isi ID dan Nama Pelanggan!', {
-        position: 'top-center'
-      });
+      toast.error('Wajib isi ID dan Nama Pelanggan!');
       setSaving(false);
       return;
     }
 
-    // Persiapan Data untuk Database
     const dbPayload = {
-        'ID Pelanggan': formData['ID Pelanggan'],
-        'Nama Pelanggan': formData['Nama Pelanggan'],
-        'ALAMAT': formData['ALAMAT'],
-        'VMAN / VLAN': formData['VMAN / VLAN'],
-        'Near End': formData['Near End'],
-        'Far End': formData['Far End'],
-        'STATUS': formData['STATUS'],
-        'Kapasitas': formData['Kapasitas'],
-        'RX ONT/SFP': formData['RX ONT/SFP'],
+      'ID Pelanggan': formData['ID Pelanggan'],
+      'Nama Pelanggan': formData['Nama Pelanggan'],
+      'ALAMAT': formData['ALAMAT'],
+      'VMAN / VLAN': formData['VMAN / VLAN'],
+      'Near End': formData['Near End'],
+      'Far End': formData['Far End'],
+      'STATUS': formData['STATUS'],
+      'Kapasitas': formData['Kapasitas'],
+      'RX ONT/SFP': formData['RX ONT/SFP'],
     };
 
-    // Eksekusi Simpan ke Supabase
-    const { error } = await supabase
-      .from('Data Client Corporate')
-      .insert([dbPayload]); 
+    const { error } = await supabase.from('Data Client Corporate').insert([dbPayload]);
 
     if (error) {
-      // GANTI ALERT JADI TOAST ERROR
       toast.error('Gagal menyimpan: ' + error.message);
       setSaving(false);
     } else {
-      
-      // --- INTEGRASI LOGGER (DB + TELEGRAM) ---
       const { data: { user } } = await supabase.auth.getUser();
       let actorName = 'System';
-      if(user) {
+      if (user) {
         const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single();
         actorName = profile?.full_name || user.email || 'User';
       }
-
-      await logActivity({
-        activity: 'Input Client Corp', 
-        subject: formData['Nama Pelanggan'],
-        actor: actorName
-      });
-
-      // --- DOWNLOAD TXT & REDIRECT ---
-      downloadTxt(formData); 
-
-      // GANTI ALERT JADI TOAST SUKSES
+      await logActivity({ activity: 'Input Client Corp', subject: formData['Nama Pelanggan'], actor: actorName });
+      downloadTxt(formData);
       toast.success('Client Berhasil Disimpan!', {
         description: 'Laporan TXT sedang diunduh & Notifikasi terkirim.',
-        duration: 4000, // Muncul selama 4 detik
+        duration: 4000,
       });
-
-      router.push('/clients'); 
+      router.push('/clients');
       router.refresh();
     }
   };
 
   return (
-    <div className="w-full max-w-3xl bg-white rounded-xl shadow-lg border border-slate-200 p-8">
-      {/* HEADER */}
-      <div className="flex items-center gap-4 mb-8 border-b pb-6">
-        <button onClick={() => router.back()} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500">
-          <ArrowLeft size={24} />
+    <div className="w-full max-w-3xl" style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>
+
+      {/* ── HEADER ── */}
+      <div className="flex items-center gap-3 mb-6">
+        <button
+          onClick={() => router.back()}
+          className="p-2 hover:bg-white hover:shadow-sm border border-transparent hover:border-slate-200 rounded-lg transition-all text-slate-500"
+        >
+          <ArrowLeft size={18} />
         </button>
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <UserPlus className="text-blue-600" /> Input Client Baru
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <div className="p-1.5 bg-blue-50 rounded-lg text-blue-600">
+              <UserPlus size={17} />
+            </div>
+            Input Client Baru
           </h1>
-          <p className="text-sm text-slate-500">Pastikan ID Pelanggan unik dan belum terdaftar.</p>
+          <p className="text-xs text-slate-400 mt-0.5 ml-0.5">Pastikan ID Pelanggan unik dan belum terdaftar.</p>
         </div>
       </div>
 
-      <form onSubmit={handleSave} className="space-y-6">
-        
-        {/* GROUP 1: IDENTITAS UTAMA */}
-        <div className="bg-slate-50 p-5 rounded-lg border border-slate-100">
-          <h3 className="text-sm font-bold text-slate-400 uppercase mb-4 tracking-wider">Identitas Pelanggan</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">ID Pelanggan <span className="text-red-500">*</span></label>
-              <input 
-                name="ID Pelanggan" 
-                value={formData['ID Pelanggan']} 
+      <form onSubmit={handleSave} className="space-y-4">
+
+        {/* ── GROUP 1: IDENTITAS ── */}
+        <FormSection icon={<UserPlus size={14} />} title="Identitas Pelanggan">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField label="ID Pelanggan" required>
+              <input
+                name="ID Pelanggan"
+                value={formData['ID Pelanggan']}
                 onChange={handleChange}
                 placeholder="Contoh: 10024"
-                className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-mono text-slate-700" 
+                className="input font-mono"
               />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">Nama Pelanggan <span className="text-red-500">*</span></label>
-              <input 
-                name="Nama Pelanggan" 
-                value={formData['Nama Pelanggan']} 
+            </FormField>
+            <FormField label="Nama Pelanggan" required>
+              <input
+                name="Nama Pelanggan"
+                value={formData['Nama Pelanggan']}
                 onChange={handleChange}
                 placeholder="Nama PT / Perusahaan"
-                className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-medium text-slate-700" 
+                className="input"
               />
-            </div>
+            </FormField>
           </div>
-
-          <div className="mt-4">
-            <label className="block text-sm font-bold text-slate-700 mb-1">Alamat Instalasi</label>
-            <textarea 
-              name="ALAMAT" 
+          <FormField label="Alamat Instalasi">
+            <textarea
+              name="ALAMAT"
               rows={2}
-              value={formData['ALAMAT']} 
+              value={formData['ALAMAT']}
               onChange={handleChange}
-              className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-700" 
-            ></textarea>
-          </div>
-        </div>
+              placeholder="Alamat lengkap lokasi instalasi..."
+              className="input resize-none"
+            />
+          </FormField>
+        </FormSection>
 
-        {/* GROUP 2: SPESIFIKASI JARINGAN */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-          <div className="lg:col-span-1">
-            <label className="block text-sm font-medium text-slate-700 mb-1">VLAN / VMAN</label>
-            <input 
-              name="VMAN / VLAN" 
-              value={formData['VMAN / VLAN']} 
-              onChange={handleChange}
-              className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-mono text-blue-600" 
-            />
-          </div>
-          <div className="lg:col-span-1">
-            <label className="block text-sm font-medium text-slate-700 mb-1">Kapasitas</label>
-            <input 
-              name="Kapasitas" 
-              value={formData['Kapasitas']} 
-              onChange={handleChange}
-              placeholder="ex: 100 Mbps"
-              className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-700" 
-            />
-          </div>
-          <div className="lg:col-span-1">
-            <label className="block text-sm font-medium text-slate-700 mb-1">Sinyal RX (dBm)</label>
-            <input 
-              name="RX ONT/SFP" 
-              value={formData['RX ONT/SFP']} 
-              onChange={handleChange}
-              placeholder="-20.5"
-              className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-mono text-slate-700" 
-            />
-          </div>
-          <div className="lg:col-span-1">
-            <label className="block text-sm font-medium text-slate-700 mb-1">SN ONT</label>
-            <input 
-              name="SN ONT" 
-              value={formData['SN ONT']} 
-              onChange={handleChange}
-              placeholder="ZTEGC8..."
-              className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-mono text-slate-700" 
-            />
-          </div>
-        </div>
-
-        {/* GROUP 3: PERANGKAT & STATUS */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Perangkat Near End (POP)</label>
-            <input 
-              name="Near End" 
-              value={formData['Near End']} 
-              onChange={handleChange}
-              className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-700" 
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Perangkat Far End (CPE)</label>
-            <input 
-              name="Far End" 
-              value={formData['Far End']} 
-              onChange={handleChange}
-              className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-700" 
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Status Awal</label>
-          <select 
-            name="STATUS" 
-            value={formData['STATUS']} 
-            onChange={handleChange}
-            className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-700"
-          >
-            <option value="Active">Active</option>
-            <option value="Suspend">Suspend</option>
-            <option value="Isolir">Isolir</option>
-            <option value="Dismantle">Dismantle</option>
-          </select>
-        </div>
-
-        {/* GROUP 4: INFORMASI TAMBAHAN (UNTUK TXT) */}
-        <div className="bg-blue-50 p-5 rounded-lg border border-blue-100">
-          <h3 className="text-sm font-bold text-blue-800 uppercase mb-4 tracking-wider flex items-center gap-2">
-             <FileText size={16}/> Informasi Tambahan (Report TXT)
-          </h3>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">Data Teknis (Detail)</label>
-              <textarea 
-                name="Data Teknis" 
-                rows={3}
-                placeholder="Isi detail teknis lainnya di sini..."
-                value={formData['Data Teknis']} 
+        {/* ── GROUP 2: JARINGAN ── */}
+        <FormSection icon={<Network size={14} />} title="Spesifikasi Jaringan">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <FormField label="VLAN / VMAN">
+              <input
+                name="VMAN / VLAN"
+                value={formData['VMAN / VLAN']}
                 onChange={handleChange}
-                className="w-full p-2.5 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-700 text-sm font-mono" 
-              ></textarea>
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">Konfigurasi</label>
-              <textarea 
-                name="Konfigurasi" 
-                rows={3}
-                placeholder="Paste konfigurasi router/switch di sini..."
-                value={formData['Konfigurasi']} 
+                placeholder="ex: 100"
+                className="input font-mono text-blue-600"
+              />
+            </FormField>
+            <FormField label="Kapasitas">
+              <input
+                name="Kapasitas"
+                value={formData['Kapasitas']}
                 onChange={handleChange}
-                className="w-full p-2.5 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-700 text-sm font-mono" 
-              ></textarea>
-            </div>
+                placeholder="100 Mbps"
+                className="input"
+              />
+            </FormField>
+            <FormField label="Sinyal RX (dBm)">
+              <input
+                name="RX ONT/SFP"
+                value={formData['RX ONT/SFP']}
+                onChange={handleChange}
+                placeholder="-20.5"
+                className="input font-mono"
+              />
+            </FormField>
+            <FormField label="SN ONT">
+              <input
+                name="SN ONT"
+                value={formData['SN ONT']}
+                onChange={handleChange}
+                placeholder="ZTEGC8..."
+                className="input font-mono"
+              />
+            </FormField>
           </div>
-        </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField label="Near End (POP)">
+              <input
+                name="Near End"
+                value={formData['Near End']}
+                onChange={handleChange}
+                className="input"
+              />
+            </FormField>
+            <FormField label="Far End (CPE)">
+              <input
+                name="Far End"
+                value={formData['Far End']}
+                onChange={handleChange}
+                className="input"
+              />
+            </FormField>
+          </div>
+          <FormField label="Status Awal">
+            <select
+              name="STATUS"
+              value={formData['STATUS']}
+              onChange={handleChange}
+              className="input bg-white"
+            >
+              <option value="Active">Active</option>
+              <option value="Suspend">Suspend</option>
+              <option value="Isolir">Isolir</option>
+              <option value="Dismantle">Dismantle</option>
+            </select>
+          </FormField>
+        </FormSection>
 
-        {/* TOMBOL SAVE */}
-        <div className="pt-4 border-t border-slate-100">
-          <button 
-            type="submit" 
-            disabled={saving}
-            className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition flex justify-center items-center gap-2 shadow-lg hover:shadow-blue-500/30 disabled:bg-slate-300 disabled:cursor-not-allowed"
-          >
-            {saving ? <Loader2 className="animate-spin" /> : <Save size={20} />}
-            {saving ? 'Menyimpan Data...' : 'Simpan & Download Report'}
-          </button>
-        </div>
+        {/* ── GROUP 3: INFO TAMBAHAN ── */}
+        <FormSection icon={<FileText size={14} />} title="Informasi Tambahan (Report TXT)" accent>
+          <FormField label="Data Teknis (Detail)">
+            <textarea
+              name="Data Teknis"
+              rows={3}
+              placeholder="Isi detail teknis lainnya di sini..."
+              value={formData['Data Teknis']}
+              onChange={handleChange}
+              className="input font-mono text-xs resize-none"
+            />
+          </FormField>
+          <FormField label="Konfigurasi">
+            <textarea
+              name="Konfigurasi"
+              rows={3}
+              placeholder="Paste konfigurasi router/switch di sini..."
+              value={formData['Konfigurasi']}
+              onChange={handleChange}
+              className="input font-mono text-xs resize-none"
+            />
+          </FormField>
+        </FormSection>
+
+        {/* ── SUBMIT ── */}
+        <button
+          type="submit"
+          disabled={saving}
+          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white py-2.5 rounded-lg font-semibold text-sm transition-colors flex justify-center items-center gap-2 shadow-sm"
+        >
+          {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+          {saving ? 'Menyimpan Data...' : 'Simpan & Download Report'}
+        </button>
 
       </form>
     </div>
   );
 }
 
-// --- BAGIAN 2: EXPORT DEFAULT (PEMBUNGKUS) ---
+// ─────────────────────────────────────────────
+// HELPER COMPONENTS
+// ─────────────────────────────────────────────
+function FormSection({ icon, title, children, accent }: { icon: React.ReactNode; title: string; children: React.ReactNode; accent?: boolean }) {
+  return (
+    <div className={`rounded-xl border p-5 space-y-4 ${accent ? 'bg-blue-50/50 border-blue-100' : 'bg-white border-slate-200 shadow-sm'}`}>
+      <h3 className={`text-[11px] font-bold uppercase tracking-widest flex items-center gap-2 ${accent ? 'text-blue-600' : 'text-slate-400'}`}>
+        {icon}
+        {title}
+      </h3>
+      {children}
+    </div>
+  );
+}
+
+function FormField({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="text-xs font-semibold text-slate-600">
+        {label}
+        {required && <span className="text-rose-500 ml-0.5">*</span>}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// PAGE EXPORT
+// ─────────────────────────────────────────────
 export default function CreateClientPage() {
   return (
-    <div className="min-h-screen bg-slate-50 p-6 flex justify-center items-start font-sans">
-      <Suspense fallback={<div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-blue-600" /></div>}>
+    <div className="min-h-screen p-6 md:p-8 flex justify-center items-start" style={{ background: '#f4f6f9', fontFamily: "'IBM Plex Sans', sans-serif" }}>
+      <Suspense fallback={
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 className="animate-spin text-blue-600" size={24} />
+        </div>
+      }>
         <CreateClientContent />
       </Suspense>
     </div>

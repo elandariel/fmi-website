@@ -4,21 +4,17 @@ import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { 
   Megaphone, Send, Copy, RefreshCcw, Trash2, 
-  FileText, User
+  FileText, User, Zap, Info, ClipboardList
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { id as indonesia } from 'date-fns/locale';
-
-// 1. IMPORT TOAST
 import { toast } from 'sonner';
 
-// --- SETUP SUPABASE ---
 const supabase = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 );
 
-// --- TEMPLATES PESAN ---
 const TEMPLATES = [
   {
     label: 'Gangguan Massal',
@@ -40,30 +36,31 @@ const TEMPLATES = [
   }
 ];
 
+const TYPE_CONFIG: Record<string, { label: string; icon: React.ReactNode; badge: string; dot: string }> = {
+  URGENT:     { label: 'URGENT',     icon: <Zap size={10}/>,          badge: 'bg-rose-50 text-rose-600 border-rose-200',   dot: 'bg-rose-500' },
+  INFO:       { label: 'INFO',       icon: <Info size={10}/>,         badge: 'bg-blue-50 text-blue-600 border-blue-200',   dot: 'bg-blue-500' },
+  ASSIGNMENT: { label: 'ASSIGNMENT', icon: <ClipboardList size={10}/>, badge: 'bg-amber-50 text-amber-600 border-amber-200', dot: 'bg-amber-500' },
+};
+
 export default function BroadcastPage() {
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  
+  const [sending, setSending] = useState(false);
+
   const [form, setForm] = useState({
     type: 'INFO',
     title: '',
     message: '',
-    sender: 'Admin' 
+    sender: 'Admin'
   });
 
-  // --- 1. FETCH DATA ---
   async function fetchHistory() {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('Broadcasts') 
-        .select('*')
-        .order('created_at', { ascending: false });
-      
+      const { data, error } = await supabase.from('Broadcasts').select('*').order('created_at', { ascending: false });
       if (!error) setHistory(data || []);
-    } catch (err) {
-      console.error("Fetch error:", err);
-      toast.error("Gagal memuat riwayat broadcast");
+    } catch {
+      toast.error('Gagal memuat riwayat broadcast');
     } finally {
       setLoading(false);
     }
@@ -71,10 +68,9 @@ export default function BroadcastPage() {
 
   useEffect(() => { fetchHistory(); }, []);
 
-  // --- 2. HANDLERS ---
   const handleTemplate = (tmpl: any) => {
     setForm({ ...form, type: tmpl.type, title: tmpl.title, message: tmpl.text });
-    toast.info('Template diterapkan', { duration: 2000 });
+    toast.info('Template diterapkan', { duration: 1500 });
   };
 
   const handleSave = async () => {
@@ -82,89 +78,77 @@ export default function BroadcastPage() {
       toast.error('Judul dan Pesan wajib diisi!');
       return;
     }
-
-    const combinedMessage = `[${form.title}]\n\n${form.message}`;
-
-    const payload = {
-      type: form.type,
-      message: combinedMessage,
-      sender: form.sender
-    };
-
-    // Loading indicator
+    setSending(true);
     const toastId = toast.loading('Mengirim broadcast...');
-
-    const { error } = await supabase.from('Broadcasts').insert([payload]);
-    
-    // Hapus loading
+    const { error } = await supabase.from('Broadcasts').insert([{
+      type: form.type,
+      message: `[${form.title}]\n\n${form.message}`,
+      sender: form.sender
+    }]);
     toast.dismiss(toastId);
-
+    setSending(false);
     if (error) {
       toast.error('Gagal simpan: ' + error.message);
     } else {
       fetchHistory();
-      toast.success('Broadcast Terkirim!', {
-        description: 'Pesan akan muncul di dashboard semua user.'
-      });
-      setForm({ ...form, title: '', message: '' }); 
+      toast.success('Broadcast Terkirim!', { description: 'Pesan akan muncul di dashboard semua user.' });
+      setForm({ ...form, title: '', message: '' });
     }
   };
 
   const handleDelete = async (id: any) => {
-    if(!confirm('Hapus log ini?')) return;
-    
     const { error } = await supabase.from('Broadcasts').delete().eq('id', id);
-    if (error) {
-       toast.error("Gagal hapus data");
-    } else {
-       toast.success("Log dihapus");
-    }
-    fetchHistory();
+    if (error) toast.error('Gagal hapus data');
+    else { toast.success('Log dihapus'); fetchHistory(); }
   };
 
   const handleCopy = (title: string, msg: string) => {
-    const textToCopy = `*${title}*\n\n${msg}\n\n_Regards,_\n*NOC System*`;
-    navigator.clipboard.writeText(textToCopy);
-    toast.success('Disalin ke Clipboard!', {
-      description: 'Siap paste ke WhatsApp.'
-    });
+    if (!title && !msg) { toast.error('Pesan kosong!'); return; }
+    navigator.clipboard.writeText(`*${title}*\n\n${msg}\n\n_Regards,_\n*NOC System*`);
+    toast.success('Disalin ke Clipboard!', { description: 'Siap paste ke WhatsApp.' });
   };
 
   const handleCopyFromHistory = (fullMessage: string) => {
-    let textToCopy = fullMessage;
+    let text = fullMessage;
     const match = fullMessage.match(/^\[(.*?)\]\n\n([\s\S]*)$/);
-    if (match) {
-        textToCopy = `*${match[1]}*\n\n${match[2]}\n\n_Regards,_\n*NOC System*`;
-    }
-    navigator.clipboard.writeText(textToCopy);
+    if (match) text = `*${match[1]}*\n\n${match[2]}\n\n_Regards,_\n*NOC System*`;
+    navigator.clipboard.writeText(text);
     toast.success('Teks disalin!');
-  }
+  };
+
+  const typeConf = TYPE_CONFIG[form.type] || TYPE_CONFIG.INFO;
 
   return (
-    <div className="p-6 bg-slate-50 min-h-screen font-sans flex flex-col lg:flex-row gap-6">
-      
-      {/* --- KIRI: FORM EDITOR --- */}
-      <div className="flex-1 flex flex-col gap-6">
-        
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-              <Megaphone className="text-blue-600" /> Broadcast Center
-            </h1>
-            <p className="text-sm text-slate-500">Generator pesan notifikasi massal.</p>
-          </div>
+    <div
+      className="p-6 md:p-8 min-h-screen flex flex-col lg:flex-row gap-5"
+      style={{ background: '#f4f6f9', fontFamily: "'IBM Plex Sans', sans-serif" }}
+    >
+
+      {/* ── LEFT: EDITOR ── */}
+      <div className="flex-1 flex flex-col gap-5 min-w-0">
+
+        {/* Header */}
+        <div>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
+            <div className="p-1.5 bg-blue-50 rounded-lg text-blue-600">
+              <Megaphone size={17} />
+            </div>
+            Broadcast Center
+          </h1>
+          <p className="text-xs text-slate-400 mt-1 ml-0.5">Generator pesan notifikasi massal untuk seluruh user.</p>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <h3 className="text-xs font-bold text-slate-400 uppercase mb-3 tracking-wider flex items-center gap-2">
-            <FileText size={14}/> Template Cepat
+        {/* Templates */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+          <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+            <FileText size={12} /> Template Cepat
           </h3>
           <div className="flex flex-wrap gap-2">
             {TEMPLATES.map((t, idx) => (
-              <button 
-                key={idx} 
+              <button
+                key={idx}
                 onClick={() => handleTemplate(t)}
-                className="px-3 py-2 bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 text-slate-600 hover:text-blue-700 rounded-lg text-xs font-bold transition-all"
+                className="px-3 py-1.5 bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 text-slate-600 hover:text-blue-700 rounded-lg text-xs font-semibold transition-all"
               >
                 {t.label}
               </button>
@@ -172,116 +156,170 @@ export default function BroadcastPage() {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex-1 flex flex-col">
-           <div className="flex justify-between items-center mb-4 pb-4 border-b border-slate-100">
-              <h3 className="font-bold text-slate-800 text-sm">Editor Pesan</h3>
-              <div className="flex gap-2">
-                <select 
-                    value={form.sender} 
-                    onChange={(e) => setForm({...form, sender: e.target.value})}
-                    className="text-xs font-bold bg-slate-100 border border-slate-200 rounded px-2 py-1 outline-none text-slate-600"
-                >
-                    <option value="Admin">Admin</option>
-                    <option value="NOC">NOC</option>
-                    <option value="Bot">Bot</option>
-                </select>
-                <select 
-                    value={form.type} 
-                    onChange={(e) => setForm({...form, type: e.target.value})}
-                    className="text-xs font-bold bg-blue-50 border border-blue-200 rounded px-2 py-1 outline-none text-blue-700"
-                >
-                    <option value="INFO">INFO</option>
-                    <option value="URGENT">URGENT</option>
-                    <option value="ASSIGNMENT">ASSIGNMENT</option>
-                </select>
-              </div>
-           </div>
+        {/* Editor */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex-1 flex flex-col overflow-hidden">
 
-           <div className="space-y-4 flex-1">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Judul Broadcast</label>
-                <input 
-                  type="text" 
-                  value={form.title} 
-                  onChange={(e) => setForm({...form, title: e.target.value})}
-                  className="w-full p-3 border border-slate-300 rounded-lg font-bold text-slate-800 text-sm focus:border-blue-500 outline-none"
-                  placeholder="Contoh: INFO GANGGUAN..."
-                />
-              </div>
-              
-              <div className="flex-1 flex flex-col h-full">
-                <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Isi Pesan</label>
-                <textarea 
-                  value={form.message}
-                  onChange={(e) => setForm({...form, message: e.target.value})}
-                  className="w-full p-3 border border-slate-300 rounded-lg text-slate-700 text-sm leading-relaxed focus:border-blue-500 outline-none flex-1 min-h-[200px] font-mono"
-                  placeholder="Ketik pesan di sini..."
-                ></textarea>
-              </div>
-           </div>
+          {/* Editor toolbar */}
+          <div className="px-5 py-3.5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+            <h3 className="font-bold text-slate-700 text-sm">Editor Pesan</h3>
+            <div className="flex items-center gap-2">
+              {/* Sender */}
+              <select
+                value={form.sender}
+                onChange={(e) => setForm({ ...form, sender: e.target.value })}
+                className="text-xs font-semibold bg-white border border-slate-200 rounded-md px-2 py-1.5 outline-none text-slate-600 focus:ring-2 focus:ring-blue-500 transition-all"
+              >
+                <option value="Admin">Admin</option>
+                <option value="NOC">NOC</option>
+                <option value="Bot">Bot</option>
+              </select>
 
-           <div className="flex gap-3 mt-6 pt-4 border-t border-slate-100">
-              <button onClick={() => setForm({type:'INFO', title:'', message:'', sender:'Admin'})} className="px-4 py-2 text-slate-500 hover:bg-slate-50 rounded-lg text-sm font-bold transition">
-                Reset
-              </button>
-              <div className="flex-1"></div>
-              <button onClick={() => handleCopy(form.title, form.message)} className="px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 rounded-lg text-sm font-bold flex items-center gap-2 transition">
-                <Copy size={16} /> Copy WA
-              </button>
-              <button onClick={handleSave} className="px-6 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-500/20 transition">
-                <Send size={16} /> Kirim & Simpan
-              </button>
-           </div>
+              {/* Type */}
+              <select
+                value={form.type}
+                onChange={(e) => setForm({ ...form, type: e.target.value })}
+                className={`text-xs font-bold rounded-md px-2 py-1.5 outline-none border focus:ring-2 focus:ring-blue-500 transition-all
+                  ${form.type === 'URGENT' ? 'bg-rose-50 border-rose-200 text-rose-700' :
+                    form.type === 'ASSIGNMENT' ? 'bg-amber-50 border-amber-200 text-amber-700' :
+                    'bg-blue-50 border-blue-200 text-blue-700'}`}
+              >
+                <option value="INFO">INFO</option>
+                <option value="URGENT">URGENT</option>
+                <option value="ASSIGNMENT">ASSIGNMENT</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Fields */}
+          <div className="p-5 space-y-4 flex-1 flex flex-col">
+            <div>
+              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">Judul Broadcast</label>
+              <input
+                type="text"
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                placeholder="Contoh: INFO GANGGUAN AREA JAKARTA..."
+                className="input font-semibold"
+              />
+            </div>
+            <div className="flex-1 flex flex-col">
+              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">Isi Pesan</label>
+              <textarea
+                value={form.message}
+                onChange={(e) => setForm({ ...form, message: e.target.value })}
+                placeholder="Ketik isi pesan di sini..."
+                className="input font-mono text-xs leading-relaxed resize-none flex-1 min-h-[200px]"
+              />
+            </div>
+          </div>
+
+          {/* Footer actions */}
+          <div className="px-5 py-3.5 border-t border-slate-100 flex items-center gap-2 bg-slate-50/50">
+            <button
+              onClick={() => setForm({ type: 'INFO', title: '', message: '', sender: 'Admin' })}
+              className="px-3.5 py-2 text-slate-500 hover:bg-slate-100 rounded-lg text-xs font-semibold transition-colors"
+            >
+              Reset
+            </button>
+            <div className="flex-1" />
+            <button
+              onClick={() => handleCopy(form.title, form.message)}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 rounded-lg text-xs font-semibold transition-colors"
+            >
+              <Copy size={13} /> Copy WA
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={sending}
+              className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg text-xs font-semibold shadow-sm transition-colors"
+            >
+              <Send size={13} />
+              {sending ? 'Mengirim...' : 'Kirim & Simpan'}
+            </button>
+          </div>
         </div>
-
       </div>
 
-      {/* --- KANAN: HISTORY LIST --- */}
-      <div className="w-full lg:w-[400px] flex flex-col bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden h-fit max-h-[calc(100vh-50px)]">
-        
-        <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-           <h3 className="font-bold text-slate-800 flex items-center gap-2 text-sm">
-             <RefreshCcw size={16} className="text-slate-400"/> Riwayat Broadcast
-           </h3>
-           <span className="text-[10px] bg-slate-200 px-2 py-1 rounded text-slate-600 font-bold">{history.length} Logs</span>
+      {/* ── RIGHT: HISTORY ── */}
+      <div
+        className="w-full lg:w-[360px] shrink-0 bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col overflow-hidden"
+        style={{ maxHeight: 'calc(100vh - 100px)' }}
+      >
+        {/* History header */}
+        <div className="px-4 py-3.5 border-b border-slate-100 bg-slate-50 flex justify-between items-center shrink-0">
+          <h3 className="font-bold text-slate-700 text-sm flex items-center gap-2">
+            <RefreshCcw size={14} className="text-slate-400" />
+            Riwayat Broadcast
+          </h3>
+          <span className="text-[10px] font-bold bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full">
+            {history.length} log
+          </span>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/50">
-           {loading ? <p className="text-center text-slate-400 text-xs py-4">Memuat data...</p> : 
-            history.length === 0 ? <p className="text-center text-slate-400 text-xs py-10 italic">Belum ada riwayat.</p> :
-            history.map((item) => (
-              <div key={item.id} className="p-4 rounded-xl bg-white border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all group">
-                 <div className="flex justify-between items-start mb-2">
-                    <div className="flex gap-2">
-                        <span className={`text-[9px] px-2 py-0.5 rounded font-bold uppercase border ${item.type === 'URGENT' ? 'bg-rose-50 text-rose-600 border-rose-100' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
-                        {item.type}
-                        </span>
-                        <span className="text-[9px] px-2 py-0.5 rounded font-bold uppercase bg-slate-100 text-slate-500 border border-slate-200 flex items-center gap-1">
-                            <User size={8}/> {item.sender}
-                        </span>
+        {/* History list */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
+          {loading ? (
+            <div className="flex flex-col gap-2 pt-2">
+              {[1,2,3].map(i => (
+                <div key={i} className="h-24 bg-slate-100 rounded-xl animate-pulse" />
+              ))}
+            </div>
+          ) : history.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-2">
+              <Megaphone size={28} className="opacity-20" />
+              <p className="text-xs italic">Belum ada riwayat broadcast.</p>
+            </div>
+          ) : (
+            history.map((item) => {
+              const conf = TYPE_CONFIG[item.type] || TYPE_CONFIG.INFO;
+              return (
+                <div
+                  key={item.id}
+                  className="p-3.5 rounded-xl bg-white border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all group"
+                >
+                  {/* Badge row */}
+                  <div className="flex justify-between items-center mb-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${conf.badge}`}>
+                        {conf.icon} {item.type}
+                      </span>
+                      <span className="text-[10px] font-semibold bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <User size={9} /> {item.sender}
+                      </span>
                     </div>
-                    <button onClick={() => handleDelete(item.id)} className="text-slate-300 hover:text-rose-500 transition"><Trash2 size={14}/></button>
-                 </div>
-                 
-                 <p className="text-xs text-slate-600 line-clamp-4 mb-3 font-mono leading-relaxed whitespace-pre-wrap bg-slate-50 p-2 rounded border border-slate-100">
-                    {item.message}
-                 </p>
-                 
-                 <div className="flex justify-between items-center pt-2 border-t border-slate-50">
-                    <span className="text-[10px] text-slate-400">
-                      {item.created_at ? format(new Date(item.created_at), 'dd MMM HH:mm', { locale: indonesia }) : '-'}
-                    </span>
-                    <button onClick={() => handleCopyFromHistory(item.message)} className="text-[10px] font-bold text-blue-600 hover:underline flex items-center gap-1">
-                      <Copy size={10}/> Salin
+                    <button
+                      onClick={() => handleDelete(item.id)}
+                      className="text-slate-300 hover:text-rose-500 p-1 rounded transition-colors opacity-0 group-hover:opacity-100"
+                    >
+                      <Trash2 size={13} />
                     </button>
-                 </div>
-              </div>
-            ))
-           }
+                  </div>
+
+                  {/* Message preview */}
+                  <div className="bg-slate-50 border border-slate-100 rounded-lg p-2.5 mb-2.5">
+                    <p className="text-[11px] text-slate-600 font-mono leading-relaxed whitespace-pre-wrap line-clamp-4">
+                      {item.message}
+                    </p>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] text-slate-400">
+                      {item.created_at ? format(new Date(item.created_at), 'dd MMM · HH:mm', { locale: indonesia }) : '—'}
+                    </span>
+                    <button
+                      onClick={() => handleCopyFromHistory(item.message)}
+                      className="text-[10px] font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors"
+                    >
+                      <Copy size={10} /> Salin
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
-
       </div>
-
     </div>
   );
 }

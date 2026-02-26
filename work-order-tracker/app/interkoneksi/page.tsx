@@ -3,10 +3,11 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { 
-  Plus, Search, Layers, X, Trash2, 
-  FileSpreadsheet, Loader2, MapPin, ChevronRight, 
+  Plus, Search, Layers, X, Trash2,
+  FileSpreadsheet, Loader2, MapPin,
   Edit3, CheckCircle2, AlertCircle, Download, Upload
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function InterkoneksiPage() {
   const [loading, setLoading] = useState(false);
@@ -17,11 +18,10 @@ export default function InterkoneksiPage() {
   const [editingItem, setEditingItem] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // --- CONFIGURATION ---
   const SS_CONFIG = {
     url: 'https://script.google.com/macros/s/AKfycbx7aZ3bzoAXXaewspBpas0MalHe0694WXfyJzHeMSb85YE9kZh49R_5xhcRoZzaTL8p/exec',
     id: '1BHALs4UFTj_1c7UR7Uf4U1Vq2L3fdsGQ9epN6aEBkSM',
-    name: 'Data Interkoneksi' 
+    name: 'Data Interkoneksi'
   };
 
   const supabase = createBrowserClient(
@@ -29,13 +29,14 @@ export default function InterkoneksiPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  // Sesuaikan header dengan database Supabase lo
-  const [formData, setFormData] = useState({
+  const emptyForm = {
     ID_Pelanggan: '', Nama_ISP: '', Location: '', Lantai: '',
-    Device: '', SN_Perangkat: '', Rack: '', OTB: '', Type: '', 
+    Device: '', SN_Perangkat: '', Rack: '', OTB: '', Type: '',
     Port: '', No_Reff: '', Label: '', Kapasitas: '', Limitasi: '',
     Status: 'Active'
-  });
+  };
+
+  const [formData, setFormData] = useState(emptyForm);
 
   const fetchData = async () => {
     setLoading(true);
@@ -49,26 +50,21 @@ export default function InterkoneksiPage() {
 
   useEffect(() => { fetchData(); }, []);
 
-  // --- LOGIKA IMPORT CSV (UPSERT) ---
   const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
         const content = event.target?.result as string;
         const lines = content.split('\n').filter(l => l.trim() !== '');
         if (lines.length < 2) return;
-
         const rawHeaders = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-        const validColumns = Object.keys(formData);
-
+        const validColumns = Object.keys(emptyForm);
         const importedData = lines.slice(1).map(line => {
           const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
           const row: any = {};
           rawHeaders.forEach((header, index) => {
-            // Mapping & hapus ID agar auto-increment DB jalan
             if (validColumns.includes(header) && header.toLowerCase() !== 'id') {
               row[header] = values[index] || null;
             }
@@ -80,11 +76,11 @@ export default function InterkoneksiPage() {
           setLoading(true);
           const { error } = await supabase.from('Data Interkoneksi').upsert(importedData);
           if (error) throw error;
-          alert('Import Berhasil!');
+          toast.success('Import Berhasil!');
           fetchData();
         }
       } catch (err: any) {
-        alert('Gagal: ' + err.message);
+        toast.error('Gagal: ' + err.message);
       } finally {
         setLoading(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
@@ -93,10 +89,9 @@ export default function InterkoneksiPage() {
     reader.readAsText(file);
   };
 
-  // --- LOGIKA EXPORT CSV ---
   const handleExportCSV = () => {
-    if (data.length === 0) return alert('Data kosong');
-    const headers = Object.keys(formData);
+    if (data.length === 0) return toast.error('Data kosong');
+    const headers = Object.keys(emptyForm);
     const csvRows = [
       headers.join(','),
       ...data.map(row => headers.map(h => `"${row[h] || ''}"`).join(','))
@@ -110,7 +105,7 @@ export default function InterkoneksiPage() {
   };
 
   const filteredData = useMemo(() => {
-    return data.filter(item => 
+    return data.filter(item =>
       Object.values(item).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase()))
     );
   }, [searchTerm, data]);
@@ -121,12 +116,18 @@ export default function InterkoneksiPage() {
     try {
       if (editingItem) {
         await supabase.from('Data Interkoneksi').update(formData).eq('id', editingItem.id);
+        toast.success('Data berhasil diupdate!');
       } else {
         await supabase.from('Data Interkoneksi').insert([formData]);
+        toast.success('Data berhasil ditambahkan!');
       }
       setIsModalOpen(false);
       fetchData();
-    } catch (err: any) { alert(err.message); } finally { setLoading(false); }
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDelete = async (id: number) => {
@@ -134,6 +135,7 @@ export default function InterkoneksiPage() {
     setLoading(true);
     try {
       await supabase.from('Data Interkoneksi').delete().eq('id', id);
+      toast.success('Data dihapus');
       fetchData();
     } finally { setLoading(false); }
   };
@@ -144,7 +146,7 @@ export default function InterkoneksiPage() {
     try {
       const payload = { spreadsheetId: SS_CONFIG.id, sheetName: SS_CONFIG.name, rows: data };
       await fetch(SS_CONFIG.url, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
-      alert('Sync Berhasil!');
+      toast.success('Sync Berhasil!');
     } finally { setSyncing(false); }
   };
 
@@ -162,171 +164,283 @@ export default function InterkoneksiPage() {
     setIsModalOpen(true);
   };
 
+  // Form fields config (excluding Status)
+  const formFields = [
+    { key: 'ID_Pelanggan', label: 'ID Pelanggan', mono: true },
+    { key: 'Nama_ISP', label: 'Nama ISP' },
+    { key: 'Location', label: 'Location' },
+    { key: 'Lantai', label: 'Lantai' },
+    { key: 'Device', label: 'Device', mono: true },
+    { key: 'SN_Perangkat', label: 'SN Perangkat', mono: true },
+    { key: 'Rack', label: 'Rack' },
+    { key: 'OTB', label: 'OTB' },
+    { key: 'Type', label: 'Type' },
+    { key: 'Port', label: 'Port', mono: true },
+    { key: 'No_Reff', label: 'No. Referensi' },
+    { key: 'Label', label: 'Label' },
+    { key: 'Kapasitas', label: 'Kapasitas' },
+    { key: 'Limitasi', label: 'Limitasi' },
+  ];
+
   return (
-    <div className="bg-[#f8fafc] min-h-screen font-sans text-slate-600">
-      <div className="max-w-[1600px] mx-auto p-8">
-        
-        {/* HEADER */}
-        <div className="flex justify-between items-center mb-10">
+    <div
+      className="min-h-screen p-6 md:p-8"
+      style={{ background: '#f4f6f9', fontFamily: "'IBM Plex Sans', sans-serif" }}
+    >
+      <div className="max-w-[1600px] mx-auto">
+
+        {/* ── HEADER ── */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
           <div>
-            <div className="flex items-center gap-3 mb-1">
-              <Layers className="text-blue-600" size={24} />
-              <h1 className="text-2xl font-bold text-slate-800 tracking-tight uppercase">DATA <span className="text-blue-600">INTERKONEKSI</span></h1>
-            </div>
-            <p className="text-sm text-slate-400 font-medium">Database Interkoneksi / Cross Connect Client FMI</p>
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
+              <div className="p-1.5 bg-blue-50 rounded-lg text-blue-600">
+                <Layers size={17} />
+              </div>
+              Data Interkoneksi
+            </h1>
+            <p className="text-xs text-slate-400 mt-1 ml-0.5">Database Interkoneksi / Cross Connect Client FMI</p>
           </div>
-          
-          <div className="flex items-center gap-3">
+
+          <div className="flex items-center gap-2 flex-wrap">
             <input type="file" ref={fileInputRef} onChange={handleImportCSV} accept=".csv" className="hidden" />
-            <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-[11px] font-bold text-slate-600 hover:bg-slate-50 transition-all shadow-sm uppercase">
-              <Upload size={14} className="text-blue-500" /> Import
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-all shadow-sm"
+            >
+              <Upload size={13} className="text-blue-500" /> Import
             </button>
-            <button onClick={handleExportCSV} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-[11px] font-bold text-slate-600 hover:bg-slate-50 transition-all shadow-sm uppercase">
-              <Download size={14} className="text-amber-500" /> Export
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-all shadow-sm"
+            >
+              <Download size={13} className="text-amber-500" /> Export
             </button>
-            <button onClick={handleSyncSheet} disabled={syncing} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-[11px] font-bold text-emerald-600 hover:bg-emerald-50 transition-all shadow-sm uppercase">
-              {syncing ? <Loader2 className="animate-spin" size={14}/> : <FileSpreadsheet size={14} />} SYNC SHEET
+            <button
+              onClick={handleSyncSheet}
+              disabled={syncing}
+              className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-emerald-600 hover:bg-emerald-50 transition-all shadow-sm disabled:opacity-50"
+            >
+              {syncing ? <Loader2 className="animate-spin" size={13} /> : <FileSpreadsheet size={13} />}
+              Sync Sheet
             </button>
-            <button onClick={() => openModal()} className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-all shadow-md shadow-blue-500/20 uppercase">
-              <Plus size={16} /> Interkoneksi Baru
+            <button
+              onClick={() => openModal()}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-sm"
+            >
+              <Plus size={15} /> Interkoneksi Baru
             </button>
           </div>
         </div>
 
-        {/* SEARCH & TOTAL */}
-        <div className="bg-white rounded-xl border border-slate-200 p-2 mb-6 flex items-center shadow-sm">
+        {/* ── SEARCH BAR ── */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-5 flex items-center overflow-hidden">
           <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-            <input 
-              type="text" 
-              placeholder="Cari ID, Tenant, Site, atau Port..."
-              className="w-full bg-transparent py-3 pl-12 pr-4 text-sm outline-none placeholder: font-medium"
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+            <input
+              type="text"
+              placeholder="Cari ID, ISP, lokasi, device, atau port..."
+              className="w-full py-3 pl-11 pr-4 text-sm outline-none text-slate-700 placeholder:text-slate-400"
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="px-6 border-l border-slate-100 text-[11px] font-black text-slate-400 flex items-center gap-2 uppercase tracking-widest">
-            Total Record: <span className="text-blue-600 text-sm font-black">{filteredData.length}</span>
+          <div className="px-5 border-l border-slate-100 text-xs font-semibold text-slate-400 flex items-center gap-1.5 whitespace-nowrap">
+            Total: <span className="text-blue-600 font-bold text-sm">{filteredData.length}</span>
           </div>
         </div>
 
-        {/* TABLE */}
+        {/* ── TABLE ── */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-slate-50/50 border-b border-slate-100 text-[10px] font-black text-slate-900 uppercase">
-                <th className="px-8 py-5">ID & Status</th>
-                <th className="px-6 py-5">Nama Pelanggan / ISP</th>
-                <th className="px-6 py-5 text-center">Site & Lokasi</th>
-                <th className="px-6 py-4 text-center">Hardware & Port</th>
-                <th className="px-6 py-5 text-center">Kapasitas</th>
-                <th className="px-8 py-5 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredData.map((item) => (
-                <tr key={item.id} className="hover:bg-slate-50/80 transition-colors group">
-                  <td className="px-8 py-6">
-                    <span className="text-[10px] font-bold text-slate-400 font-mono">#{item.id}</span>
-                    <div className="text-[13px] font-black text-slate-700 mt-1 mb-1 tracking-tight">{item.ID_Pelanggan}</div>
-                    <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-black uppercase border ${
-                      item.Status === 'Dismantle' ? 'bg-rose-50 text-rose-600 border-rose-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                    }`}>
-                      {item.Status === 'Dismantle' ? <AlertCircle size={10}/> : <CheckCircle2 size={10}/>}
-                      {item.Status || 'Active'}
-                    </div>
-                  </td>
-                  <td className="px-6 py-6">
-                    <div className="text-sm font-black text-slate-700 uppercase tracking-tighter">{item.Nama_ISP}</div>
-                    <div className="text-[10px] text-slate-400 font-medium mt-0.5">{item.No_Reff || '# -'}</div>
-                  </td>
-                  <td className="px-6 py-6 text-center">
-                    <div className="flex flex-col items-center gap-1">
-                      <div className="flex items-center gap-1 text-[11px] font-black text-slate-700 uppercase tracking-tighter">
-                        <MapPin size={12} className="text-blue-500"/> {item.Location || '-'}
-                      </div>
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Lantai: {item.Lantai || '-'}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-6">
-                    <div className="flex flex-col items-center gap-1.5">
-                      <div className="flex gap-1">
-                        <span className="bg-slate-900 text-white px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-tighter">Rack: {item.Rack || '-'}</span>
-                        <span className="bg-blue-600 text-white px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-tighter">Port: {item.Port || '-'}</span>
-                      </div>
-                      <div className="text-[9px] text-slate-400 font-bold uppercase tracking-tight leading-none">{item.Device || '-'}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-6 text-center">
-                    <div className="bg-slate-100 text-slate-700 border border-slate-200 inline-block px-3 py-1 rounded text-[10px] font-black uppercase tracking-tighter">
-                      {item.Kapasitas || '-'}
-                    </div>
-                    <div className="text-[9px] text-rose-500 font-bold mt-1 uppercase tracking-tighter">
-                      {item.Limitasi ? `Lmt: ${item.Limitasi}` : ''}
-                    </div>
-                  </td>
-                  <td className="px-8 py-6 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button onClick={() => openModal(item)} className="p-2 text-slate-300 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">
-                        <Edit3 size={16} />
-                      </button>
-                      <button onClick={() => handleDelete(item.id)} className="p-2 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all">
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left whitespace-nowrap">
+              <thead>
+                <tr className="border-b border-slate-100" style={{ background: '#f8fafc' }}>
+                  <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">ID & Status</th>
+                  <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">ISP / Pelanggan</th>
+                  <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-center">Site & Lokasi</th>
+                  <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-center">Hardware & Port</th>
+                  <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-center">Kapasitas</th>
+                  <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-right">Aksi</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {loading ? (
+                  [...Array(6)].map((_, i) => (
+                    <tr key={i}>
+                      {[1,2,3,4,5,6].map(j => (
+                        <td key={j} className="px-5 py-4">
+                          <div className="h-3.5 bg-slate-100 rounded animate-pulse w-full max-w-[120px]" />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : filteredData.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-16 text-center">
+                      <div className="flex flex-col items-center gap-2 text-slate-400">
+                        <Layers size={28} className="opacity-20" />
+                        <p className="text-sm font-medium">Tidak ada data ditemukan</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredData.map((item) => (
+                    <tr key={item.id} className="hover:bg-blue-50/30 transition-colors group">
+
+                      {/* ID & Status */}
+                      <td className="px-5 py-4">
+                        <p className="font-mono text-[10px] text-slate-400 mb-0.5">#{item.id}</p>
+                        <p className="text-[13px] font-bold text-slate-800 mb-1.5">{item.ID_Pelanggan || '—'}</p>
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                          item.Status === 'Dismantle'
+                            ? 'bg-rose-50 text-rose-600 border-rose-200'
+                            : 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                        }`}>
+                          {item.Status === 'Dismantle'
+                            ? <AlertCircle size={9} />
+                            : <CheckCircle2 size={9} />
+                          }
+                          {item.Status || 'Active'}
+                        </span>
+                      </td>
+
+                      {/* ISP */}
+                      <td className="px-5 py-4">
+                        <p className="text-sm font-semibold text-slate-800">{item.Nama_ISP || '—'}</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5 font-mono">{item.No_Reff || '—'}</p>
+                      </td>
+
+                      {/* Site */}
+                      <td className="px-5 py-4 text-center">
+                        <p className="text-xs font-semibold text-slate-700 flex items-center justify-center gap-1">
+                          <MapPin size={11} className="text-blue-500 shrink-0" />
+                          {item.Location || '—'}
+                        </p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">Lantai {item.Lantai || '—'}</p>
+                      </td>
+
+                      {/* Hardware */}
+                      <td className="px-5 py-4 text-center">
+                        <div className="flex items-center justify-center gap-1 mb-1">
+                          <span className="bg-slate-800 text-white px-2 py-0.5 rounded text-[10px] font-bold">
+                            Rack {item.Rack || '—'}
+                          </span>
+                          <span className="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] font-bold">
+                            Port {item.Port || '—'}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 font-mono">{item.Device || '—'}</p>
+                      </td>
+
+                      {/* Kapasitas */}
+                      <td className="px-5 py-4 text-center">
+                        <span className="text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-md">
+                          {item.Kapasitas || '—'}
+                        </span>
+                        {item.Limitasi && (
+                          <p className="text-[10px] text-rose-500 font-semibold mt-1">Lmt: {item.Limitasi}</p>
+                        )}
+                      </td>
+
+                      {/* Aksi */}
+                      <td className="px-5 py-4 text-right">
+                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => openModal(item)}
+                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all"
+                          >
+                            <Edit3 size={14} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(item.id)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-all"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
-      {/* MODAL */}
+      {/* ── MODAL ── */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <form onSubmit={handleSubmit} className="bg-white w-full max-w-5xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
-            <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <form
+            onSubmit={handleSubmit}
+            className="bg-white w-full max-w-4xl rounded-2xl shadow-xl border border-slate-200 overflow-hidden"
+          >
+            {/* Modal header */}
+            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
               <div>
-                <h2 className="text-xl font-black uppercase tracking-tighter text-slate-800">
-                  {editingItem ? 'Update' : 'Create'} <span className="text-blue-600">Interkoneksi</span>
+                <h2 className="font-bold text-slate-800 text-base">
+                  {editingItem ? 'Update' : 'Tambah'} <span className="text-blue-600">Interkoneksi</span>
                 </h2>
-                <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-[0.2em]">Technical data base on E-Mail</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Technical data base on E-Mail</p>
               </div>
-              <button type="button" onClick={() => setIsModalOpen(false)} className="text-slate-300 hover:text-slate-600 transition-all"><X size={24} /></button>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-lg transition-all"
+              >
+                <X size={18} />
+              </button>
             </div>
-            
-            <div className="p-8 max-h-[65vh] overflow-y-auto grid grid-cols-1 md:grid-cols-4 gap-5">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-blue-600 uppercase tracking-widest ml-1">Current Status</label>
-                  <select 
-                    className={`w-full border rounded-lg px-4 py-2.5 text-sm font-black outline-none transition-all ${
-                      formData.Status === 'Dismantle' ? 'bg-rose-50 border-rose-200 text-rose-600' : 'bg-emerald-50 border-emerald-200 text-emerald-600'
-                    }`}
+
+            {/* Modal body */}
+            <div className="p-6 max-h-[65vh] overflow-y-auto">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {/* Status first */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-bold text-blue-600 uppercase tracking-widest">Status</label>
+                  <select
                     value={formData.Status}
-                    onChange={(e) => setFormData({...formData, Status: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, Status: e.target.value })}
+                    className={`input font-semibold ${
+                      formData.Status === 'Dismantle'
+                        ? 'bg-rose-50 border-rose-200 text-rose-600'
+                        : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                    }`}
                   >
                     <option value="Active">Active</option>
                     <option value="Dismantle">Dismantle</option>
                   </select>
                 </div>
 
-                {Object.keys(formData).filter(k => k !== 'Status').map((key) => (
-                  <div key={key} className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{key.replace('_', ' ')}</label>
-                    <input 
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:bg-white focus:border-blue-500 transition-all"
+                {formFields.map(({ key, label, mono }) => (
+                  <div key={key} className="flex flex-col gap-1.5">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{label}</label>
+                    <input
                       value={(formData as any)[key]}
-                      onChange={(e) => setFormData({...formData, [key]: e.target.value})}
-                      placeholder="..."
+                      onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
+                      placeholder="—"
+                      className={`input ${mono ? 'font-mono text-blue-700' : ''}`}
                     />
                   </div>
                 ))}
+              </div>
             </div>
 
-            <div className="px-8 py-5 bg-slate-50 border-t flex justify-end gap-3">
-              <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2 text-xs font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-all uppercase">Cancel</button>
-              <button type="submit" disabled={loading} className="bg-blue-600 text-white px-10 py-3 rounded-lg font-black text-xs uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-500/20 transition-all flex items-center gap-2">
-                {loading ? <Loader2 className="animate-spin" size={14} /> : 'Input'}
+            {/* Modal footer */}
+            <div className="px-6 py-4 bg-slate-50 border-t flex justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-700 hover:bg-slate-200 rounded-lg transition-all"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold text-xs shadow-sm transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed"
+              >
+                {loading ? <Loader2 className="animate-spin" size={14} /> : null}
+                {editingItem ? 'Update Data' : 'Simpan Data'}
               </button>
             </div>
           </form>
