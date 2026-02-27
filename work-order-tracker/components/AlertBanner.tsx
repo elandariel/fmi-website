@@ -2,16 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
-import { 
-  AlertTriangle, ChevronLeft, ChevronRight, 
-  Calendar, CheckCircle2, X, XCircle, CheckCircle, Loader2, ShieldAlert,
-  Plus, ExternalLink 
+import {
+  AlertTriangle, ChevronLeft, ChevronRight,
+  X, XCircle, CheckCircle, Loader2
 } from 'lucide-react';
-// FIX: Tambahkan import Link di bawah ini
-import Link from 'next/link'; 
-import { format, differenceInDays } from 'date-fns';
-import { id as indonesia } from 'date-fns/locale';
+import { differenceInDays } from 'date-fns';
 import { hasAccess, PERMISSIONS, Role } from '@/lib/permissions';
+import { toast } from 'sonner';
 
 export default function AlertBanner() {
   const [alerts, setAlerts] = useState<any[]>([]);
@@ -19,7 +16,6 @@ export default function AlertBanner() {
   const [userRole, setUserRole] = useState<Role | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
-  
   const [today, setToday] = useState<Date | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [processingId, setProcessingId] = useState<number | null>(null);
@@ -30,7 +26,6 @@ export default function AlertBanner() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
   );
 
-  // Helper Ekstrak Tanggal
   const extractDateFromText = (text: string, defaultDate: string) => {
     if (!text) return new Date(defaultDate);
     const regex = /(\d{1,2})\s+(Januari|Februari|Maret|April|Mei|Juni|Juli|Agustus|September|Oktober|November|Desember|Jan|Feb|Mar|Apr|Mei|Jun|Jul|Agu|Sep|Okt|Nov|Des)[a-z]*\s+(\d{4})/i;
@@ -57,23 +52,17 @@ export default function AlertBanner() {
         const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
         setUserRole(profile?.role as Role);
       }
-
-      // Ambil WO Pending & Progress dari Report Bulanan (Tabel 1)
       const { data: woData } = await supabase
         .from('Report Bulanan')
         .select('*')
         .in('STATUS', ['PENDING', 'PROGRESS', 'ON PROGRESS', 'OPEN'])
         .order('id', { ascending: false });
-
       if (woData) setAlerts(woData);
 
       const { data: teamData } = await supabase.from('Index').select('TEAM').not('TEAM', 'is', null);
-      if (teamData) {
-        const unique = Array.from(new Set(teamData.map((t: any) => t.TEAM)));
-        setTeamList(unique as string[]);
-      }
+      if (teamData) setTeamList(Array.from(new Set(teamData.map((t: any) => t.TEAM))) as string[]);
     } catch (err) {
-      console.error("Error AlertBanner:", err);
+      console.error('Error AlertBanner:', err);
     } finally {
       setLoading(false);
     }
@@ -84,144 +73,233 @@ export default function AlertBanner() {
     fetchData();
   }, []);
 
-  // Fungsi Solved Langsung dari Banner
   const handleUpdateStatus = async (id: number, actionType: string) => {
     if (!hasAccess(userRole, PERMISSIONS.OVERVIEW_ACTION)) {
-      alert("Izin ditolak.");
+      toast.error('Izin ditolak.');
       return;
     }
-
     const teamName = selectedTeams[id];
     if (actionType === 'SOLVED' && !teamName) {
-      alert('Pilih Team Eksekutor dulu!');
+      toast.error('Pilih Team Eksekutor dulu!');
       return;
     }
-
     setProcessingId(id);
-    const todayDate = new Date().toISOString().split('T')[0];
-    
-    const payload = {
+    const toastId = toast.loading('Memproses...');
+    const { error } = await supabase.from('Report Bulanan').update({
       'STATUS': actionType,
       'KETERANGAN': actionType === 'SOLVED' ? 'DONE' : 'CANCELLED',
-      'SELESAI ACTION': todayDate,
+      'SELESAI ACTION': new Date().toISOString().split('T')[0],
       'NAMA TEAM': teamName || 'System'
-    };
-
-    const { error } = await supabase.from('Report Bulanan').update(payload).eq('id', id);
+    }).eq('id', id);
 
     if (error) {
-      alert('Gagal: ' + error.message);
+      toast.error('Gagal: ' + error.message, { id: toastId });
     } else {
-      setAlerts(prev => prev.filter(item => item.id !== id));
+      toast.success(actionType === 'SOLVED' ? 'WO ditandai Solved!' : 'WO dibatalkan', { id: toastId });
+      setAlerts(prev => {
+        const updated = prev.filter(item => item.id !== id);
+        if (currentIndex >= updated.length) setCurrentIndex(Math.max(0, updated.length - 1));
+        return updated;
+      });
       if (alerts.length <= 1) setIsModalOpen(false);
     }
     setProcessingId(null);
   };
 
-  if (loading) return <div className="h-28 bg-white rounded-xl shadow-sm animate-pulse mb-8"></div>;
+  // ── LOADING ──
+  if (loading) return (
+    <div className="h-[72px] bg-white rounded-xl border border-slate-200 shadow-sm animate-pulse mb-6" />
+  );
 
   if (alerts.length === 0) return null;
 
   const item = alerts[currentIndex];
   const targetDate = extractDateFromText(item['KETERANGAN'], item['TANGGAL']);
-  const diffDays = today ? differenceInDays(today, targetDate) : 0; 
-  
+  const diffDays = today ? differenceInDays(today, targetDate) : 0;
+  const isOverdue = diffDays > 1;
+
   return (
     <>
-      {/* BANNER UTAMA */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 mb-8 relative overflow-hidden">
-        <div className="absolute top-0 bottom-0 left-0 w-1.5 bg-rose-600"></div>
-        <div className="p-6 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-               <span className="bg-rose-100 text-rose-700 px-2 py-0.5 rounded text-[10px] font-black uppercase flex items-center gap-1 border border-rose-200">
-                  <AlertTriangle size={12} /> URGENT WO
-               </span>
-               <span className="text-[10px] font-mono text-slate-400">{currentIndex + 1} / {alerts.length}</span>
-            </div>
-            <h3 className="text-xl font-black text-slate-800 truncate">{item['SUBJECT WO']}</h3>
-            <p className="text-xs text-slate-500 italic mt-1 line-clamp-1">"{item['KETERANGAN'] || '-'}"</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="flex gap-1">
-              <button 
-                    onClick={() => setCurrentIndex(p => (p - 1 + alerts.length) % alerts.length)} 
-                    className="p-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-900 transition-colors"
-                  >
-                    <ChevronLeft size={16}/>
-                  </button>
+      {/* ── BANNER ── */}
+      <div
+        className="bg-white rounded-xl border border-slate-200 shadow-sm mb-6 overflow-hidden relative"
+        style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+      >
+        {/* Left accent bar */}
+        <div className="absolute left-0 top-0 bottom-0 w-1" style={{ background: isOverdue ? '#e11d48' : '#f59e0b' }} />
 
-                  <button 
-                    onClick={() => setCurrentIndex(p => (p + 1) % alerts.length)} 
-                    className="p-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-900 transition-colors"
-                  >
-                    <ChevronRight size={16}/>
-                  </button>
+        <div className="pl-5 pr-5 py-3.5 flex items-center justify-between gap-4">
+          {/* Left: info */}
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className={`p-1.5 rounded-lg shrink-0 ${isOverdue ? 'bg-rose-50 text-rose-500' : 'bg-amber-50 text-amber-500'}`}>
+              <AlertTriangle size={15} />
             </div>
-            <button onClick={() => setIsModalOpen(true)} className="px-4 py-2 bg-rose-600 text-white rounded-lg font-bold text-xs shadow-md">Lihat Semua ({alerts.length})</button>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                  isOverdue
+                    ? 'bg-rose-50 text-rose-600 border-rose-200'
+                    : 'bg-amber-50 text-amber-600 border-amber-200'
+                }`}>
+                  {isOverdue ? `+${diffDays}d OVERDUE` : item['STATUS']}
+                </span>
+                <span className="text-[10px] text-slate-400 font-mono">{currentIndex + 1}/{alerts.length}</span>
+              </div>
+              <p className="text-sm font-bold text-slate-800 truncate leading-tight">{item['SUBJECT WO']}</p>
+            </div>
+          </div>
+
+          {/* Right: nav + action */}
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="flex gap-1">
+              <button
+                onClick={() => setCurrentIndex(p => (p - 1 + alerts.length) % alerts.length)}
+                className="p-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600 transition-colors"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <button
+                onClick={() => setCurrentIndex(p => (p + 1) % alerts.length)}
+                className="p-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600 transition-colors"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-semibold text-xs transition-colors shadow-sm"
+            >
+              <AlertTriangle size={11} />
+              Lihat Semua ({alerts.length})
+            </button>
           </div>
         </div>
       </div>
 
-      {/* MODAL LIHAT SEMUA */}
+      {/* ── MODAL ── */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-5xl max-h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95">
-            <div className="p-5 border-b bg-slate-50 flex justify-between items-center">
+        <div className="fixed inset-0 bg-slate-900/50 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div
+            className="bg-white w-full max-w-4xl max-h-[85vh] rounded-2xl shadow-xl flex flex-col overflow-hidden border border-slate-200"
+            style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+          >
+            {/* Modal header */}
+            <div className="px-5 py-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center shrink-0">
               <div>
-                <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                  <AlertTriangle className="text-rose-500" size={24} /> Antrean WO Pending & Progress
+                <h2 className="font-bold text-slate-800 text-base flex items-center gap-2">
+                  <div className="p-1.5 bg-rose-50 rounded-lg text-rose-500">
+                    <AlertTriangle size={15} />
+                  </div>
+                  Antrean WO Pending & Progress
                 </h2>
-                <p className="text-sm text-slate-500 mt-1">Total {alerts.length} item membutuhkan tindakan segera.</p>
+                <p className="text-xs text-slate-400 mt-0.5 ml-0.5">
+                  {alerts.length} item membutuhkan tindakan
+                </p>
               </div>
-              <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-200 rounded-full text-slate-500"><X size={24} /></button>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-500 transition-colors"
+              >
+                <X size={16} />
+              </button>
             </div>
 
-            <div className="p-6 overflow-y-auto bg-slate-100/50 flex-1 space-y-4">
-              {alerts.map((alert) => (
-                <div key={alert.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col lg:flex-row gap-4 items-center">
-                  <div className="flex-1 w-full">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded border uppercase bg-amber-50 text-amber-700 border-amber-200">{alert['STATUS']}</span>
-                      <span className="text-xs text-slate-400 font-mono">#{alert.id}</span>
-                    </div>
-                    <h3 className="font-bold text-slate-800 text-base">{alert['SUBJECT WO']}</h3>
-                    <p className="text-xs text-slate-500 mt-1 italic">"{alert['KETERANGAN'] || '-'}"</p>
-                    
-                    {hasAccess(userRole, PERMISSIONS.OVERVIEW_ACTION) && (
-                      <div className="mt-3 flex items-center gap-2">
-                         <span className="text-xs font-bold text-slate-500">Pilih Team:</span>
-                         <select className="text-xs border rounded px-2 py-1 bg-slate-50 text-slate-700 outline-none"
-                           value={selectedTeams[alert.id] || alert['NAMA TEAM'] || ''}
-                           onChange={(e) => setSelectedTeams({...selectedTeams, [alert.id]: e.target.value})}
-                         >
-                           <option value="">- Pilih Eksekutor -</option>
-                           {teamList.map((t, i) => <option key={i} value={t}>{t}</option>)}
-                         </select>
-                      </div>
-                    )}
-                  </div>
+            {/* Modal list */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/50">
+              {alerts.map((alert) => {
+                const aDate = extractDateFromText(alert['KETERANGAN'], alert['TANGGAL']);
+                const aDiff = today ? differenceInDays(today, aDate) : 0;
+                const aOverdue = aDiff > 1;
 
-                  <div className="flex flex-col items-end gap-3 shrink-0">
-                    <div className="flex gap-2">
+                return (
+                  <div
+                    key={alert.id}
+                    className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
+                  >
+                    {/* Color top bar */}
+                    <div className={`h-0.5 w-full ${aOverdue ? 'bg-rose-400' : 'bg-amber-400'}`} />
+
+                    <div className="p-4 flex flex-col md:flex-row gap-4 items-start md:items-center">
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                            aOverdue
+                              ? 'bg-rose-50 text-rose-600 border-rose-200'
+                              : 'bg-amber-50 text-amber-600 border-amber-200'
+                          }`}>
+                            {aOverdue ? `+${aDiff}d OVERDUE` : alert['STATUS']}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-mono">#{alert.id}</span>
+                        </div>
+                        <p className="font-semibold text-slate-800 text-sm leading-tight">{alert['SUBJECT WO']}</p>
+                        {alert['KETERANGAN'] && (
+                          <p className="text-[11px] text-slate-400 italic mt-0.5 truncate">
+                            "{alert['KETERANGAN']}"
+                          </p>
+                        )}
+
+                        {/* Team picker */}
+                        {hasAccess(userRole, PERMISSIONS.OVERVIEW_ACTION) && (
+                          <div className="mt-2.5 flex items-center gap-2">
+                            <span className="text-[11px] font-semibold text-slate-400 shrink-0">Eksekutor:</span>
+                            <select
+                              className="text-xs border border-slate-200 rounded-md px-2 py-1 bg-white text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                              value={selectedTeams[alert.id] || alert['NAMA TEAM'] || ''}
+                              onChange={(e) => setSelectedTeams({ ...selectedTeams, [alert.id]: e.target.value })}
+                            >
+                              <option value="">— Pilih Team —</option>
+                              {teamList.map((t, i) => <option key={i} value={t}>{t}</option>)}
+                            </select>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Actions */}
                       {hasAccess(userRole, PERMISSIONS.OVERVIEW_ACTION) && (
-                        <>
-                          <button onClick={() => handleUpdateStatus(alert.id, 'CANCEL')} disabled={processingId === alert.id} className="px-3 py-1.5 bg-rose-50 text-rose-600 text-xs font-bold rounded border border-rose-200 flex items-center gap-1">
-                            {processingId === alert.id ? <Loader2 size={12} className="animate-spin"/> : <XCircle size={12} />} Cancel
+                        <div className="flex gap-2 shrink-0">
+                          <button
+                            onClick={() => handleUpdateStatus(alert.id, 'CANCEL')}
+                            disabled={processingId === alert.id}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
+                          >
+                            {processingId === alert.id
+                              ? <Loader2 size={11} className="animate-spin" />
+                              : <XCircle size={11} />
+                            }
+                            Cancel
                           </button>
-                          <button onClick={() => handleUpdateStatus(alert.id, 'SOLVED')} disabled={processingId === alert.id} className="px-3 py-1.5 bg-emerald-50 text-emerald-600 text-xs font-bold rounded border border-emerald-200 flex items-center gap-1">
-                            {processingId === alert.id ? <Loader2 size={12} className="animate-spin"/> : <CheckCircle size={12} />} Solved
+                          <button
+                            onClick={() => handleUpdateStatus(alert.id, 'SOLVED')}
+                            disabled={processingId === alert.id}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-200 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
+                          >
+                            {processingId === alert.id
+                              ? <Loader2 size={11} className="animate-spin" />
+                              : <CheckCircle size={11} />
+                            }
+                            Solved
                           </button>
-                        </>
+                        </div>
+                      )}
+
+                      {!hasAccess(userRole, PERMISSIONS.OVERVIEW_ACTION) && (
+                        <span className="text-[10px] text-slate-300 italic shrink-0">View Only</span>
                       )}
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
-            <div className="p-4 bg-white border-t flex justify-between items-center">
-              <button onClick={() => setIsModalOpen(false)} className="px-6 py-2 bg-slate-800 text-white rounded-lg font-bold text-sm">Tutup</button>
+            {/* Modal footer */}
+            <div className="px-5 py-3.5 border-t border-slate-100 bg-white flex justify-end shrink-0">
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg font-semibold text-sm transition-colors"
+              >
+                Tutup
+              </button>
             </div>
           </div>
         </div>

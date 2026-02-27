@@ -4,10 +4,19 @@ import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { 
   Bell, AlertTriangle, X, RefreshCw, 
-  Trash2, ShieldQuestion, User, Send, ExternalLink, Calendar, CheckCircle 
+  Trash2, ShieldQuestion, Send, ExternalLink, 
+  Calendar, CheckCircle2
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { hasAccess, PERMISSIONS, Role } from '@/lib/permissions'; // Import satpam
+import { hasAccess, PERMISSIONS, Role } from '@/lib/permissions';
+
+const TYPE_COLOR: Record<string, { border: string; badge: string; text: string }> = {
+  blue:    { border: 'border-l-blue-500',    badge: 'bg-blue-50 text-blue-600 border-blue-100',    text: 'text-blue-600' },
+  red:     { border: 'border-l-rose-500',    badge: 'bg-rose-50 text-rose-600 border-rose-100',    text: 'text-rose-600' },
+  orange:  { border: 'border-l-amber-500',   badge: 'bg-amber-50 text-amber-600 border-amber-100', text: 'text-amber-600' },
+  emerald: { border: 'border-l-emerald-500', badge: 'bg-emerald-50 text-emerald-700 border-emerald-100', text: 'text-emerald-600' },
+  yellow:  { border: 'border-l-yellow-500',  badge: 'bg-yellow-50 text-yellow-700 border-yellow-100', text: 'text-yellow-600' },
+};
 
 export function NotificationBell() {
   const router = useRouter();
@@ -17,7 +26,7 @@ export function NotificationBell() {
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [reason, setReason] = useState('');
   const [currentUser, setCurrentUser] = useState<string>('USER');
-  const [userRole, setUserRole] = useState<Role | null>(null); // State untuk Role
+  const [userRole, setUserRole] = useState<Role | null>(null);
   const [loading, setLoading] = useState(true);
   const [missingItems, setMissingItems] = useState<any[]>([]);
 
@@ -31,14 +40,7 @@ export function NotificationBell() {
     if (user) {
       const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'USER';
       setCurrentUser(name.toUpperCase());
-
-      // AMBIL ROLE DARI PROFILES
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      
+      const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
       if (profile) setUserRole(profile.role as Role);
     }
   };
@@ -59,11 +61,7 @@ export function NotificationBell() {
       const { data: ignoredData } = await supabase.from('Ignored_Items').select('SUBJECT_IGNORED');
       const ignoredSet = new Set(ignoredData?.map(i => i.SUBJECT_IGNORED?.toLowerCase().trim()) || []);
 
-      const { data: solvedWO } = await supabase
-        .from('Report Bulanan')
-        .select('*')
-        .eq('STATUS', 'SOLVED');
-
+      const { data: solvedWO } = await supabase.from('Report Bulanan').select('*').eq('STATUS', 'SOLVED');
       if (!solvedWO || solvedWO.length === 0) {
         setMissingItems([]);
         setLoading(false);
@@ -71,17 +69,19 @@ export function NotificationBell() {
       }
 
       const rules = [
-        { keyword: 'Pelurusan VLAN', targetTable: 'Berlangganan 2026', targetCol: 'SUBJECT BERLANGGANAN', label: 'Pelanggan Baru', color: 'blue' },
-        { keyword: 'Berhenti Berlangganan', targetTable: 'Berhenti Berlangganan 2026', targetCol: 'SUBJECT BERHENTI BERLANGGANAN', label: 'Berhenti', color: 'red' },
-        { keyword: 'Berhenti Sementara', targetTable: 'Berhenti Sementara 2026', targetCol: 'SUBJECT BERHENTI SEMENTARA', label: 'Cuti', color: 'orange' },
-        { keyword: ['Upgrade Bandwith', 'Upgrade Kapasitas'], targetTable: 'Upgrade 2026', targetCol: 'SUBJECT UPGRADE', label: 'Upgrade', color: 'emerald' },
+        { keyword: 'Pelurusan VLAN',         targetTable: 'Berlangganan 2026',         targetCol: 'SUBJECT BERLANGGANAN',         label: 'Pelanggan Baru', color: 'blue' },
+        { keyword: 'Berhenti Berlangganan',   targetTable: 'Berhenti Berlangganan 2026', targetCol: 'SUBJECT BERHENTI BERLANGGANAN', label: 'Berhenti',       color: 'red' },
+        { keyword: 'Berhenti Sementara',      targetTable: 'Berhenti Sementara 2026',   targetCol: 'SUBJECT BERHENTI SEMENTARA',   label: 'Cuti',           color: 'orange' },
+        { keyword: ['Upgrade Bandwith', 'Upgrade Kapasitas'],   targetTable: 'Upgrade 2026',   targetCol: 'SUBJECT UPGRADE',   label: 'Upgrade',   color: 'emerald' },
         { keyword: ['Downgrade Bandwith', 'Downgrade Kapasitas'], targetTable: 'Downgrade 2026', targetCol: 'SUBJECT DOWNGRADE', label: 'Downgrade', color: 'yellow' }
       ];
 
       for (const rule of rules) {
         const candidates = solvedWO.filter((wo) => {
           const subject = (wo['SUBJECT WO'] || '').toLowerCase();
-          return Array.isArray(rule.keyword) ? rule.keyword.some(k => subject.includes(k.toLowerCase())) : subject.includes(rule.keyword.toLowerCase());
+          return Array.isArray(rule.keyword)
+            ? rule.keyword.some(k => subject.includes(k.toLowerCase()))
+            : subject.includes(rule.keyword.toLowerCase());
         });
 
         if (candidates.length > 0) {
@@ -105,26 +105,21 @@ export function NotificationBell() {
       }
       setMissingItems(missing);
     } catch (err) {
-      console.error("Notification Error:", err);
+      console.error('Notification Error:', err);
     } finally {
       setLoading(false);
     }
   };
 
   const handleFixData = (subject: string) => {
-    // PROTEKSI FUNGSI
     if (!hasAccess(userRole, PERMISSIONS.CLIENT_ADD)) return;
-
-    const encodedSubject = encodeURIComponent(subject);
-    router.push(`/tracker/create?subject=${encodedSubject}`);
+    router.push(`/tracker/create?subject=${encodeURIComponent(subject)}`);
     setIsOpen(false);
   };
 
   const submitDiscard = async () => {
-    // PROTEKSI FUNGSI
     if (!hasAccess(userRole, PERMISSIONS.CLIENT_ADD)) return;
     if (!reason.trim()) return;
-
     try {
       const { error } = await supabase.from('Ignored_Items').insert({
         SUBJECT_IGNORED: selectedItem.subject,
@@ -132,136 +127,193 @@ export function NotificationBell() {
         STATUS: 'PENDING',
         REQUESTED_BY: currentUser
       });
-
       if (error) throw error;
-      
       setShowReasonModal(false);
       setReason('');
       checkMissingData();
     } catch (err: any) {
-      alert("Gagal discard: " + err.message);
+      alert('Gagal discard: ' + err.message);
     }
-  };
-
-  const getBorderColor = (color: string) => {
-    const colors: any = { 
-      blue: 'border-blue-500', red: 'border-red-500', orange: 'border-orange-500', 
-      emerald: 'border-emerald-500', yellow: 'border-yellow-500' 
-    };
-    return colors[color] || 'border-slate-300';
   };
 
   if (!mounted) return null;
 
   return (
     <>
-      <button onClick={() => setIsOpen(true)} className="relative p-2.5 rounded-full hover:bg-slate-100 transition-colors text-slate-600 active:scale-95 duration-200 mr-4 group">
-        <Bell size={24} />
+      {/* ── BELL BUTTON ── */}
+      <button
+        onClick={() => setIsOpen(true)}
+        className="relative p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-500 hover:text-slate-700"
+      >
+        <Bell size={20} />
         {!loading && missingItems.length > 0 && (
-          <span className="absolute top-1.5 right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white animate-pulse">
-            {missingItems.length}
+          <span className="absolute top-1 right-1 w-4 h-4 flex items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white">
+            {missingItems.length > 9 ? '9+' : missingItems.length}
           </span>
         )}
       </button>
 
+      {/* ── NOTIFICATION PANEL ── */}
       {isOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] border border-slate-200">
-            
-            <div className="bg-slate-900 px-6 py-4 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
-                <AlertTriangle size={20} className="text-red-500" />
-                <h2 className="text-lg font-bold text-white uppercase">Missing Data Sinkronisasi</h2>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div
+            className="bg-white w-full max-w-3xl rounded-2xl shadow-xl overflow-hidden flex flex-col border border-slate-200"
+            style={{ maxHeight: '85vh', fontFamily: "'IBM Plex Sans', sans-serif" }}
+          >
+
+            {/* Panel header */}
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-50">
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 bg-rose-50 rounded-lg text-rose-500">
+                  <AlertTriangle size={15} />
+                </div>
+                <div>
+                  <h2 className="font-bold text-slate-800 text-sm">Missing Data Sinkronisasi</h2>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    {missingItems.length > 0
+                      ? `${missingItems.length} item perlu ditindaklanjuti`
+                      : 'Semua data terintegrasi'}
+                  </p>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => checkMissingData()} className="p-2 text-slate-400 hover:text-white transition-colors">
-                  <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={checkMissingData}
+                  className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-lg transition-colors"
+                  title="Refresh"
+                >
+                  <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
                 </button>
-                <button onClick={() => setIsOpen(false)} className="p-2 text-slate-400 hover:text-red-500 transition-colors">
-                  <X size={20} />
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-lg transition-colors"
+                >
+                  <X size={16} />
                 </button>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-5 bg-slate-50 space-y-3">
+            {/* Panel body */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-2.5 bg-slate-50/50">
               {loading ? (
-                <div className="h-40 flex items-center justify-center text-slate-400 font-bold italic">Memindai Database...</div>
+                <div className="flex flex-col gap-2.5 pt-1">
+                  {[1,2,3].map(i => (
+                    <div key={i} className="h-20 bg-white border border-slate-200 rounded-xl animate-pulse" />
+                  ))}
+                </div>
               ) : missingItems.length === 0 ? (
-                <div className="h-40 flex flex-col items-center justify-center text-slate-500 gap-2">
-                  <CheckCircle size={40} className="text-emerald-500" />
-                  <p className="font-bold uppercase tracking-widest text-[10px]">Database Terintegrasi!</p>
+                <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+                  <div className="w-14 h-14 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-center">
+                    <CheckCircle2 size={26} className="text-emerald-500" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-700 text-sm">Database Terintegrasi</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Semua WO sudah tersinkronisasi dengan baik</p>
+                  </div>
                 </div>
               ) : (
-                missingItems.map((item, idx) => (
-                  <div key={idx} className={`bg-white rounded-xl border-l-4 ${getBorderColor(item.themeColor)} border-t border-r border-b border-slate-200 p-5 shadow-sm flex items-center justify-between gap-4`}>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1 uppercase bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
-                          <Calendar size={12} /> {item.date}
-                        </span>
-                        <span className="text-[9px] font-black px-2 py-0.5 rounded border border-blue-100 bg-blue-50 text-blue-600 uppercase">
-                          {item.type}
-                        </span>
-                      </div>
-                      <h3 className="text-base font-bold text-slate-800 leading-tight mb-2">{item.subject}</h3>
-                      <div className="flex items-center gap-1.5 text-[10px]">
-                        <span className="text-slate-400 italic">Missing di tabel:</span>
-                        <span className="font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded uppercase">{item.targetTable}</span>
-                      </div>
-                    </div>
-
-                    {/* ACTION BUTTONS DENGAN SATPAM */}
-                    <div className="flex flex-col gap-2 shrink-0 min-w-[100px]">
-                      {hasAccess(userRole, PERMISSIONS.CLIENT_ADD) ? (
-                        <>
-                          <button 
-                            onClick={() => handleFixData(item.subject)} 
-                            className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-black text-[10px] shadow-md transition-all uppercase tracking-wide"
-                          >
-                            <ExternalLink size={12} /> Input
-                          </button>
-                          <button 
-                            onClick={() => { setSelectedItem(item); setReason(''); setShowReasonModal(true); }}
-                            className="flex items-center justify-center gap-2 px-4 py-2 bg-slate-50 hover:bg-red-50 text-slate-700 hover:text-red-600 rounded-lg font-black text-[10px] transition-all uppercase border border-slate-100"
-                          >
-                            <Trash2 size={16} /> Abaikan
-                          </button>
-                        </>
-                      ) : (
-                        <div className="text-center px-2 py-4 bg-slate-50 rounded-lg border border-dashed border-slate-200">
-                          <p className="text-[9px] font-black text-slate-400 uppercase italic">View Only</p>
+                missingItems.map((item, idx) => {
+                  const conf = TYPE_COLOR[item.themeColor] || TYPE_COLOR.blue;
+                  return (
+                    <div
+                      key={idx}
+                      className={`bg-white rounded-xl border border-slate-200 border-l-4 ${conf.border} p-4 flex items-center justify-between gap-4 hover:shadow-sm transition-shadow`}
+                    >
+                      <div className="flex-1 min-w-0">
+                        {/* Meta */}
+                        <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                          <span className="text-[10px] font-semibold text-slate-400 flex items-center gap-1 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-full">
+                            <Calendar size={10} /> {item.date}
+                          </span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${conf.badge}`}>
+                            {item.type}
+                          </span>
                         </div>
+                        {/* Subject */}
+                        <p className="font-semibold text-slate-800 text-sm truncate mb-1">{item.subject}</p>
+                        {/* Target table */}
+                        <p className="text-[10px] text-slate-400">
+                          Missing di:{' '}
+                          <span className={`font-bold ${conf.text}`}>{item.targetTable}</span>
+                        </p>
+                      </div>
+
+                      {/* Actions */}
+                      {hasAccess(userRole, PERMISSIONS.CLIENT_ADD) ? (
+                        <div className="flex flex-col gap-1.5 shrink-0">
+                          <button
+                            onClick={() => handleFixData(item.subject)}
+                            className="flex items-center justify-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-xs transition-colors shadow-sm"
+                          >
+                            <ExternalLink size={11} /> Input
+                          </button>
+                          <button
+                            onClick={() => { setSelectedItem(item); setReason(''); setShowReasonModal(true); }}
+                            className="flex items-center justify-center gap-1.5 px-3.5 py-1.5 bg-white border border-slate-200 text-slate-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 rounded-lg font-semibold text-xs transition-all"
+                          >
+                            <Trash2 size={11} /> Abaikan
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-[10px] font-semibold text-slate-300 italic shrink-0">View Only</span>
                       )}
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL ALASAN (CS TIDAK AKAN BISA LIHAT INI JUGA) */}
+      {/* ── REASON MODAL ── */}
       {showReasonModal && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-          <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl p-10 text-center border border-slate-100">
-            <div className="w-20 h-20 bg-amber-50 text-amber-500 rounded-3xl flex items-center justify-center mx-auto mb-6">
-              <ShieldQuestion size={40} />
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-md">
+          <div
+            className="bg-white w-full max-w-md rounded-2xl shadow-xl border border-slate-200 overflow-hidden"
+            style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+          >
+            <div className="p-6 text-center border-b border-slate-100">
+              <div className="w-12 h-12 bg-amber-50 border border-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <ShieldQuestion size={22} className="text-amber-500" />
+              </div>
+              <h3 className="font-bold text-slate-800 text-base">Konfirmasi Abaikan</h3>
+              <p className="text-xs text-slate-400 mt-1">
+                Berikan alasan mengapa WO ini diabaikan dari sinkronisasi
+              </p>
             </div>
-            <h3 className="text-2xl font-black text-slate-800 uppercase mb-2">Konfirmasi Alasan</h3>
-            <div className="bg-slate-50 rounded-[2rem] p-6 border-2 border-slate-100 mb-8 text-left">
-              <textarea 
+
+            <div className="p-5">
+              {/* Selected item info */}
+              {selectedItem && (
+                <div className="bg-slate-50 border border-slate-100 rounded-lg px-3 py-2.5 mb-4">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Subject</p>
+                  <p className="text-xs font-semibold text-slate-700">{selectedItem.subject}</p>
+                </div>
+              )}
+
+              <textarea
                 placeholder="Kenapa WO ini diabaikan?..."
-                className="w-full h-32 bg-white border border-slate-200 rounded-2xl p-4 text-sm font-bold text-slate-700 outline-none"
+                className="w-full h-28 border border-slate-200 rounded-lg p-3 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-400 transition-all resize-none bg-slate-50 focus:bg-white"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
               />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <button onClick={() => setShowReasonModal(false)} className="py-4 bg-slate-100 text-slate-700 rounded-2xl font-black text-xs uppercase">Batal</button>
-              <button onClick={submitDiscard} disabled={!reason.trim()} className="py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase flex items-center justify-center gap-2">
-                <Send size={16} /> Kirim Request
-              </button>
+
+              <div className="flex gap-2.5 mt-4">
+                <button
+                  onClick={() => setShowReasonModal(false)}
+                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg font-semibold text-sm transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={submitDiscard}
+                  disabled={!reason.trim()}
+                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg font-semibold text-sm transition-colors flex items-center justify-center gap-2"
+                >
+                  <Send size={14} /> Kirim Request
+                </button>
+              </div>
             </div>
           </div>
         </div>
