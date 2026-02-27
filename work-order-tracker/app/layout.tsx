@@ -237,15 +237,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 flex-1 py-3 overflow-y-auto overflow-x-hidden custom-scrollbar
                 ${collapsed ? 'px-2' : 'px-3'}
               `}>
-                <NavSection label="Database" collapsed={collapsed} />
+                <NavSection label="Reporting" collapsed={collapsed} />
                 <SidebarItem collapsed={collapsed} onClick={closeSidebarOnMobile} href="/"             icon={<LayoutDashboard size={17} />} label="Dashboard" />
-                <SidebarItem collapsed={collapsed} onClick={closeSidebarOnMobile} href="/clients"      icon={<Users size={17} />}          label="Data Client" />
-                <SidebarItem collapsed={collapsed} onClick={closeSidebarOnMobile} href="/interkoneksi" icon={<Activity size={17} />}       label="Data Interkoneksi" />
                 <SidebarItem collapsed={collapsed} onClick={closeSidebarOnMobile} href="/work-orders"  icon={<ClipboardList size={17} />}  label="Monthly Report" />
                 <SidebarItem collapsed={collapsed} onClick={closeSidebarOnMobile} href="/tracker"      icon={<LineChart size={17} />}      label="Weekly Report" />
 
-                <NavSection label="Analytics & Master" collapsed={collapsed} />
+                <NavSection label="Database" collapsed={collapsed} />
                 <SidebarItem collapsed={collapsed} onClick={closeSidebarOnMobile} href="/vlan"  icon={<Server size={17} />}  label="VLAN Database" />
+                <SidebarItem collapsed={collapsed} onClick={closeSidebarOnMobile} href="/clients"      icon={<Users size={17} />}          label="Data Client" />
+                <SidebarItem collapsed={collapsed} onClick={closeSidebarOnMobile} href="/interkoneksi" icon={<Activity size={17} />}       label="Data Interkoneksi" />
+
+                <NavSection label="Log And Tools" collapsed={collapsed} />
                 <SidebarItem collapsed={collapsed} onClick={closeSidebarOnMobile} href="/logs"  icon={<History size={17} />} label="Activity Log" />
                 <SidebarItem collapsed={collapsed} onClick={closeSidebarOnMobile} href="/tools" icon={<Wrench size={17} />}  label="Tools & Utilities" />
 
