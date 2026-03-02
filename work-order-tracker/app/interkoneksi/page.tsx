@@ -6,20 +6,20 @@ import {
   Plus, Search, Layers, X, Trash2,
   FileSpreadsheet, Loader2, MapPin,
   Edit3, CheckCircle2, AlertCircle, Download, Upload,
-  Server, Cable, Tag, ChevronRight, Info,
-  Network, Hash, Zap
+  Server, Tag, ChevronRight, Info,
+  Network, Zap
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 // ─────────────────────────────────────────────
-// HELPER COMPONENTS
+// DETAIL DRAWER HELPERS
 // ─────────────────────────────────────────────
-function DetailSection({
+function DrawerSection({
   icon, title, color, children
 }: { icon: React.ReactNode; title: string; color: string; children: React.ReactNode }) {
   return (
     <div className="rounded-xl border border-slate-100 overflow-hidden">
-      <div className={`px-4 py-2 flex items-center gap-2 border-b border-slate-100 bg-slate-50`}>
+      <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-100 flex items-center gap-2">
         <span className={color}>{icon}</span>
         <p className={`text-[10px] font-bold uppercase tracking-widest ${color}`}>{title}</p>
       </div>
@@ -28,17 +28,32 @@ function DetailSection({
   );
 }
 
-function DetailField({
-  label, value, mono, accent, span
-}: { label: string; value?: string | null; mono?: boolean; accent?: boolean; span?: boolean }) {
+function DrawerField({
+  label, value, mono, accent, span, wrap
+}: {
+  label: string;
+  value?: string | null;
+  mono?: boolean;
+  accent?: boolean;
+  span?: boolean;
+  wrap?: boolean; // allow text to wrap — no truncate
+}) {
   const empty = !value;
   return (
-    <div className={`rounded-lg p-3 border ${accent ? 'bg-blue-50 border-blue-100' : 'bg-slate-50 border-slate-100'} ${span ? 'col-span-2' : ''}`}>
-      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">{label}</p>
-      <p className={`text-sm font-semibold leading-snug truncate
+    <div className={`
+      rounded-lg p-3 border
+      ${accent ? 'bg-blue-50 border-blue-100' : 'bg-slate-50 border-slate-100'}
+      ${span ? 'col-span-2' : ''}
+    `}>
+      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">
+        {label}
+      </p>
+      <p className={`
+        text-sm font-semibold leading-snug
         ${mono ? 'font-mono' : ''}
         ${accent ? 'text-blue-700' : 'text-slate-700'}
         ${empty ? 'text-slate-300 italic font-normal' : ''}
+        ${wrap ? 'break-words whitespace-normal' : 'truncate'}
       `}>
         {value || '—'}
       </p>
@@ -50,13 +65,13 @@ function DetailField({
 // MAIN PAGE
 // ─────────────────────────────────────────────
 export default function InterkoneksiPage() {
-  const [loading, setLoading]       = useState(false);
-  const [syncing, setSyncing]       = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [data, setData]             = useState<any[]>([]);
+  const [loading, setLoading]         = useState(false);
+  const [syncing, setSyncing]         = useState(false);
+  const [searchTerm, setSearchTerm]   = useState('');
+  const [data, setData]               = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
-  const [detailItem, setDetailItem]   = useState<any>(null); // ← NEW
+  const [detailItem, setDetailItem]   = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const SS_CONFIG = {
@@ -89,7 +104,6 @@ export default function InterkoneksiPage() {
 
   useEffect(() => { fetchData(); }, []);
 
-  // CSV Import
   const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -99,7 +113,7 @@ export default function InterkoneksiPage() {
         const content = event.target?.result as string;
         const lines = content.split('\n').filter(l => l.trim() !== '');
         if (lines.length < 2) return;
-        const rawHeaders  = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+        const rawHeaders   = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
         const validColumns = Object.keys(emptyForm);
         const importedData = lines.slice(1).map(line => {
           const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
@@ -127,7 +141,6 @@ export default function InterkoneksiPage() {
     reader.readAsText(file);
   };
 
-  // CSV Export
   const handleExportCSV = () => {
     if (data.length === 0) return toast.error('Data kosong');
     const headers = Object.keys(emptyForm);
@@ -157,8 +170,8 @@ export default function InterkoneksiPage() {
       if (editingItem) {
         await supabase.from('Data Interkoneksi').update(formData).eq('id', editingItem.id);
         toast.success('Data berhasil diupdate!');
-        // Refresh detail panel if editing currently shown item
-        if (detailItem?.id === editingItem.id) setDetailItem({ ...detailItem, ...formData });
+        if (detailItem?.id === editingItem.id)
+          setDetailItem({ ...detailItem, ...formData });
       } else {
         await supabase.from('Data Interkoneksi').insert([formData]);
         toast.success('Data berhasil ditambahkan!');
@@ -213,12 +226,12 @@ export default function InterkoneksiPage() {
     { key: 'Nama_ISP',     label: 'Nama ISP' },
     { key: 'Location',     label: 'Location' },
     { key: 'Lantai',       label: 'Lantai' },
-    { key: 'Device',       label: 'Device',      mono: true },
+    { key: 'Device',       label: 'Device',       mono: true },
     { key: 'SN_Perangkat', label: 'SN Perangkat', mono: true },
     { key: 'Rack',         label: 'Rack' },
     { key: 'OTB',          label: 'OTB' },
     { key: 'Type',         label: 'Type' },
-    { key: 'Port',         label: 'Port',        mono: true },
+    { key: 'Port',         label: 'Port',         mono: true },
     { key: 'No_Reff',      label: 'No. Referensi' },
     { key: 'Label',        label: 'Label' },
     { key: 'Kapasitas',    label: 'Kapasitas' },
@@ -227,296 +240,331 @@ export default function InterkoneksiPage() {
 
   const isActive = (item: any) => item?.Status !== 'Dismantle';
 
+  // ─────────────────────────────────────────────
   return (
     <div
       className="min-h-screen p-6 md:p-8"
       style={{ background: '#f4f6f9', fontFamily: "'IBM Plex Sans', sans-serif" }}
     >
-      {/* Flex wrapper: table + detail panel side-by-side */}
-      <div className={`max-w-[1600px] mx-auto flex gap-5 transition-all duration-300`}>
+      <div className="max-w-[1600px] mx-auto">
 
-        {/* ── LEFT: TABLE AREA ── */}
-        <div className={`flex-1 min-w-0 transition-all duration-300 ${detailItem ? 'max-w-[calc(100%-400px)]' : 'max-w-full'}`}>
-
-          {/* Header */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-            <div>
-              <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
-                <div className="p-1.5 bg-blue-50 rounded-lg text-blue-600"><Layers size={17} /></div>
-                Data Interkoneksi
-              </h1>
-              <p className="text-xs text-slate-400 mt-1 ml-0.5">Database Interkoneksi / Cross Connect Client FMI</p>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <input type="file" ref={fileInputRef} onChange={handleImportCSV} accept=".csv" className="hidden" />
-              <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-all shadow-sm">
-                <Upload size={13} className="text-blue-500" /> Import
-              </button>
-              <button onClick={handleExportCSV} className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-all shadow-sm">
-                <Download size={13} className="text-amber-500" /> Export
-              </button>
-              <button onClick={handleSyncSheet} disabled={syncing} className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-emerald-600 hover:bg-emerald-50 transition-all shadow-sm disabled:opacity-50">
-                {syncing ? <Loader2 className="animate-spin" size={13} /> : <FileSpreadsheet size={13} />} Sync Sheet
-              </button>
-              <button onClick={() => openModal()} className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-sm">
-                <Plus size={15} /> Interkoneksi Baru
-              </button>
-            </div>
+        {/* ── HEADER ── */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+          <div>
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
+              <div className="p-1.5 bg-blue-50 rounded-lg text-blue-600"><Layers size={17} /></div>
+              Data Interkoneksi
+            </h1>
+            <p className="text-xs text-slate-400 mt-1 ml-0.5">Database Interkoneksi / Cross Connect Client FMI</p>
           </div>
-
-          {/* Search */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-5 flex items-center overflow-hidden">
-            <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-              <input
-                type="text"
-                placeholder="Cari ID, ISP, lokasi, device, atau port..."
-                className="w-full py-3 pl-11 pr-4 text-sm outline-none text-slate-700 placeholder:text-slate-400"
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <div className="px-5 border-l border-slate-100 text-xs font-semibold text-slate-400 flex items-center gap-1.5 whitespace-nowrap">
-              Total: <span className="text-blue-600 font-bold text-sm">{filteredData.length}</span>
-            </div>
-          </div>
-
-          {/* Table */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left whitespace-nowrap">
-                <thead>
-                  <tr className="border-b border-slate-100" style={{ background: '#f8fafc' }}>
-                    <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">ID & Status</th>
-                    <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">ISP / Pelanggan</th>
-                    {!detailItem && <>
-                      <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-center">Site & Lokasi</th>
-                      <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-center">Hardware & Port</th>
-                    </>}
-                    <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-center">Kapasitas</th>
-                    <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-right">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {loading ? (
-                    [...Array(6)].map((_, i) => (
-                      <tr key={i}>
-                        {[1,2,3,4,5].map(j => (
-                          <td key={j} className="px-5 py-4">
-                            <div className="h-3.5 bg-slate-100 rounded animate-pulse w-full max-w-[120px]" />
-                          </td>
-                        ))}
-                      </tr>
-                    ))
-                  ) : filteredData.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="py-16 text-center">
-                        <div className="flex flex-col items-center gap-2 text-slate-400">
-                          <Layers size={28} className="opacity-20" />
-                          <p className="text-sm font-medium">Tidak ada data ditemukan</p>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredData.map((item) => {
-                      const isSelected = detailItem?.id === item.id;
-                      return (
-                        <tr
-                          key={item.id}
-                          className={`transition-colors group ${isSelected ? 'bg-blue-50/60' : 'hover:bg-blue-50/30'}`}
-                        >
-                          {/* ID — clickable */}
-                          <td className="px-5 py-3.5">
-                            <p className="font-mono text-[10px] text-slate-400 mb-0.5">#{item.id}</p>
-                            <button
-                              onClick={() => setDetailItem(isSelected ? null : item)}
-                              className={`text-[13px] font-bold flex items-center gap-1 mb-1.5 transition-colors group/id ${
-                                isSelected ? 'text-blue-700' : 'text-blue-600 hover:text-blue-800'
-                              }`}
-                            >
-                              {item.ID_Pelanggan || '—'}
-                              <ChevronRight
-                                size={12}
-                                className={`transition-transform duration-200 ${isSelected ? 'rotate-90 opacity-100' : 'opacity-0 group-hover/id:opacity-100'}`}
-                              />
-                            </button>
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                              isActive(item)
-                                ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
-                                : 'bg-rose-50 text-rose-600 border-rose-200'
-                            }`}>
-                              {isActive(item) ? <CheckCircle2 size={9} /> : <AlertCircle size={9} />}
-                              {item.Status || 'Active'}
-                            </span>
-                          </td>
-
-                          {/* ISP */}
-                          <td className="px-5 py-3.5">
-                            <p className="text-sm font-semibold text-slate-800">{item.Nama_ISP || '—'}</p>
-                            <p className="text-[11px] text-slate-400 mt-0.5 font-mono">{item.No_Reff || '—'}</p>
-                          </td>
-
-                          {/* Site & Hardware: hide when panel open */}
-                          {!detailItem && <>
-                            <td className="px-5 py-3.5 text-center">
-                              <p className="text-xs font-semibold text-slate-700 flex items-center justify-center gap-1">
-                                <MapPin size={11} className="text-blue-500 shrink-0" />{item.Location || '—'}
-                              </p>
-                              <p className="text-[10px] text-slate-400 mt-0.5">Lantai {item.Lantai || '—'}</p>
-                            </td>
-                            <td className="px-5 py-3.5 text-center">
-                              <div className="flex items-center justify-center gap-1 mb-1">
-                                <span className="bg-slate-800 text-white px-2 py-0.5 rounded text-[10px] font-bold">Rack {item.Rack || '—'}</span>
-                                <span className="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] font-bold">Port {item.Port || '—'}</span>
-                              </div>
-                              <p className="text-[10px] text-slate-400 font-mono">{item.Device || '—'}</p>
-                            </td>
-                          </>}
-
-                          {/* Kapasitas */}
-                          <td className="px-5 py-3.5 text-center">
-                            <span className="text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-md">
-                              {item.Kapasitas || '—'}
-                            </span>
-                            {item.Limitasi && (
-                              <p className="text-[10px] text-rose-500 font-semibold mt-1">Lmt: {item.Limitasi}</p>
-                            )}
-                          </td>
-
-                          {/* Actions */}
-                          <td className="px-5 py-3.5 text-right">
-                            <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button onClick={() => setDetailItem(isSelected ? null : item)} className={`p-1.5 rounded-md transition-all ${isSelected ? 'text-blue-600 bg-blue-50' : 'text-slate-400 hover:text-blue-600 hover:bg-blue-50'}`} title="Lihat Detail">
-                                <Info size={14} />
-                              </button>
-                              <button onClick={() => openModal(item)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all" title="Edit">
-                                <Edit3 size={14} />
-                              </button>
-                              <button onClick={() => handleDelete(item.id)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-all" title="Hapus">
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <input type="file" ref={fileInputRef} onChange={handleImportCSV} accept=".csv" className="hidden" />
+            <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-all shadow-sm">
+              <Upload size={13} className="text-blue-500" /> Import
+            </button>
+            <button onClick={handleExportCSV} className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-all shadow-sm">
+              <Download size={13} className="text-amber-500" /> Export
+            </button>
+            <button onClick={handleSyncSheet} disabled={syncing} className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-emerald-600 hover:bg-emerald-50 transition-all shadow-sm disabled:opacity-50">
+              {syncing ? <Loader2 className="animate-spin" size={13} /> : <FileSpreadsheet size={13} />} Sync Sheet
+            </button>
+            <button onClick={() => openModal()} className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-sm">
+              <Plus size={15} /> Interkoneksi Baru
+            </button>
           </div>
         </div>
 
-        {/* ── RIGHT: DETAIL PANEL (sticky side panel) ── */}
+        {/* ── SEARCH ── */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-5 flex items-center overflow-hidden">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+            <input
+              type="text"
+              placeholder="Cari ID, ISP, lokasi, device, atau port..."
+              className="w-full py-3 pl-11 pr-4 text-sm outline-none text-slate-700 placeholder:text-slate-400"
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="px-5 border-l border-slate-100 text-xs font-semibold text-slate-400 flex items-center gap-1.5 whitespace-nowrap">
+            Total: <span className="text-blue-600 font-bold text-sm">{filteredData.length}</span>
+          </div>
+        </div>
+
+        {/* ── TABLE ── */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left whitespace-nowrap">
+              <thead>
+                <tr className="border-b border-slate-100" style={{ background: '#f8fafc' }}>
+                  <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">ID & Status</th>
+                  <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">ISP / Pelanggan</th>
+                  <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-center">Site & Lokasi</th>
+                  <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-center">Hardware & Port</th>
+                  <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-center">Kapasitas</th>
+                  <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {loading ? (
+                  [...Array(6)].map((_, i) => (
+                    <tr key={i}>{[1,2,3,4,5,6].map(j => (
+                      <td key={j} className="px-5 py-4">
+                        <div className="h-3.5 bg-slate-100 rounded animate-pulse w-full max-w-[120px]" />
+                      </td>
+                    ))}</tr>
+                  ))
+                ) : filteredData.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-16 text-center">
+                      <div className="flex flex-col items-center gap-2 text-slate-400">
+                        <Layers size={28} className="opacity-20" />
+                        <p className="text-sm font-medium">Tidak ada data ditemukan</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredData.map((item) => {
+                    const isSelected = detailItem?.id === item.id;
+                    return (
+                      <tr
+                        key={item.id}
+                        className={`transition-colors group ${isSelected ? 'bg-blue-50/50' : 'hover:bg-blue-50/30'}`}
+                      >
+                        {/* ID — click to open drawer */}
+                        <td className="px-5 py-3.5">
+                          <p className="font-mono text-[10px] text-slate-400 mb-0.5">#{item.id}</p>
+                          <button
+                            onClick={() => setDetailItem(isSelected ? null : item)}
+                            className={`text-[13px] font-bold flex items-center gap-1 mb-1.5 transition-colors group/id ${
+                              isSelected ? 'text-blue-700' : 'text-blue-600 hover:text-blue-800'
+                            }`}
+                          >
+                            {item.ID_Pelanggan || '—'}
+                            <ChevronRight
+                              size={12}
+                              className={`transition-all duration-200 ${
+                                isSelected
+                                  ? 'opacity-100 text-blue-600'
+                                  : 'opacity-0 group-hover/id:opacity-100'
+                              }`}
+                            />
+                          </button>
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                            isActive(item)
+                              ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                              : 'bg-rose-50 text-rose-600 border-rose-200'
+                          }`}>
+                            {isActive(item) ? <CheckCircle2 size={9} /> : <AlertCircle size={9} />}
+                            {item.Status || 'Active'}
+                          </span>
+                        </td>
+
+                        {/* ISP */}
+                        <td className="px-5 py-3.5">
+                          <p className="text-sm font-semibold text-slate-800">{item.Nama_ISP || '—'}</p>
+                          <p className="text-[11px] text-slate-400 mt-0.5 font-mono">{item.No_Reff || '—'}</p>
+                        </td>
+
+                        {/* Site */}
+                        <td className="px-5 py-3.5 text-center">
+                          <p className="text-xs font-semibold text-slate-700 flex items-center justify-center gap-1">
+                            <MapPin size={11} className="text-blue-500 shrink-0" />{item.Location || '—'}
+                          </p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">Lantai {item.Lantai || '—'}</p>
+                        </td>
+
+                        {/* Hardware */}
+                        <td className="px-5 py-3.5 text-center">
+                          <div className="flex items-center justify-center gap-1 mb-1">
+                            <span className="bg-slate-800 text-white px-2 py-0.5 rounded text-[10px] font-bold">Rack {item.Rack || '—'}</span>
+                            <span className="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] font-bold">Port {item.Port || '—'}</span>
+                          </div>
+                          <p className="text-[10px] text-slate-400 font-mono">{item.Device || '—'}</p>
+                        </td>
+
+                        {/* Kapasitas */}
+                        <td className="px-5 py-3.5 text-center">
+                          <span className="text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-md">
+                            {item.Kapasitas || '—'}
+                          </span>
+                          {item.Limitasi && (
+                            <p className="text-[10px] text-rose-500 font-semibold mt-1">Lmt: {item.Limitasi}</p>
+                          )}
+                        </td>
+
+                        {/* Actions */}
+                        <td className="px-5 py-3.5 text-right">
+                          <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => setDetailItem(isSelected ? null : item)}
+                              className={`p-1.5 rounded-md transition-all ${
+                                isSelected
+                                  ? 'text-blue-600 bg-blue-50'
+                                  : 'text-slate-400 hover:text-blue-600 hover:bg-blue-50'
+                              }`}
+                              title="Lihat Detail"
+                            >
+                              <Info size={14} />
+                            </button>
+                            <button onClick={() => openModal(item)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all" title="Edit">
+                              <Edit3 size={14} />
+                            </button>
+                            <button onClick={() => handleDelete(item.id)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-all" title="Hapus">
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════
+          DETAIL DRAWER — slide from right
+          Fixed overlay (dim) + animated panel
+      ══════════════════════════════════════════ */}
+      {/* Dim backdrop — click to close */}
+      <div
+        className={`fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-[2px] transition-opacity duration-300 ${
+          detailItem ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+        onClick={() => setDetailItem(null)}
+      />
+
+      {/* Drawer panel */}
+      <div
+        className={`fixed top-0 right-0 bottom-0 z-50 w-[480px] bg-white shadow-2xl flex flex-col
+          transition-transform duration-300 ease-in-out
+          ${detailItem ? 'translate-x-0' : 'translate-x-full'}
+        `}
+        style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+      >
         {detailItem && (
-          <div className="w-[380px] shrink-0">
-            <div className="sticky top-6 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-
-              {/* Accent top bar */}
-              <div className="h-1 w-full" style={{
+          <>
+            {/* Accent bar */}
+            <div
+              className="h-1 w-full shrink-0"
+              style={{
                 background: isActive(detailItem)
-                  ? 'linear-gradient(90deg,#2563eb,#60a5fa)'
-                  : 'linear-gradient(90deg,#e11d48,#fb7185)'
-              }} />
+                  ? 'linear-gradient(90deg, #2563eb, #60a5fa)'
+                  : 'linear-gradient(90deg, #e11d48, #fb7185)'
+              }}
+            />
 
-              {/* Panel header */}
-              <div className="px-4 py-3.5 border-b border-slate-100 bg-slate-50">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                        isActive(detailItem)
-                          ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
-                          : 'bg-rose-50 text-rose-600 border-rose-200'
-                      }`}>
-                        {isActive(detailItem) ? <CheckCircle2 size={9} /> : <AlertCircle size={9} />}
-                        {detailItem.Status || 'Active'}
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-mono">#{detailItem.id}</span>
-                    </div>
-                    <p className="font-bold text-slate-900 text-base leading-tight truncate">{detailItem.ID_Pelanggan || '—'}</p>
-                    <p className="text-xs text-slate-400 mt-0.5 truncate">{detailItem.Nama_ISP || '—'}</p>
+            {/* Drawer header */}
+            <div className="px-6 py-5 border-b border-slate-100 bg-slate-50 shrink-0">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                      isActive(detailItem)
+                        ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                        : 'bg-rose-50 text-rose-600 border-rose-200'
+                    }`}>
+                      {isActive(detailItem) ? <CheckCircle2 size={10} /> : <AlertCircle size={10} />}
+                      {detailItem.Status || 'Active'}
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono bg-slate-100 border border-slate-200 px-2 py-0.5 rounded">
+                      #{detailItem.id}
+                    </span>
                   </div>
-                  <button
-                    onClick={() => setDetailItem(null)}
-                    className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-lg transition-colors shrink-0"
-                  >
-                    <X size={15} />
-                  </button>
+                  {/* Title — allow wrap, large and clear */}
+                  <h2 className="text-xl font-bold text-slate-900 leading-tight break-words">
+                    {detailItem.ID_Pelanggan || '—'}
+                  </h2>
+                  <p className="text-sm text-slate-500 mt-1 break-words">{detailItem.Nama_ISP || '—'}</p>
                 </div>
-
-                {/* Quick action buttons */}
-                <div className="flex gap-2 mt-3">
-                  <button
-                    onClick={() => { openModal(detailItem); }}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-white border border-slate-200 text-slate-600 hover:text-blue-600 hover:border-blue-200 rounded-lg text-xs font-semibold transition-all"
-                  >
-                    <Edit3 size={12} /> Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(detailItem.id)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-white border border-slate-200 text-slate-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 rounded-lg text-xs font-semibold transition-all"
-                  >
-                    <Trash2 size={12} /> Hapus
-                  </button>
-                </div>
+                <button
+                  onClick={() => setDetailItem(null)}
+                  className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-lg transition-colors shrink-0 mt-0.5"
+                >
+                  <X size={17} />
+                </button>
               </div>
 
-              {/* Panel body — scrollable */}
-              <div className="p-3 space-y-3 max-h-[calc(100vh-260px)] overflow-y-auto">
-
-                {/* Lokasi */}
-                <DetailSection icon={<MapPin size={12} />} title="Lokasi" color="text-blue-600">
-                  <DetailField label="Location"  value={detailItem.Location} />
-                  <DetailField label="Lantai"    value={detailItem.Lantai} />
-                </DetailSection>
-
-                {/* Perangkat */}
-                <DetailSection icon={<Server size={12} />} title="Perangkat" color="text-indigo-600">
-                  <DetailField label="Device"       value={detailItem.Device}       mono />
-                  <DetailField label="SN Perangkat" value={detailItem.SN_Perangkat} mono />
-                  <DetailField label="OTB"          value={detailItem.OTB} />
-                  <DetailField label="Type"         value={detailItem.Type} />
-                </DetailSection>
-
-                {/* Koneksi */}
-                <DetailSection icon={<Network size={12} />} title="Koneksi & Port" color="text-violet-600">
-                  <DetailField label="Rack"         value={detailItem.Rack} />
-                  <DetailField label="Port"         value={detailItem.Port}  mono accent />
-                </DetailSection>
-
-                {/* Kapasitas */}
-                <DetailSection icon={<Zap size={12} />} title="Kapasitas" color="text-emerald-600">
-                  <div className="col-span-2 grid grid-cols-2 gap-2.5">
-                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-center">
-                      <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-1.5">Kapasitas</p>
-                      <p className="text-lg font-bold text-blue-700 font-mono leading-none">
-                        {detailItem.Kapasitas || '—'}
-                      </p>
-                    </div>
-                    <div className={`border rounded-xl p-3 text-center ${detailItem.Limitasi ? 'bg-rose-50 border-rose-100' : 'bg-slate-50 border-slate-100'}`}>
-                      <p className={`text-[10px] font-bold uppercase tracking-widest mb-1.5 ${detailItem.Limitasi ? 'text-rose-400' : 'text-slate-400'}`}>Limitasi</p>
-                      <p className={`text-lg font-bold font-mono leading-none ${detailItem.Limitasi ? 'text-rose-600' : 'text-slate-300'}`}>
-                        {detailItem.Limitasi || '—'}
-                      </p>
-                    </div>
-                  </div>
-                </DetailSection>
-
-                {/* Referensi */}
-                <DetailSection icon={<Tag size={12} />} title="Referensi" color="text-amber-600">
-                  <DetailField label="No. Referensi" value={detailItem.No_Reff} mono />
-                  <DetailField label="Label"         value={detailItem.Label} />
-                </DetailSection>
-
+              {/* Action buttons */}
+              <div className="flex gap-2.5 mt-4">
+                <button
+                  onClick={() => openModal(detailItem)}
+                  className="flex-1 flex items-center justify-center gap-2 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-sm"
+                >
+                  <Edit3 size={13} /> Edit Data
+                </button>
+                <button
+                  onClick={() => handleDelete(detailItem.id)}
+                  className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 rounded-lg text-xs font-semibold transition-all"
+                >
+                  <Trash2 size={13} /> Hapus
+                </button>
               </div>
             </div>
-          </div>
+
+            {/* Drawer body — scrollable, all text wraps */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-white">
+
+              {/* Lokasi */}
+              <DrawerSection icon={<MapPin size={13} />} title="Lokasi" color="text-blue-600">
+                <DrawerField label="Location" value={detailItem.Location} wrap />
+                <DrawerField label="Lantai"   value={detailItem.Lantai}   wrap />
+              </DrawerSection>
+
+              {/* Perangkat */}
+              <DrawerSection icon={<Server size={13} />} title="Perangkat" color="text-indigo-600">
+                <DrawerField label="Device"       value={detailItem.Device}       mono wrap />
+                <DrawerField label="SN Perangkat" value={detailItem.SN_Perangkat} mono wrap />
+                <DrawerField label="OTB"          value={detailItem.OTB}          wrap />
+                <DrawerField label="Type"         value={detailItem.Type}         wrap />
+              </DrawerSection>
+
+              {/* Koneksi & Port */}
+              <DrawerSection icon={<Network size={13} />} title="Koneksi & Port" color="text-violet-600">
+                <DrawerField label="Rack" value={detailItem.Rack} wrap />
+                <DrawerField label="Port" value={detailItem.Port} mono accent wrap />
+              </DrawerSection>
+
+              {/* Kapasitas — big cards */}
+              <DrawerSection icon={<Zap size={13} />} title="Kapasitas" color="text-emerald-600">
+                <div className="col-span-2 grid grid-cols-2 gap-3">
+                  <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-center">
+                    <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-2">Kapasitas</p>
+                    <p className="text-2xl font-bold text-blue-700 font-mono leading-none">
+                      {detailItem.Kapasitas || '—'}
+                    </p>
+                  </div>
+                  <div className={`border rounded-xl p-4 text-center ${
+                    detailItem.Limitasi ? 'bg-rose-50 border-rose-100' : 'bg-slate-50 border-slate-100'
+                  }`}>
+                    <p className={`text-[10px] font-bold uppercase tracking-widest mb-2 ${
+                      detailItem.Limitasi ? 'text-rose-400' : 'text-slate-400'
+                    }`}>Limitasi</p>
+                    <p className={`text-2xl font-bold font-mono leading-none ${
+                      detailItem.Limitasi ? 'text-rose-600' : 'text-slate-300'
+                    }`}>
+                      {detailItem.Limitasi || '—'}
+                    </p>
+                  </div>
+                </div>
+              </DrawerSection>
+
+              {/* Referensi */}
+              <DrawerSection icon={<Tag size={13} />} title="Referensi & Label" color="text-amber-600">
+                <DrawerField label="No. Referensi" value={detailItem.No_Reff} mono wrap span />
+                <DrawerField label="Label"         value={detailItem.Label}        wrap span />
+              </DrawerSection>
+
+            </div>
+          </>
         )}
       </div>
 
       {/* ── FORM MODAL ── */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
           <form
             onSubmit={handleSubmit}
             className="bg-white w-full max-w-4xl rounded-2xl shadow-xl border border-slate-200 overflow-hidden"
@@ -535,7 +583,6 @@ export default function InterkoneksiPage() {
 
             <div className="p-6 max-h-[65vh] overflow-y-auto">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {/* Status */}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[11px] font-bold text-blue-600 uppercase tracking-widest">Status</label>
                   <select
@@ -551,7 +598,6 @@ export default function InterkoneksiPage() {
                     <option value="Dismantle">Dismantle</option>
                   </select>
                 </div>
-
                 {formFields.map(({ key, label, mono }) => (
                   <div key={key} className="flex flex-col gap-1.5">
                     <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{label}</label>
