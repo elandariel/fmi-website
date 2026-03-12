@@ -307,10 +307,10 @@ export default function VlanPage() {
                 <th className="px-6 py-3 border-b w-20">VLAN ID</th>
                 <th className="px-6 py-3 border-b min-w-[200px]">Customer Name</th>
                 <th className="px-6 py-3 border-b">Service ID</th>
-                <th className="px-6 py-3 border-b bg-blue-50/50 text-blue-700 min-w-[150px]">NE Switch (POP)</th>
+                <th className="px-6 py-3 border-b bg-blue-50/50 text-blue-700 min-w-[150px]">Near End</th>
                 <th className="px-6 py-3 border-b bg-blue-50/50 text-blue-700">NE Port</th>
                 <th className="px-6 py-3 border-b bg-blue-50/50 text-blue-700">NE Mode</th>
-                <th className="px-6 py-3 border-b bg-purple-50/50 text-purple-700 min-w-[150px]">FE Switch (CPE)</th>
+                <th className="px-6 py-3 border-b bg-purple-50/50 text-purple-700 min-w-[150px]">Far End</th>
                 <th className="px-6 py-3 border-b bg-purple-50/50 text-purple-700">FE Port</th>
                 <th className="px-6 py-3 border-b bg-purple-50/50 text-purple-700">FE Mode</th>
                 <th className="px-6 py-3 border-b text-center sticky right-0 bg-slate-100 z-10 shadow-sm">Action</th>

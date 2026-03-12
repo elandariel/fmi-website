@@ -209,8 +209,8 @@ function ClientDetailContent() {
             </h3>
             <div className="space-y-3">
               <InfoRow label="VLAN / VMAN" value={client['VMAN / VLAN']} mono />
-              <InfoRow label="Near End (POP)" value={client['Near End']} />
-              <InfoRow label="Far End (CPE)" value={client['Far End']} />
+              <InfoRow label="Interkoneksi" value={client['Near End']} />
+              <InfoRow label="Last PoP" value={client['Far End']} />
               <InfoRow label="SN ONT" value={client['SN ONT']} mono />
             </div>
           </div>
@@ -218,7 +218,7 @@ function ClientDetailContent() {
           {/* Signal */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
             <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <Signal size={13} /> Kualitas Sinyal
+              <Signal size={13} /> Kualitas Redaman
             </h3>
             <div className={`rounded-xl p-4 border ${signal.bg} border-slate-100 flex items-center gap-4`}>
               <div className={`p-3 rounded-xl bg-white shadow-sm ${signal.text}`}>
@@ -231,9 +231,9 @@ function ClientDetailContent() {
             </div>
 
             <div className="mt-4 grid grid-cols-3 gap-2 text-center text-[10px] font-semibold">
-              <div className="bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg py-1.5">Baik<br/><span className="font-mono">&gt; -24</span></div>
-              <div className="bg-amber-50 text-amber-700 border border-amber-100 rounded-lg py-1.5">Sedang<br/><span className="font-mono">-24 ~ -27</span></div>
-              <div className="bg-rose-50 text-rose-700 border border-rose-100 rounded-lg py-1.5">Lemah<br/><span className="font-mono">&lt; -27</span></div>
+              <div className="bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg py-1.5">Baik<br/><span className="font-mono">&gt; -15 ~ -22</span></div>
+              <div className="bg-amber-50 text-amber-700 border border-amber-100 rounded-lg py-1.5">Sedang<br/><span className="font-mono">-23 ~ -24</span></div>
+              <div className="bg-rose-50 text-rose-700 border border-rose-100 rounded-lg py-1.5">Lemah<br/><span className="font-mono">&lt; -25</span></div>
             </div>
           </div>
         </div>
@@ -246,11 +246,11 @@ function ClientDetailContent() {
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
-                <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Near End (POP)</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Interkoneksi</p>
                 <p className="text-sm font-semibold text-slate-800 font-mono">{client['Near End'] || '—'}</p>
               </div>
               <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
-                <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Far End (CPE)</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Last PoP</p>
                 <p className="text-sm font-semibold text-slate-800 font-mono">{client['Far End'] || '—'}</p>
               </div>
             </div>
