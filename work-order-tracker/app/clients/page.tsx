@@ -5,7 +5,7 @@ import { createBrowserClient } from '@supabase/ssr';
 import Link from 'next/link';
 import { 
   Search, Plus, Filter, ChevronLeft, ChevronRight, 
-  Users, Signal, Trash2, Edit, MapPin
+  Users, Signal, Trash2, Edit, MapPin, Download, FileSpreadsheet, FileText
 } from 'lucide-react';
 import { hasAccess, PERMISSIONS, Role } from '@/lib/permissions';
 
@@ -14,7 +14,8 @@ export default function ClientListPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [userRole, setUserRole] = useState<Role | null>(null);
-  
+  const [exportLoading, setExportLoading] = useState<'excel' | 'pdf' | null>(null);
+
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
@@ -50,6 +51,127 @@ export default function ClientListPage() {
     setLoading(false);
   }
 
+  // Fetch ALL data (no pagination) for export
+  async function fetchAllData(): Promise<any[]> {
+    let query = supabase.from('Data Client Corporate').select('*');
+    if (search) {
+      query = query.or(`"Nama Pelanggan".ilike.%${search}%,"ID Pelanggan".ilike.%${search}%`);
+    }
+    const { data, error } = await query.order('id', { ascending: false });
+    if (error) return [];
+    return data || [];
+  }
+
+  // ── EXPORT TO EXCEL ──
+  async function handleExportExcel() {
+    setExportLoading('excel');
+    try {
+      const allData = await fetchAllData();
+
+      // Dynamically import xlsx (SheetJS)
+      const XLSX = await import('xlsx');
+
+      const rows = allData.map((c) => ({
+        'ID Pelanggan': c['ID Pelanggan'] || '',
+        'Nama Pelanggan': c['Nama Pelanggan'] || '',
+        'Alamat': c['ALAMAT'] || '',
+        'Kapasitas': c['Kapasitas'] || '',
+        'Status': c['STATUS'] || '',
+        'RX ONT/SFP': c['RX ONT/SFP'] || '',
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+
+      // Column widths
+      ws['!cols'] = [
+        { wch: 16 }, { wch: 36 }, { wch: 46 }, { wch: 14 }, { wch: 14 }, { wch: 14 },
+      ];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Data Client');
+
+      const filename = `data-client${search ? `-${search}` : ''}-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      XLSX.writeFile(wb, filename);
+    } catch (err) {
+      console.error('Export Excel error:', err);
+      alert('Gagal export Excel. Pastikan library xlsx tersedia.');
+    } finally {
+      setExportLoading(null);
+    }
+  }
+
+  // ── EXPORT TO PDF ──
+  async function handleExportPdf() {
+    setExportLoading('pdf');
+    try {
+      const allData = await fetchAllData();
+
+      // Dynamically import jsPDF + autoTable
+      const { jsPDF } = await import('jspdf');
+      const autoTable = (await import('jspdf-autotable')).default;
+
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+      // Header
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Data Client Corporate', 14, 16);
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(120);
+      doc.text(`Diekspor: ${new Date().toLocaleString('id-ID')}  |  Total: ${allData.length} pelanggan`, 14, 23);
+      if (search) doc.text(`Filter: "${search}"`, 14, 29);
+
+      doc.setTextColor(0);
+
+      const tableRows = allData.map((c) => [
+        c['ID Pelanggan'] || '—',
+        c['Nama Pelanggan'] || '—',
+        c['ALAMAT'] ? c['ALAMAT'].substring(0, 50) + (c['ALAMAT'].length > 50 ? '…' : '') : '—',
+        c['Kapasitas'] || '—',
+        c['STATUS'] || '—',
+        c['RX ONT/SFP'] || '—',
+      ]);
+
+      autoTable(doc, {
+        startY: search ? 33 : 28,
+        head: [['ID Pelanggan', 'Nama Pelanggan', 'Alamat', 'Kapasitas', 'Status', 'RX ONT/SFP']],
+        body: tableRows,
+        theme: 'striped',
+        headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+        bodyStyles: { fontSize: 7.5 },
+        columnStyles: {
+          0: { cellWidth: 24 },
+          1: { cellWidth: 52 },
+          2: { cellWidth: 80 },
+          3: { cellWidth: 22 },
+          4: { cellWidth: 22 },
+          5: { cellWidth: 22 },
+        },
+        didDrawCell: (data: any) => {
+          // Highlight status cells
+          if (data.section === 'body' && data.column.index === 4) {
+            const status = (data.cell.raw || '').toString().toLowerCase();
+            if (status.includes('active') || status.includes('ok')) {
+              doc.setFillColor(236, 253, 245);
+            } else if (status.includes('suspend') || status.includes('isolir')) {
+              doc.setFillColor(255, 241, 242);
+            }
+          }
+        },
+      });
+
+      const filename = `data-client${search ? `-${search}` : ''}-${new Date().toISOString().slice(0, 10)}.pdf`;
+      doc.save(filename);
+    } catch (err) {
+      console.error('Export PDF error:', err);
+      alert('Gagal export PDF. Pastikan library jspdf & jspdf-autotable tersedia.');
+    } finally {
+      setExportLoading(null);
+    }
+  }
+
   useEffect(() => { fetchData(); }, [page, search]);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -60,7 +182,6 @@ export default function ClientListPage() {
   const canAdd = hasAccess(userRole, PERMISSIONS.CLIENT_ADD);
   const canEditDelete = hasAccess(userRole, PERMISSIONS.CLIENT_EDIT_DELETE);
 
-  // Pagination range display
   const rangeFrom = totalRecords === 0 ? 0 : (page - 1) * ITEMS_PER_PAGE + 1;
   const rangeTo = Math.min(page * ITEMS_PER_PAGE, totalRecords);
 
@@ -79,14 +200,46 @@ export default function ClientListPage() {
           <p className="text-sm text-slate-400 mt-1 ml-0.5">Database pelanggan aktif &amp; teknis</p>
         </div>
 
-        {canAdd && (
-          <Link href="/clients/create">
-            <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold text-sm shadow-sm transition-colors">
-              <Plus size={16} />
-              Client Baru
-            </button>
-          </Link>
-        )}
+        <div className="flex items-center gap-2">
+          {/* Export Excel Button */}
+          <button
+            onClick={handleExportExcel}
+            disabled={exportLoading !== null || loading}
+            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-3.5 py-2 rounded-lg font-semibold text-sm shadow-sm transition-colors"
+            title="Export ke Excel"
+          >
+            {exportLoading === 'excel' ? (
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <FileSpreadsheet size={15} />
+            )}
+            <span className="hidden sm:inline">Excel</span>
+          </button>
+
+          {/* Export PDF Button */}
+          <button
+            onClick={handleExportPdf}
+            disabled={exportLoading !== null || loading}
+            className="flex items-center gap-2 bg-rose-500 hover:bg-rose-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-3.5 py-2 rounded-lg font-semibold text-sm shadow-sm transition-colors"
+            title="Export ke PDF"
+          >
+            {exportLoading === 'pdf' ? (
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <FileText size={15} />
+            )}
+            <span className="hidden sm:inline">PDF</span>
+          </button>
+
+          {canAdd && (
+            <Link href="/clients/create">
+              <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold text-sm shadow-sm transition-colors">
+                <Plus size={16} />
+                Client Baru
+              </button>
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* ── SEARCH & FILTER BAR ── */}
@@ -102,9 +255,18 @@ export default function ClientListPage() {
           />
         </div>
 
-        <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg">
-          <Filter size={13} className="text-slate-400" />
-          <span>Total: <span className="text-slate-800 font-bold">{totalRecords}</span> Pelanggan</span>
+        <div className="flex items-center gap-3">
+          {/* Export hint when filter active */}
+          {search && (
+            <p className="text-xs text-slate-400 flex items-center gap-1">
+              <Download size={11} />
+              Export akan menggunakan filter aktif
+            </p>
+          )}
+          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg">
+            <Filter size={13} className="text-slate-400" />
+            <span>Total: <span className="text-slate-800 font-bold">{totalRecords}</span> Pelanggan</span>
+          </div>
         </div>
       </div>
 
@@ -140,15 +302,11 @@ export default function ClientListPage() {
               ) : clients.length > 0 ? (
                 clients.map((client) => (
                   <tr key={client.id} className="hover:bg-blue-50/40 transition-colors group">
-                    
-                    {/* ID */}
                     <td className="px-5 py-3.5">
                       <span className="font-mono text-[11px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
                         #{client['ID Pelanggan']}
                       </span>
                     </td>
-
-                    {/* Nama + Alamat */}
                     <td className="px-5 py-3.5">
                       <p className="font-semibold text-slate-800 text-[13px]">{client['Nama Pelanggan']}</p>
                       {client['ALAMAT'] && (
@@ -158,25 +316,17 @@ export default function ClientListPage() {
                         </p>
                       )}
                     </td>
-
-                    {/* Kapasitas */}
                     <td className="px-5 py-3.5">
                       <span className="text-[11px] font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-1 rounded-md">
                         {client['Kapasitas'] || 'Default'}
                       </span>
                     </td>
-
-                    {/* Status */}
                     <td className="px-5 py-3.5 text-center">
                       <StatusBadge status={client['STATUS']} />
                     </td>
-
-                    {/* Redaman */}
                     <td className="px-5 py-3.5 text-center">
                       <SignalIndicator value={client['RX ONT/SFP']} />
                     </td>
-
-                    {/* Aksi */}
                     <td className="px-5 py-3.5 text-center">
                       <div className="flex justify-center items-center gap-1">
                         <Link href={`/clients/${client.id}`}>
