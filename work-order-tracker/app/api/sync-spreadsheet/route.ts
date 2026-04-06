@@ -15,6 +15,7 @@ export async function POST(req: Request) {
       .from(tableTarget)
       .select('*')
       .order('id', { ascending: true });
+      .range(0, 5000);
 
     if (error) throw error;
 
