@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     const { data: dbData, error } = await supabase
       .from(tableTarget)
       .select('*')
-      .order('id', { ascending: true });
+      .order('id', { ascending: true })
       .range(0, 5000);
 
     if (error) throw error;
