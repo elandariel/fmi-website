@@ -13,7 +13,7 @@ export async function POST(req: Request) {
     // 1. Ambil data terbaru dari Supabase
     const { data: dbData, error } = await supabase
       .from(tableTarget)
-      .select('*')
+      .select('*', { count: 'exact' })
       .order('id', { ascending: true })
       .range(0, 5000);
 
