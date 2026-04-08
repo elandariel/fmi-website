@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maintenance - FMI NOC</title>
+    <style>
+        /* Animasi Kebuka (Fade In) */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Animasi Gir Muter (Slow Spin) */
+        @keyframes spinSlow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: #0f172a; 
+            color: white; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            height: 100vh; 
+            margin: 0; 
+            text-align: center; 
+        }
+
+        .card { 
+            background: #1e293b; 
+            padding: 3rem; 
+            border-radius: 1.5rem; 
+            border: 1px solid #334155; 
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); 
+            max-width: 450px; 
+            width: 90%;
+            /* Pasang Animasi Fade-In */
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        .icon {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            display: inline-block;
+            /* Pasang Animasi Gir Muter */
+            animation: spinSlow 5s linear infinite;
+        }
+
+        h1 { 
+            color: #3b82f6; 
+            margin-bottom: 0.5rem; 
+            font-size: 1.8rem;
+        }
+        
+        p { 
+            color: #94a3b8; 
+            line-height: 1.6; 
+            font-size: 1rem;
+        }
+        
+        .status-badge { 
+            display: inline-block; 
+            background: #92400e; 
+            color: #fef3c7; 
+            padding: 6px 16px; 
+            border-radius: 999px; 
+            font-size: 0.8rem; 
+            font-weight: bold; 
+            margin-bottom: 1.5rem; 
+            letter-spacing: 0.05em;
+        }
+        
+        .footer {
+            margin-top: 2.5rem; 
+            font-size: 0.75rem; 
+            color: #475569;
+            border-top: 1px solid #334155;
+            padding-top: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon">⚙️</div>
+        <div class="status-badge">DATABASE MIGRATION</div>
+        <h1>NOC FMI</h1>
+        <p>Mohon maaf atas ketidaknyamanannya. Saat ini kami sedang melakukan <strong>Migrasi & Sinkronisasi Database Lokal</strong>.</p>
+        <p>Layanan akan segera kembali normal setelah proses optimasi selesai.</p>
+        
+        <div class="footer">
+            <strong>Fiber Media Indonesia</strong><br>
+            Network Operations Center &copy; 2026
+        </div>
+    </div>
+</body>
+</html>

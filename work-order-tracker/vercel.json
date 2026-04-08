@@ -1,5 +1,12 @@
 {
   "version": 2,
   "cleanUrls": true,
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "redirects": [
+    {
+      "source": "/((?!maintenance.html|favicon.ico).*)",
+      "destination": "/maintenance.html",
+      "permanent": false
+    }
+  ]
 }

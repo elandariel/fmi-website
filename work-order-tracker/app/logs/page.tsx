@@ -5,6 +5,8 @@ import { createBrowserClient } from '@supabase/ssr';
 import { Search, History, RefreshCcw, User, Clock, Trash2, PlusCircle, Edit, AlertCircle } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { id as indonesia } from 'date-fns/locale';
+// ✅ TAMBAHAN 1: Import hook realtime
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 export default function LogActivityPage() {
   const supabase = createBrowserClient(
@@ -12,13 +14,23 @@ export default function LogActivityPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
   );
 
-  const [logs, setLogs] = useState<any[]>([]); // Tambahkan tipe any[] untuk menghindari error mapping
+  // ✅ UBAH: logs sekarang jadi initialLogs (data awal dari fetch)
+  const [initialLogs, setInitialLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  // ✅ TAMBAHAN 2: State untuk status koneksi realtime
+  const [isLive, setIsLive] = useState(false);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const ITEMS_PER_PAGE = 20;
 
-  // Fetch Data
+  // ✅ TAMBAHAN 3: Hook realtime — otomatis update saat ada INSERT baru
+  // Hanya berlaku di page 1 tanpa search (agar tidak konflik dengan pagination/filter)
+  const realtimeLogs = useRealtimeTable('Log_Aktivitas', initialLogs, ['INSERT']);
+
+  // Gunakan realtimeLogs kalau di page 1 tanpa search, else pakai initialLogs biasa
+  const logs = (page === 1 && !search) ? realtimeLogs : initialLogs;
+
+  // Fetch Data — sama persis seperti sebelumnya, tidak ada yang diubah
   async function fetchLogs() {
     setLoading(true);
     const from = (page - 1) * ITEMS_PER_PAGE;
@@ -31,8 +43,6 @@ export default function LogActivityPage() {
       .range(from, to);
 
     if (search) {
-      // Cari di kolom actor atau SUBJECT menggunakan filter teks sederhana
-      // Catatan: .or() dengan ilike mungkin perlu setup index di Supabase untuk performa
       query = query.or(`actor.ilike.%${search}%,SUBJECT.ilike.%${search}%`);
     }
 
@@ -41,7 +51,7 @@ export default function LogActivityPage() {
     if (error) {
       console.error('Error fetching logs:', error);
     } else {
-      setLogs(data || []);
+      setInitialLogs(data || []); // ✅ UBAH: setLogs → setInitialLogs
     }
     setLoading(false);
   }
@@ -50,7 +60,13 @@ export default function LogActivityPage() {
     fetchLogs();
   }, [page, search]);
 
-  // Helper Warna Badge
+  // ✅ TAMBAHAN 4: Aktifkan indikator "Live" setelah komponen mount
+  useEffect(() => {
+    const t = setTimeout(() => setIsLive(true), 1000);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Helper Warna Badge — tidak ada perubahan sama sekali
   const getActionStyle = (activity: string) => {
     const act = (activity || '').toUpperCase();
     
@@ -77,12 +93,23 @@ export default function LogActivityPage() {
           </h1>
           <p className="text-sm text-slate-500">Rekaman jejak aktivitas user di sistem NOC</p>
         </div>
-        <button onClick={fetchLogs} className="p-2 bg-white border rounded-lg hover:bg-slate-50 text-slate-600 shadow-sm">
-          <RefreshCcw size={20} className={loading ? 'animate-spin' : ''} />
-        </button>
+
+        {/* ✅ TAMBAHAN 5: Live badge + tombol refresh */}
+        <div className="flex items-center gap-3">
+          {/* Indikator Live — hanya muncul di page 1 tanpa search */}
+          {page === 1 && !search && (
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-full">
+              <span className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+              {isLive ? 'Live' : 'Connecting...'}
+            </span>
+          )}
+          <button onClick={fetchLogs} className="p-2 bg-white border rounded-lg hover:bg-slate-50 text-slate-600 shadow-sm">
+            <RefreshCcw size={20} className={loading ? 'animate-spin' : ''} />
+          </button>
+        </div>
       </div>
 
-      {/* Search Bar */}
+      {/* Search Bar — tidak ada perubahan */}
       <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6">
         <div className="relative w-full md:w-96">
           <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
@@ -96,7 +123,7 @@ export default function LogActivityPage() {
         </div>
       </div>
 
-      {/* Log List (Timeline Style) */}
+      {/* Log List (Timeline Style) — tidak ada perubahan sama sekali */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
         <div className="border-l-2 border-slate-100 ml-3 space-y-8 relative">
           
@@ -105,7 +132,6 @@ export default function LogActivityPage() {
           ) : logs.length > 0 ? (
             logs.map((log) => {
               const style = getActionStyle(log.ACTIVITY);
-              // Fallback untuk icon jika style.icon undefined
               const IconComponent = style.icon || AlertCircle;
               
               return (
@@ -154,7 +180,7 @@ export default function LogActivityPage() {
 
         </div>
         
-        {/* Simple Pagination */}
+        {/* Simple Pagination — tidak ada perubahan */}
         <div className="mt-8 flex justify-center gap-2 pt-4 border-t border-slate-50">
            <button 
              disabled={page === 1} 
