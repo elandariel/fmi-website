@@ -4,7 +4,7 @@
   "framework": "nextjs",
   "redirects": [
     {
-      "source": "/((?!maintenance.html|favicon.ico).*)",
+      "source": "/((?!maintenance|favicon.ico).*)",
       "destination": "/maintenance.html",
       "permanent": false
     }
