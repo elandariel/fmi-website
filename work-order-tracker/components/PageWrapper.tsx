@@ -1,8 +1,28 @@
 // components/PageWrapper.tsx
-export default function PageWrapper({ children }: { children: React.ReactNode }) {
+// Wrapper konsisten untuk semua halaman — padding & max-width seragam
+// Cara pakai: bungkus konten halaman dengan <PageWrapper>...</PageWrapper>
+
+interface PageWrapperProps {
+  children: React.ReactNode;
+  className?: string;
+  // Untuk halaman yang butuh full width (tanpa max-width), set maxWidth={false}
+  maxWidth?: boolean;
+}
+
+export default function PageWrapper({
+  children,
+  className = '',
+  maxWidth = true,
+}: PageWrapperProps) {
   return (
-    // p-4 di HP, p-8 di Desktop. Beres dalam satu baris.
-    <div className="p-4 md:p-8 max-w-7xl mx-auto w-full min-h-screen">
+    <div
+      className={`
+        min-h-screen p-5 md:p-7
+        ${maxWidth ? 'max-w-[1600px] mx-auto' : ''}
+        ${className}
+      `}
+      style={{ background: '#f0f2f5', fontFamily: "'IBM Plex Sans', sans-serif" }}
+    >
       {children}
     </div>
   );

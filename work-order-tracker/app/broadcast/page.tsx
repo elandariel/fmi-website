@@ -9,6 +9,7 @@ import {
 import { format } from 'date-fns';
 import { id as indonesia } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { logActivity, getActorName } from '@/lib/logger';
 
 const supabase = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -93,13 +94,29 @@ export default function BroadcastPage() {
       fetchHistory();
       toast.success('Broadcast Terkirim!', { description: 'Pesan akan muncul di dashboard semua user.' });
       setForm({ ...form, title: '', message: '' });
+      const actorName = await getActorName(supabase);
+      await logActivity({
+        activity: 'BROADCAST_SEND',
+        subject: form.title,
+        actor: actorName,
+        detail: `Tipe: ${form.type} · Sender: ${form.sender}`,
+      });
     }
   };
 
   const handleDelete = async (id: any) => {
     const { error } = await supabase.from('Broadcasts').delete().eq('id', id);
     if (error) toast.error('Gagal hapus data');
-    else { toast.success('Log dihapus'); fetchHistory(); }
+    else {
+      toast.success('Log dihapus');
+      fetchHistory();
+      const actorName = await getActorName(supabase);
+      await logActivity({
+        activity: 'BROADCAST_DELETE',
+        subject: `Broadcast #${id}`,
+        actor: actorName,
+      });
+    }
   };
 
   const handleCopy = (title: string, msg: string) => {

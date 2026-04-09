@@ -124,13 +124,32 @@ export default function InterkoneksiPage() {
           });
           return row;
         }).filter(row => Object.keys(row).length > 0);
-        if (confirm(`Upsert ${importedData.length} data ke database?`)) {
-          setLoading(true);
-          const { error } = await supabase.from('Data Interkoneksi').upsert(importedData);
-          if (error) throw error;
-          toast.success('Import Berhasil!');
-          fetchData();
-        }
+        toast.warning(`Upsert ${importedData.length} data ke database?`, {
+            action: {
+              label: 'Ya, Proses',
+              onClick: async () => {
+                setLoading(true);
+                try {
+                  const { error } = await supabase.from('Data Interkoneksi').upsert(importedData);
+                  if (error) throw error;
+                  toast.success('Import Berhasil!');
+                  fetchData();
+                  const actorName = await getActorName(supabase);
+                  await logActivity({
+                    activity: 'INTERKONEKSI_IMPORT',
+                    subject: `${importedData.length} baris data`,
+                    actor: actorName,
+                  });
+                } catch (err: any) {
+                  toast.error('Gagal import: ' + err.message);
+                } finally {
+                  setLoading(false);
+                }
+              }
+            },
+            cancel: { label: 'Batal', onClick: () => {} },
+            duration: 8000,
+          });
       } catch (err: any) {
         toast.error('Gagal: ' + err.message);
       } finally {
@@ -184,14 +203,29 @@ export default function InterkoneksiPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Hapus data ini?')) return;
-    setLoading(true);
-    try {
-      await supabase.from('Data Interkoneksi').delete().eq('id', id);
-      toast.success('Data dihapus');
-      if (detailItem?.id === id) setDetailItem(null);
-      fetchData();
-    } finally { setLoading(false); }
+    const itemToDelete = data.find((d: any) => d.id === id);
+    toast.warning('Hapus data ini permanen?', {
+      action: {
+        label: 'Ya, Hapus',
+        onClick: async () => {
+          setLoading(true);
+          try {
+            await supabase.from('Data Interkoneksi').delete().eq('id', id);
+            toast.success('Data berhasil dihapus');
+            if (detailItem?.id === id) setDetailItem(null);
+            fetchData();
+            const actorName = await getActorName(supabase);
+            await logActivity({
+              activity: 'INTERKONEKSI_DELETE',
+              subject: itemToDelete?.['NAMA'] || itemToDelete?.['name'] || `ID ${id}`,
+              actor: actorName,
+            });
+          } finally { setLoading(false); }
+        }
+      },
+      cancel: { label: 'Batal', onClick: () => {} },
+      duration: 6000,
+    });
   };
 
   const handleSyncSheet = async () => {

@@ -8,6 +8,8 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { Role } from '@/lib/permissions';
+import { toast } from 'sonner';
+import { logActivity, getActorName } from '@/lib/logger';
 
 export default function ManageUsersPage() {
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -48,27 +50,31 @@ export default function ManageUsersPage() {
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsActionLoading('creating');
-
+    const toastId = toast.loading('Mendaftarkan user baru...');
     try {
-      // PERHATIKAN: URL sudah diganti ke endpoint baru
       const response = await fetch('/api/admin/manage-team', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newUser),
       });
-
       const result = await response.json();
-
       if (response.ok) {
-        alert('User berhasil didaftarkan!');
+        toast.success('User berhasil didaftarkan!', { id: toastId });
         setShowModal(false);
         setNewUser({ email: '', password: '', full_name: '', role: 'CS' });
-        fetchData(); // Refresh data
+        fetchData();
+        const actorName = await getActorName(supabase);
+        await logActivity({
+          activity: 'USER_CREATE',
+          subject: `${newUser.full_name} (${newUser.email})`,
+          actor: actorName,
+          detail: `Role: ${newUser.role}`,
+        });
       } else {
-        alert('Gagal: ' + result.error);
+        toast.error('Gagal mendaftarkan user', { id: toastId, description: result.error });
       }
-    } catch (err) {
-      alert('Terjadi kesalahan sistem saat menghubungi server.');
+    } catch {
+      toast.error('Kesalahan koneksi ke server', { id: toastId });
     } finally {
       setIsActionLoading(null);
     }
@@ -76,41 +82,57 @@ export default function ManageUsersPage() {
 
   // --- FUNGSI DELETE USER (API BARU) ---
   const handleDeleteUser = async (userId: string, email: string) => {
-    const confirmDelete = confirm(`Yakin hapus permanen akun ${email}?`);
-    if (!confirmDelete) return;
-
-    setIsActionLoading(userId);
-    try {
-      // PERHATIKAN: Method DELETE dan kirim ID via URL
-      const response = await fetch(`/api/admin/manage-team?id=${userId}`, {
-        method: 'DELETE',
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        alert('User berhasil dihapus!');
-        fetchData();
-      } else {
-        alert('Gagal hapus: ' + result.error);
-      }
-    } catch (error) {
-      alert('Koneksi bermasalah.');
-    } finally {
-      setIsActionLoading(null);
-    }
+    // Pakai toast dengan action konfirmasi — tidak pakai confirm() native
+    toast.warning(`Hapus permanen akun ${email}?`, {
+      action: {
+        label: 'Ya, Hapus',
+        onClick: async () => {
+          setIsActionLoading(userId);
+          const toastId = toast.loading('Menghapus user...');
+          try {
+            const response = await fetch(`/api/admin/manage-team?id=${userId}`, { method: 'DELETE' });
+            const result = await response.json();
+            if (response.ok) {
+              toast.success('User berhasil dihapus!', { id: toastId });
+              fetchData();
+              const actorName = await getActorName(supabase);
+              await logActivity({
+                activity: 'USER_DELETE',
+                subject: email,
+                actor: actorName,
+                detail: `User ID: ${userId}`,
+              });
+            } else {
+              toast.error('Gagal hapus user', { id: toastId, description: result.error });
+            }
+          } catch {
+            toast.error('Koneksi bermasalah', { id: toastId });
+          } finally {
+            setIsActionLoading(null);
+          }
+        }
+      },
+      cancel: { label: 'Batal', onClick: () => {} },
+      duration: 8000,
+    });
   };
 
-  // --- FUNGSI UPDATE ROLE (Langsung ke Supabase Client) ---
   const updateRole = async (id: string, newRole: Role) => {
     setIsActionLoading(id);
-    const { error } = await supabase
-      .from('profiles')
-      .update({ role: newRole })
-      .eq('id', id);
-
-    if (error) alert('Gagal update role: ' + error.message);
-    else await fetchData();
+    const targetUser = profiles.find(p => p.id === id);
+    const { error } = await supabase.from('profiles').update({ role: newRole }).eq('id', id);
+    if (error) {
+      toast.error('Gagal update role', { description: error.message });
+    } else {
+      await fetchData();
+      const actorName = await getActorName(supabase);
+      await logActivity({
+        activity: 'USER_ROLE_CHANGE',
+        subject: targetUser?.full_name || targetUser?.email || id,
+        actor: actorName,
+        detail: `Role diubah menjadi ${newRole}`,
+      });
+    }
     setIsActionLoading(null);
   };
 

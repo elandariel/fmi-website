@@ -3,22 +3,25 @@
 import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { User, Lock, Save, Loader2, Shield, UserCheck } from 'lucide-react';
-import { Role } from '@/lib/permissions'; // Import tipe Role kita
+import { Role } from '@/lib/permissions';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { logActivity } from '@/lib/logger';
 
 export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [user, setUser] = useState<any>(null);
-  const [myRole, setMyRole] = useState<Role | ''>(''); // Role user yang sedang login
+  const [myRole, setMyRole] = useState<Role | ''>('');
 
-  // Form State
   const [fullName, setFullName] = useState('');
-  const [selectedRole, setSelectedRole] = useState<Role | ''>(''); // Role yang dipilih di form
+  const [selectedRole, setSelectedRole] = useState<Role | ''>('');
   const [email, setEmail] = useState('');
   
-  // Password State
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  const router = useRouter();
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -65,26 +68,44 @@ export default function ProfilePage() {
     const { error } = await supabase.from('profiles').upsert(updates);
 
     if (error) {
-      alert('Gagal update profile: ' + error.message);
+      toast.error('Gagal update profile', { description: error.message });
     } else {
-      alert('Profile berhasil diperbarui!');
-      window.location.reload(); // Refresh untuk update Sidebar
+      toast.success('Profile berhasil diperbarui!');
+      await logActivity({
+        activity: 'PROFILE_UPDATE',
+        subject: fullName,
+        actor: fullName,
+        detail: myRole === 'SUPER_DEV' ? `Role: ${selectedRole}` : undefined,
+      });
+      // router.refresh() agar sidebar nama terupdate tanpa full reload
+      router.refresh();
     }
     setUpdating(false);
   };
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password !== confirmPassword) return alert('Password konfirmasi tidak cocok!');
-    if (password.length < 6) return alert('Password minimal 6 karakter!');
+    if (password !== confirmPassword) {
+      toast.error('Password konfirmasi tidak cocok!');
+      return;
+    }
+    if (password.length < 6) {
+      toast.error('Password minimal 6 karakter!');
+      return;
+    }
 
     setUpdating(true);
     const { error } = await supabase.auth.updateUser({ password });
 
     if (error) {
-      alert('Gagal ganti password: ' + error.message);
+      toast.error('Gagal ganti password', { description: error.message });
     } else {
-      alert('Password berhasil diganti!');
+      toast.success('Password berhasil diganti!');
+      await logActivity({
+        activity: 'PASSWORD_CHANGE',
+        subject: fullName || email || 'User',
+        actor: fullName || email || 'User',
+      });
       setPassword('');
       setConfirmPassword('');
     }

@@ -12,6 +12,7 @@ import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { PERMISSIONS, hasAccess, Role } from '@/lib/permissions';
+import { logActivity, getActorName } from '@/lib/logger';
 
 const supabase = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -471,6 +472,13 @@ function WoDistributor({ userRole }: { userRole: Role | null }) {
       await Promise.all([...inboxPromises, woUpdate]);
       toast.success('Tiket berhasil didistribusikan!');
       fetchWO(); setSelectedWO([]); setSelectedTechs([]);
+      const actorName = await getActorName(supabase);
+      await logActivity({
+        activity: 'WO_DISTRIBUTE',
+        subject: `${woIds.length} WO → ${selectedTechs.join(', ')}`,
+        actor: actorName,
+        detail: `${woIds.length} WO didistribusikan ke ${selectedTechs.length} teknisi`,
+      });
     } catch (error: any) {
       toast.error('Gagal: ' + error.message);
     } finally {

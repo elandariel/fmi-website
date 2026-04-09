@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { hasAccess, PERMISSIONS, Role } from '@/lib/permissions';
 import { toast } from 'sonner';
+import { logActivity, getActorName } from '@/lib/logger';
 
 const VLAN_TABLES = [
   { name: 'VLAN 1-1000', table: 'Daftar Vlan 1-1000' },
@@ -16,6 +17,7 @@ const VLAN_TABLES = [
   { name: 'VLAN 2000+', table: 'Daftar Vlan 2000+' },
   { name: 'VLAN 3000+', table: 'Daftar Vlan 3000+' },
   { name: 'VLAN 3500+', table: 'Daftar Vlan 3500+' },
+  { name: 'VLAN 4003+', table: 'Daftar Vlan 4003+' },
 ];
 
 export default function VlanPage() {
@@ -167,7 +169,14 @@ export default function VlanPage() {
     } else {
       toast.success('Data VLAN Berhasil Diupdate!');
       setIsModalOpen(false);
-      fetchData(); 
+      fetchData();
+      const actorName = await getActorName(supabase);
+      await logActivity({
+        activity: 'VLAN_EDIT',
+        subject: `VLAN ${editingVlan.VLAN} — ${editingVlan.NAME || 'AVAILABLE'}`,
+        actor: actorName,
+        detail: `Tabel: ${selectedTable.name}`,
+      });
     }
     setIsSaving(false);
   };
@@ -198,6 +207,13 @@ export default function VlanPage() {
       toast.success(`VLAN ${editingVlan.VLAN} Berhasil Dikosongkan!`);
       setIsModalOpen(false);
       fetchData();
+      const actorName = await getActorName(supabase);
+      await logActivity({
+        activity: 'VLAN_RESET',
+        subject: `VLAN ${editingVlan.VLAN}`,
+        actor: actorName,
+        detail: `Dikosongkan di ${selectedTable.name}`,
+      });
     }
     setIsSaving(false);
   };
