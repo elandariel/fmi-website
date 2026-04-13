@@ -197,11 +197,11 @@ export default function WorkOrderPage() {
       {/* ── STAT STRIP ──────────────────────────────── */}
       <div className="grid grid-cols-3 gap-3 mb-5">
         {[
-          { label: 'Total WO', value: wos.length, color: 'text-slate-800', bg: 'bg-white' },
+          { label: 'Total WO', value: wos.length, color: 'text-slate-800', bg: '' },
           { label: 'Aktif', value: activeCount, color: 'text-blue-700', bg: 'bg-blue-50 border-blue-100' },
           { label: 'Solved', value: solvedCount, color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-100' },
         ].map(s => (
-          <div key={s.label} className={`rounded-xl border p-3.5 shadow-sm ${s.bg} border-slate-200`}>
+          <div key={s.label} className={`rounded-xl border p-3.5 shadow-sm ${s.bg}`} style={!s.bg ? { background: 'var(--bg-surface)', borderColor: 'var(--border-light)' } : {}}>
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">{s.label}</p>
             <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
           </div>
@@ -209,7 +209,7 @@ export default function WorkOrderPage() {
       </div>
 
       {/* ── FILTER + SEARCH ──────────────────────────── */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-4 flex flex-col md:flex-row gap-3">
+      <div className="rounded-xl border shadow-sm p-4 mb-4 flex flex-col md:flex-row gap-3" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-light)' }}>
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
           <input
@@ -239,11 +239,11 @@ export default function WorkOrderPage() {
       </div>
 
       {/* ── TABLE ────────────────────────────────────── */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="rounded-xl border shadow-sm overflow-hidden" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-light)' }}>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50">
+              <tr className="border-b" style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border-light)' }}>
                 <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Tanggal</th>
                 <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Subject WO</th>
                 <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-center">Status</th>
@@ -315,7 +315,7 @@ export default function WorkOrderPage() {
           </table>
         </div>
         {!loading && (
-          <div className="px-5 py-3 border-t border-slate-50 bg-slate-50">
+          <div className="px-5 py-3 border-t" style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border-light)' }}>
             <p className="text-xs text-slate-400">Menampilkan <span className="font-semibold text-slate-600">{filteredWos.length}</span> dari <span className="font-semibold text-slate-600">{wos.length}</span> Work Order</p>
           </div>
         )}
@@ -324,8 +324,8 @@ export default function WorkOrderPage() {
       {/* ── APPROVAL PANEL MODAL ────────────────────── */}
       {showApprovalPanel && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-xl border border-slate-200 flex flex-col max-h-[85vh] overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 bg-amber-50 flex justify-between items-center">
+          <div className="w-full max-w-2xl rounded-2xl shadow-xl flex flex-col max-h-[85vh] overflow-hidden" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-mid)' }}>
+            <div className="px-5 py-4 border-b flex justify-between items-center" style={{ background: 'var(--warning-bg)', borderColor: 'rgba(251,191,36,0.25)' }}>
               <div className="flex items-center gap-3">
                 <div className="p-1.5 bg-amber-100 rounded-lg text-amber-600"><ShieldAlert size={15} /></div>
                 <div>
@@ -342,7 +342,7 @@ export default function WorkOrderPage() {
               {editRequests.length === 0 ? (
                 <p className="text-center text-slate-400 text-sm italic py-8">Tidak ada request pending.</p>
               ) : editRequests.map(req => (
-                <div key={req.id} className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
+                <div key={req.id} className="rounded-xl p-4 space-y-3" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)' }}>
                   <div className="flex justify-between items-start">
                     <div>
                       <p className="text-xs font-bold text-slate-800 line-clamp-1">{req.target_subject}</p>

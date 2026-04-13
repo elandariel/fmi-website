@@ -115,7 +115,7 @@ export default function ProfilePage() {
   if (loading) return <div className="p-10 text-center text-slate-500 animate-pulse">Menghubungkan ke server...</div>;
 
   return (
-    <div className="p-6 bg-slate-50 min-h-screen font-sans">
+    <div className="p-6 min-h-screen font-sans" style={{ background: 'var(--bg-base)' }}>
       
       <div className="flex items-center gap-4 mb-8">
         <div className="w-14 h-14 bg-gradient-to-tr from-blue-700 to-blue-500 rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-xl shadow-blue-500/20 rotate-3">
@@ -130,7 +130,7 @@ export default function ProfilePage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
         {/* KIRI: EDIT PROFILE */}
-        <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 h-fit">
+        <div className="p-8 rounded-2xl shadow-sm h-fit" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-light)' }}>
           <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-100">
             <div className="flex items-center gap-2">
                 <User className="text-blue-600" size={20} />
@@ -192,7 +192,7 @@ export default function ProfilePage() {
         </div>
 
         {/* KANAN: GANTI PASSWORD */}
-        <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 h-fit">
+        <div className="p-8 rounded-2xl shadow-sm h-fit" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-light)' }}>
           <div className="flex items-center gap-2 mb-8 pb-4 border-b border-slate-100">
             <Shield className="text-emerald-600" size={20} />
             <h2 className="font-bold text-slate-800">Keamanan Akun</h2>

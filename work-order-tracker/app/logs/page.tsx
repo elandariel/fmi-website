@@ -15,26 +15,26 @@ import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 // ── CONFIG ────────────────────────────────────────────────────
 const MODULE_CONFIG: Record<string, { icon: React.ReactNode; color: string; bg: string; border: string }> = {
-  'Monthly Report':  { icon: <ClipboardList size={12}/>, color: '#1d4ed8', bg: '#eff6ff', border: '#bfdbfe' },
-  'Weekly Report':   { icon: <TrendingUp   size={12}/>, color: '#065f46', bg: '#ecfdf5', border: '#a7f3d0' },
-  'Data Client':     { icon: <Users        size={12}/>, color: '#6b21a8', bg: '#f5f3ff', border: '#ddd6fe' },
-  'VLAN':            { icon: <Server       size={12}/>, color: '#92400e', bg: '#fffbeb', border: '#fde68a' },
-  'Interkoneksi':    { icon: <LayoutGrid   size={12}/>, color: '#155e75', bg: '#ecfeff', border: '#a5f3fc' },
-  'Broadcast':       { icon: <Megaphone    size={12}/>, color: '#9d174d', bg: '#fdf2f8', border: '#f9a8d4' },
-  'User Management': { icon: <Shield       size={12}/>, color: '#1e3a5f', bg: '#f0f9ff', border: '#bae6fd' },
-  'Profile':         { icon: <Settings     size={12}/>, color: '#374151', bg: '#f9fafb', border: '#e5e7eb' },
-  'Tools':           { icon: <Wrench       size={12}/>, color: '#7c2d12', bg: '#fff7ed', border: '#fed7aa' },
-  'System':          { icon: <AlertCircle  size={12}/>, color: '#475569', bg: '#f8fafc', border: '#e2e8f0' },
+  'Monthly Report':  { icon: <ClipboardList size={12}/>, color: '#60a5fa', bg: 'var(--info-bg)',     border: 'rgba(56,189,248,0.25)' },
+  'Weekly Report':   { icon: <TrendingUp   size={12}/>, color: '#34d399', bg: 'var(--success-bg)',   border: 'var(--accent-border)' },
+  'Data Client':     { icon: <Users        size={12}/>, color: '#a78bfa', bg: 'var(--bg-elevated)',  border: 'rgba(139,92,246,0.25)' },
+  'VLAN':            { icon: <Server       size={12}/>, color: '#fbbf24', bg: 'var(--warning-bg)',   border: 'rgba(251,191,36,0.25)' },
+  'Interkoneksi':    { icon: <LayoutGrid   size={12}/>, color: '#22d3ee', bg: 'rgba(34,211,238,0.1)', border: 'rgba(34,211,238,0.25)' },
+  'Broadcast':       { icon: <Megaphone    size={12}/>, color: '#f472b6', bg: 'rgba(244,114,182,0.1)', border: 'rgba(244,114,182,0.25)' },
+  'User Management': { icon: <Shield       size={12}/>, color: '#60a5fa', bg: 'var(--info-bg)',      border: 'rgba(56,189,248,0.25)' },
+  'Profile':         { icon: <Settings     size={12}/>, color: '#94a3b8', bg: 'var(--bg-elevated)',  border: 'var(--border-light)' },
+  'Tools':           { icon: <Wrench       size={12}/>, color: '#fb923c', bg: 'rgba(251,146,60,0.1)', border: 'rgba(251,146,60,0.25)' },
+  'System':          { icon: <AlertCircle  size={12}/>, color: '#94a3b8', bg: 'var(--bg-elevated)',  border: 'var(--border-light)' },
 };
 
 const CATEGORY_CONFIG: Record<string, { icon: React.ReactNode; label: string; color: string; bg: string; border: string; dot: string }> = {
-  create:  { icon: <PlusCircle  size={10}/>, label: 'Tambah',   color: '#065f46', bg: '#ecfdf5', border: '#a7f3d0', dot: 'bg-emerald-500' },
-  edit:    { icon: <Edit        size={10}/>, label: 'Edit',     color: '#1e40af', bg: '#eff6ff', border: '#bfdbfe', dot: 'bg-blue-500'    },
-  delete:  { icon: <Trash2      size={10}/>, label: 'Hapus',    color: '#991b1b', bg: '#fff1f2', border: '#fecdd3', dot: 'bg-rose-500'    },
-  request: { icon: <Send        size={10}/>, label: 'Request',  color: '#92400e', bg: '#fffbeb', border: '#fde68a', dot: 'bg-amber-500'   },
-  approve: { icon: <CheckCircle size={10}/>, label: 'Approve',  color: '#065f46', bg: '#ecfdf5', border: '#a7f3d0', dot: 'bg-emerald-600' },
-  reject:  { icon: <XCircle     size={10}/>, label: 'Tolak',    color: '#991b1b', bg: '#fff1f2', border: '#fecdd3', dot: 'bg-rose-600'    },
-  system:  { icon: <AlertCircle size={10}/>, label: 'Sistem',   color: '#475569', bg: '#f8fafc', border: '#e2e8f0', dot: 'bg-slate-400'   },
+  create:  { icon: <PlusCircle  size={10}/>, label: 'Tambah',  color: '#34d399', bg: 'var(--success-bg)',  border: 'var(--accent-border)',          dot: 'bg-emerald-500' },
+  edit:    { icon: <Edit        size={10}/>, label: 'Edit',    color: '#60a5fa', bg: 'var(--info-bg)',      border: 'rgba(56,189,248,0.25)',          dot: 'bg-blue-500'    },
+  delete:  { icon: <Trash2      size={10}/>, label: 'Hapus',   color: '#fb7185', bg: 'var(--danger-bg)',   border: 'rgba(248,113,113,0.25)',         dot: 'bg-rose-500'    },
+  request: { icon: <Send        size={10}/>, label: 'Request', color: '#fbbf24', bg: 'var(--warning-bg)',  border: 'rgba(251,191,36,0.25)',          dot: 'bg-amber-500'   },
+  approve: { icon: <CheckCircle size={10}/>, label: 'Approve', color: '#34d399', bg: 'var(--success-bg)',  border: 'var(--accent-border)',           dot: 'bg-emerald-600' },
+  reject:  { icon: <XCircle     size={10}/>, label: 'Tolak',   color: '#fb7185', bg: 'var(--danger-bg)',   border: 'rgba(248,113,113,0.25)',         dot: 'bg-rose-600'    },
+  system:  { icon: <AlertCircle size={10}/>, label: 'Sistem',  color: '#94a3b8', bg: 'var(--bg-elevated)', border: 'var(--border-light)',            dot: 'bg-slate-400'   },
 };
 
 // Fallback untuk log lama yang belum punya ACTIVITY type baru

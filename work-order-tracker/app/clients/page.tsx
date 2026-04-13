@@ -243,7 +243,7 @@ export default function ClientListPage() {
       </div>
 
       {/* ── SEARCH & FILTER BAR ── */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-5 flex flex-col md:flex-row justify-between gap-3">
+      <div className="rounded-xl border shadow-sm p-4 mb-5 flex flex-col md:flex-row justify-between gap-3" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-light)' }}>
         <div className="relative w-full md:w-80">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
           <input
@@ -271,11 +271,11 @@ export default function ClientListPage() {
       </div>
 
       {/* ── TABLE ── */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="rounded-xl border shadow-sm overflow-hidden" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-light)' }}>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead>
-              <tr className="border-b border-slate-100" style={{ background: '#f8fafc' }}>
+              <tr className="border-b" style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border-light)' }}>
                 <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">ID</th>
                 <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Nama Pelanggan</th>
                 <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Kapasitas</th>
@@ -364,7 +364,7 @@ export default function ClientListPage() {
         </div>
 
         {/* ── PAGINATION ── */}
-        <div className="px-5 py-3.5 border-t border-slate-100 flex items-center justify-between bg-slate-50">
+        <div className="px-5 py-3.5 border-t flex items-center justify-between" style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border-light)' }}>
           <p className="text-xs text-slate-400 font-medium">
             {totalRecords > 0
               ? <>Menampilkan <span className="text-slate-600 font-semibold">{rangeFrom}–{rangeTo}</span> dari <span className="text-slate-600 font-semibold">{totalRecords}</span> data</>

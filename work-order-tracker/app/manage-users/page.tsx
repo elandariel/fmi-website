@@ -142,7 +142,7 @@ export default function ManageUsersPage() {
   );
 
   return (
-    <div className="p-8 bg-slate-50 min-h-screen font-sans">
+    <div className="p-8 min-h-screen font-sans" style={{ background: 'var(--bg-base)' }}>
       
       {/* HEADER */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-10">
@@ -176,7 +176,7 @@ export default function ManageUsersPage() {
       </div>
 
       {/* TABLE */}
-      <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="rounded-3xl shadow-sm overflow-hidden" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-light)' }}>
         {loading ? (
            <div className="p-10 flex flex-col items-center justify-center space-y-4">
              <Loader2 className="animate-spin text-blue-600" size={40} />
@@ -245,7 +245,7 @@ export default function ManageUsersPage() {
       {/* MODAL */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl animate-in zoom-in duration-200">
+          <div className="rounded-3xl p-8 w-full max-w-md shadow-2xl animate-in zoom-in duration-200" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-mid)' }}>
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-black text-slate-800 tracking-tight">Daftarkan Anggota Baru</h2>
               <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600">

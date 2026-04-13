@@ -155,7 +155,7 @@ function CreateTrackerContent() {
       {/* ── SUCCESS MODAL ── */}
       {showSuccessModal && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-slate-200">
+          <div className="rounded-2xl shadow-xl w-full max-w-md overflow-hidden" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-mid)' }}>
             <div className="p-7 text-center">
               <div className="w-14 h-14 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <CheckCircle size={26} className="text-emerald-600" />
@@ -207,7 +207,7 @@ function CreateTrackerContent() {
       <form onSubmit={handleSave} className="space-y-4">
 
         {/* ── KATEGORI SELECTOR ── */}
-        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+        <div className="rounded-xl p-4" style={{ background: 'var(--info-bg)', border: '1px solid rgba(56,189,248,0.2)' }}>
           <label className="text-[11px] font-bold text-blue-700 uppercase tracking-widest block mb-2">
             Kategori Transaksi
           </label>
@@ -297,7 +297,7 @@ function CreateTrackerContent() {
 
         {/* ── REASON (conditional) ── */}
         {isBerhenti && (
-          <div className="bg-rose-50 border border-rose-100 rounded-xl p-4 space-y-3">
+          <div className="rounded-xl p-4 space-y-3" style={{ background: 'var(--danger-bg)', border: '1px solid rgba(248,113,113,0.2)' }}>
             <h3 className="text-[11px] font-bold text-rose-600 uppercase tracking-widest">
               Alasan {selectedLabel}
             </h3>
@@ -332,7 +332,7 @@ function CreateTrackerContent() {
 // ─────────────────────────────────────────────
 function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
+    <div className="rounded-xl shadow-sm p-5 space-y-4" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-light)' }}>
       <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{title}</h3>
       {children}
     </div>

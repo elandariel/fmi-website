@@ -29,11 +29,11 @@ const TABLE_MAP: Record<string, string> = {
 };
 
 const CATEGORY_CONFIG: Record<string, { color: string; bg: string; border: string; text: string }> = {
-  'Berlangganan':          { color: '#10b981', bg: '#ecfdf5', border: '#a7f3d0', text: '#065f46' },
-  'Berhenti Berlangganan': { color: '#ef4444', bg: '#fff1f2', border: '#fecdd3', text: '#881337' },
-  'Berhenti Sementara':    { color: '#f59e0b', bg: '#fffbeb', border: '#fde68a', text: '#92400e' },
-  'Upgrade':               { color: '#2d7dd2', bg: '#eff6ff', border: '#bfdbfe', text: '#1e40af' },
-  'Downgrade':             { color: '#94a3b8', bg: '#f8fafc', border: '#e2e8f0', text: '#334155' },
+  'Berlangganan':          { color: '#10b981', bg: 'var(--success-bg)',  border: 'var(--accent-border)',           text: 'var(--text-primary)' },
+  'Berhenti Berlangganan': { color: '#ef4444', bg: 'var(--danger-bg)',   border: 'rgba(248,113,113,0.25)',         text: 'var(--text-primary)' },
+  'Berhenti Sementara':    { color: '#f59e0b', bg: 'var(--warning-bg)',  border: 'rgba(251,191,36,0.25)',          text: 'var(--text-primary)' },
+  'Upgrade':               { color: '#2d7dd2', bg: 'var(--info-bg)',     border: 'rgba(56,189,248,0.25)',          text: 'var(--text-primary)' },
+  'Downgrade':             { color: '#94a3b8', bg: 'var(--bg-elevated)', border: 'var(--border-light)',            text: 'var(--text-secondary)' },
 };
 
 const APPROVER_ROLES = ['ADMIN', 'SUPER_DEV', 'NOC'];
@@ -203,10 +203,10 @@ export default function TrackerPage() {
         colors: [color],
         stroke: { curve: 'smooth', width: 2 },
         fill: { type: 'gradient', gradient: { opacityFrom: 0.25, opacityTo: 0.02 } },
-        grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
-        title: { text: `Tren ${category}`, style: { color: '#334155', fontSize: '12px', fontWeight: '700' } },
+        grid: { borderColor: 'rgba(255,255,255,0.06)', strokeDashArray: 4 },
+        title: { text: `Tren ${category}`, style: { color: 'var(--text-secondary)', fontSize: '12px', fontWeight: '700' } },
         dataLabels: { enabled: false },
-        tooltip: { theme: 'light', y: { formatter: (v: number) => `${v} Data` } },
+        tooltip: { theme: 'dark', y: { formatter: (v: number) => `${v} Data` } },
       }
     });
 
@@ -221,8 +221,8 @@ export default function TrackerPage() {
         xaxis: { categories: sortedTeams, labels: { style: { fontSize: '10px', colors: '#94a3b8' } } },
         yaxis: { labels: { style: { fontSize: '10px', colors: '#94a3b8' } } },
         colors: [color],
-        grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
-        title: { text: 'Top Performance Team', style: { color: '#334155', fontSize: '12px', fontWeight: '700' } },
+        grid: { borderColor: 'rgba(255,255,255,0.06)', strokeDashArray: 4 },
+        title: { text: 'Top Performance Team', style: { color: 'var(--text-secondary)', fontSize: '12px', fontWeight: '700' } },
         dataLabels: { enabled: true, style: { colors: ['#fff'], fontSize: '10px', fontWeight: '600' } },
         plotOptions: { bar: { borderRadius: 4, columnWidth: '50%' } },
       }
@@ -403,11 +403,11 @@ export default function TrackerPage() {
       {/* ── QUICK STATS STRIP ───────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
         {[
-          { label: 'Berlangganan', value: globalStats.pasang, icon: <ArrowUpRight size={14}/>, color: '#10b981', bg: '#ecfdf5', border: '#a7f3d0' },
-          { label: 'Putus', value: globalStats.putus, icon: <ArrowDownRight size={14}/>, color: '#ef4444', bg: '#fff1f2', border: '#fecdd3' },
-          { label: 'Berhenti Sementara', value: globalStats.cuti, icon: <MinusCircle size={14}/>, color: '#f59e0b', bg: '#fffbeb', border: '#fde68a' },
-          { label: 'Upgrade', value: globalStats.upgrade, icon: <TrendingUp size={14}/>, color: '#2d7dd2', bg: '#eff6ff', border: '#bfdbfe' },
-          { label: 'Net Growth', value: globalStats.netGrowth >= 0 ? `+${globalStats.netGrowth}` : globalStats.netGrowth, icon: <Activity size={14}/>, color: globalStats.netGrowth >= 0 ? '#059669' : '#dc2626', bg: globalStats.netGrowth >= 0 ? '#ecfdf5' : '#fff1f2', border: globalStats.netGrowth >= 0 ? '#a7f3d0' : '#fecdd3' },
+          { label: 'Berlangganan', value: globalStats.pasang, icon: <ArrowUpRight size={14}/>, color: '#10b981', bg: 'var(--success-bg)', border: 'var(--accent-border)' },
+          { label: 'Putus', value: globalStats.putus, icon: <ArrowDownRight size={14}/>, color: '#ef4444', bg: 'var(--danger-bg)', border: 'rgba(248,113,113,0.25)' },
+          { label: 'Berhenti Sementara', value: globalStats.cuti, icon: <MinusCircle size={14}/>, color: '#f59e0b', bg: 'var(--warning-bg)', border: 'rgba(251,191,36,0.25)' },
+          { label: 'Upgrade', value: globalStats.upgrade, icon: <TrendingUp size={14}/>, color: '#2d7dd2', bg: 'var(--info-bg)', border: 'rgba(56,189,248,0.25)' },
+          { label: 'Net Growth', value: globalStats.netGrowth >= 0 ? `+${globalStats.netGrowth}` : globalStats.netGrowth, icon: <Activity size={14}/>, color: globalStats.netGrowth >= 0 ? '#059669' : '#dc2626', bg: globalStats.netGrowth >= 0 ? 'var(--success-bg)' : 'var(--danger-bg)', border: globalStats.netGrowth >= 0 ? 'var(--accent-border)' : 'rgba(248,113,113,0.25)' },
         ].map(s => (
           <div key={s.label} className="rounded-xl border p-3 flex items-center gap-3" style={{ background: s.bg, borderColor: s.border }}>
             <div className="p-1.5 bg-white rounded-lg" style={{ color: s.color }}>{s.icon}</div>
@@ -501,7 +501,7 @@ export default function TrackerPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead>
-              <tr className="border-b border-slate-100" style={{ background: '#f8fafc' }}>
+              <tr className="border-b border-slate-100" style={{ background: 'var(--bg-elevated)' }}>
                 <th className="px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tanggal</th>
                 <th className="px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Subject Pelanggan</th>
                 <th className="px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">ISP</th>
@@ -579,19 +579,19 @@ export default function TrackerPage() {
               {/* ── Baris 1: KPI Utama ── */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <KpiCard label="Net Growth" value={globalStats.netGrowth >= 0 ? `+${globalStats.netGrowth}` : globalStats.netGrowth}
-                  sub="Pasang - Putus" color={globalStats.netGrowth >= 0 ? '#059669' : '#dc2626'}
-                  bg={globalStats.netGrowth >= 0 ? '#ecfdf5' : '#fff1f2'} icon={<Activity size={16}/>} />
-                <KpiCard label="Total Berlangganan" value={globalStats.pasang} sub="Pelanggan baru 2026" color="#10b981" bg="#ecfdf5" icon={<ArrowUpRight size={16}/>} />
-                <KpiCard label="Total Putus" value={globalStats.putus} sub="Berhenti berlangganan" color="#ef4444" bg="#fff1f2" icon={<ArrowDownRight size={16}/>} />
-                <KpiCard label="Retention Rate" value={`${globalStats.retentionRate}%`} sub="Dari total pasang" color="#7c3aed" bg="#f5f3ff" icon={<Users size={16}/>} />
+                  sub="Pasang - Putus" color={globalStats.netGrowth >= 0 ? '#10b981' : '#ef4444'}
+                  bg={globalStats.netGrowth >= 0 ? 'var(--success-bg)' : 'var(--danger-bg)'} icon={<Activity size={16}/>} />
+                <KpiCard label="Total Berlangganan" value={globalStats.pasang} sub="Pelanggan baru 2026" color="#10b981" bg="var(--success-bg)" icon={<ArrowUpRight size={16}/>} />
+                <KpiCard label="Total Putus" value={globalStats.putus} sub="Berhenti berlangganan" color="#ef4444" bg="var(--danger-bg)" icon={<ArrowDownRight size={16}/>} />
+                <KpiCard label="Retention Rate" value={`${globalStats.retentionRate}%`} sub="Dari total pasang" color="#a78bfa" bg="var(--bg-elevated)" icon={<Users size={16}/>} />
               </div>
 
               {/* ── Baris 2: Secondary stats ── */}
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { label: 'Berhenti Sementara', value: globalStats.cuti, color: '#f59e0b', bg: '#fffbeb' },
-                  { label: 'Upgrade Layanan', value: globalStats.upgrade, color: '#2d7dd2', bg: '#eff6ff' },
-                  { label: 'Downgrade Layanan', value: globalStats.downgrade, color: '#94a3b8', bg: '#f8fafc' },
+                  { label: 'Berhenti Sementara', value: globalStats.cuti, color: '#f59e0b', bg: 'var(--warning-bg)' },
+                  { label: 'Upgrade Layanan', value: globalStats.upgrade, color: '#38bdf8', bg: 'var(--info-bg)' },
+                  { label: 'Downgrade Layanan', value: globalStats.downgrade, color: '#94a3b8', bg: 'var(--bg-elevated)' },
                 ].map(s => (
                   <div key={s.label} className="rounded-xl border p-3 text-center" style={{ background: s.bg, borderColor: s.color + '40' }}>
                     <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: s.color }}>{s.label}</p>
@@ -645,11 +645,11 @@ export default function TrackerPage() {
                     colors: ['#10b981', '#ef4444'],
                     xaxis: { categories: MONTH_LABELS, labels: { style: { fontSize: '10px', colors: '#94a3b8' } } },
                     yaxis: { labels: { style: { fontSize: '10px', colors: '#94a3b8' } } },
-                    grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
+                    grid: { borderColor: 'rgba(255,255,255,0.06)', strokeDashArray: 4 },
                     plotOptions: { bar: { borderRadius: 3, columnWidth: '60%', grouped: true } },
                     dataLabels: { enabled: false },
                     legend: { show: false },
-                    tooltip: { theme: 'light' },
+                    tooltip: { theme: 'dark' },
                   }}
                 />
               </div>
@@ -699,9 +699,9 @@ export default function TrackerPage() {
                       plotOptions: { bar: { horizontal: true, borderRadius: 3, barHeight: '60%' } },
                       colors: [modalChartMode === 'ISP' ? '#2d7dd2' : '#7c3aed'],
                       xaxis: { categories: (modalChartMode === 'ISP' ? globalStats.byIsp : globalStats.byBts).map((i: any) => i.name), labels: { style: { fontSize: '9px', colors: '#94a3b8' } } },
-                      grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
+                      grid: { borderColor: 'rgba(255,255,255,0.06)', strokeDashArray: 4 },
                       dataLabels: { enabled: true, textAnchor: 'start', style: { colors: ['#fff'], fontWeight: '600', fontSize: '10px' }, offsetX: 0 },
-                      tooltip: { theme: 'light', y: { formatter: (v: number) => `${v} Pelanggan` } },
+                      tooltip: { theme: 'dark', y: { formatter: (v: number) => `${v} Pelanggan` } },
                     }}
                   />
                 </div>
