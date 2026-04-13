@@ -715,66 +715,108 @@ export default function Dashboard() {
 
       {/* ── INBOX MODAL ────────────────────────────────────── */}
       {showInbox && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-xl flex flex-col max-h-[85vh] overflow-hidden border border-slate-200">
-            <div className="px-5 py-4 border-b border-slate-100 bg-slate-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' }}>
+          <div className="w-full max-w-2xl rounded-2xl flex flex-col max-h-[85vh] overflow-hidden"
+            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-mid)', boxShadow: '0 32px 80px rgba(0,0,0,0.6)', fontFamily: "'Inter', sans-serif" }}>
+
+            {/* Header */}
+            <div className="px-5 py-4" style={{ borderBottom: '1px solid var(--border-light)', background: 'var(--bg-elevated)' }}>
               <div className="flex justify-between items-center mb-3">
                 <div>
-                  <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                    <Inbox size={16} className="text-blue-600" /> Inbox Tugas Utama
+                  <h2 className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                    <div className="p-1 rounded-lg" style={{ background: 'rgba(56,189,248,0.12)', color: '#38bdf8' }}>
+                      <Inbox size={14} />
+                    </div>
+                    Inbox Tugas Utama
                   </h2>
-                  <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mt-0.5">
+                  <p className="text-[10px] uppercase tracking-wider font-semibold mt-0.5" style={{ color: 'var(--text-muted)' }}>
                     {userRole === 'SUPER_DEV' ? 'Monitoring PIC' : 'Daftar Paket Work Order'}
                   </p>
                 </div>
-                <button onClick={() => setShowInbox(false)} className="p-1.5 hover:bg-slate-200 rounded-lg transition-colors text-slate-500">
+                <button
+                  onClick={() => setShowInbox(false)}
+                  className="p-1.5 rounded-lg transition-colors"
+                  style={{ color: 'var(--text-muted)' }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-subtle)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-primary)'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)'; }}
+                >
                   <X size={16} />
                 </button>
               </div>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" size={13} style={{ color: 'var(--text-muted)' }} />
                 <input
                   type="text"
                   placeholder="Cari nomor tiket..."
                   value={searchTicket}
-                  onChange={(e) => setSearchTicket(e.target.value)}
-                  className="w-full pl-8 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                  onChange={e => setSearchTicket(e.target.value)}
+                  className="w-full pl-8 pr-4 py-2 rounded-lg text-xs font-medium outline-none transition-all"
+                  style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-mid)', color: 'var(--text-primary)' }}
+                  onFocus={e => { e.currentTarget.style.borderColor = 'var(--accent-border)'; e.currentTarget.style.boxShadow = '0 0 0 3px var(--accent-bg)'; }}
+                  onBlur={e => { e.currentTarget.style.borderColor = 'var(--border-mid)'; e.currentTarget.style.boxShadow = 'none'; }}
                 />
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+
+            {/* List */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-2" style={{ background: 'var(--bg-base)' }}>
               {myInboxTickets
                 .filter(t => (t.id_tiket_custom || '').toLowerCase().includes(searchTicket.toLowerCase()))
-                .map((ticket) => {
+                .map(ticket => {
                   const isExpanded = expandedTicket === ticket.id;
                   return (
-                    <div key={ticket.id} className={`border rounded-xl overflow-hidden transition-all ${isExpanded ? 'border-blue-300 shadow-sm' : 'border-slate-200 hover:border-slate-300'}`}>
-                      <button onClick={() => setExpandedTicket(isExpanded ? null : ticket.id)} className={`w-full flex items-center justify-between p-3.5 text-left ${isExpanded ? 'bg-blue-50' : 'bg-white'}`}>
+                    <div key={ticket.id} className="rounded-xl overflow-hidden transition-all"
+                      style={{ border: `1px solid ${isExpanded ? 'rgba(56,189,248,0.3)' : 'var(--border-light)'}`, background: 'var(--bg-surface)' }}>
+                      <button
+                        onClick={() => setExpandedTicket(isExpanded ? null : ticket.id)}
+                        className="w-full flex items-center justify-between p-3.5 text-left transition-colors"
+                        style={{ background: isExpanded ? 'rgba(56,189,248,0.07)' : 'transparent' }}
+                      >
                         <div className="flex items-center gap-3">
-                          <div className={`p-1.5 rounded-lg ${isExpanded ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                          <div className="p-1.5 rounded-lg transition-colors"
+                            style={isExpanded
+                              ? { background: '#0284c7', color: '#fff' }
+                              : { background: 'var(--bg-elevated)', color: 'var(--text-muted)' }
+                            }>
                             <ListTodo size={14} />
                           </div>
                           <div>
-                            <h3 className="font-bold text-slate-800 text-xs uppercase tracking-tight">{ticket.id_tiket_custom || 'BATCH'}</h3>
-                            <p className="text-[10px] text-slate-500">{ticket.details.length} WOs{userRole === 'SUPER_DEV' ? ` · PIC: ${ticket.assigned_to}` : ''}</p>
+                            <h3 className="font-bold text-xs uppercase tracking-tight" style={{ color: 'var(--text-primary)' }}>
+                              {ticket.id_tiket_custom || 'BATCH'}
+                            </h3>
+                            <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                              {ticket.details.length} WOs{userRole === 'SUPER_DEV' ? ` · PIC: ${ticket.assigned_to}` : ''}
+                            </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${ticket.status === 'SOLVED' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                          <span className="px-2 py-0.5 text-[10px] font-bold rounded-full border"
+                            style={ticket.status === 'SOLVED'
+                              ? { background: 'rgba(16,185,129,0.12)', color: '#34d399', borderColor: 'rgba(16,185,129,0.25)' }
+                              : { background: 'rgba(245,158,11,0.12)', color: '#fbbf24', borderColor: 'rgba(245,158,11,0.25)' }
+                            }>
                             {ticket.status}
                           </span>
-                          {isExpanded ? <ChevronDown size={14} className="text-slate-400" /> : <ChevronRight size={14} className="text-slate-400" />}
+                          {isExpanded
+                            ? <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />
+                            : <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />}
                         </div>
                       </button>
                       {isExpanded && (
-                        <div className="px-4 pb-3 pt-2 bg-white border-t border-blue-100 space-y-2">
+                        <div className="px-4 pb-3 pt-2 space-y-2" style={{ borderTop: '1px solid rgba(56,189,248,0.12)', background: 'rgba(56,189,248,0.04)' }}>
                           {ticket.details.map((wo: any) => (
-                            <div key={wo.id} className="flex items-center justify-between p-2.5 bg-slate-50 rounded-lg border border-slate-100">
+                            <div key={wo.id} className="flex items-center justify-between p-2.5 rounded-lg"
+                              style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)' }}>
                               <div className="flex-1 pr-3 min-w-0">
-                                <h4 className="font-semibold text-xs text-slate-800 truncate">{wo['SUBJECT WO']}</h4>
-                                <p className="text-[10px] text-slate-400 italic truncate mt-0.5">{wo.KETERANGAN || '-'}</p>
+                                <h4 className="font-semibold text-xs truncate" style={{ color: 'var(--text-primary)' }}>{wo['SUBJECT WO']}</h4>
+                                <p className="text-[10px] italic truncate mt-0.5" style={{ color: 'var(--text-muted)' }}>{wo.KETERANGAN || '-'}</p>
                               </div>
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${wo.STATUS === 'SOLVED' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-amber-50 text-amber-600 border-amber-200'}`}>
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0"
+                                style={wo.STATUS === 'SOLVED'
+                                  ? { background: 'rgba(16,185,129,0.12)', color: '#34d399', borderColor: 'rgba(16,185,129,0.25)' }
+                                  : { background: 'rgba(245,158,11,0.12)', color: '#fbbf24', borderColor: 'rgba(245,158,11,0.25)' }
+                                }>
                                 {wo.STATUS}
                               </span>
                             </div>
@@ -785,9 +827,18 @@ export default function Dashboard() {
                   );
                 })}
             </div>
-            <div className="px-5 py-3 border-t border-slate-100 flex justify-between items-center bg-slate-50">
-              <span className="text-xs text-slate-400 font-semibold">{myInboxTickets.length} Tiket Aktif</span>
-              <button onClick={handleDownloadInbox} className="flex items-center gap-2 bg-white border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm hover:bg-slate-50 transition-colors text-slate-600">
+
+            {/* Footer */}
+            <div className="px-5 py-3 flex justify-between items-center"
+              style={{ borderTop: '1px solid var(--border-light)', background: 'var(--bg-elevated)' }}>
+              <span className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>{myInboxTickets.length} Tiket Aktif</span>
+              <button
+                onClick={handleDownloadInbox}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-mid)', color: 'var(--text-secondary)' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--accent-bg)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--accent)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--accent-border)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-subtle)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-secondary)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border-mid)'; }}
+              >
                 <Download size={13} /> Download .txt
               </button>
             </div>

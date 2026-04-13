@@ -341,6 +341,7 @@ export default function Header({
   if (!mounted) return null;
 
   return (
+    <>
     <header
       className="header-root sticky top-0 z-40 w-full"
       style={{ fontFamily: "'Inter', sans-serif" }}
@@ -565,8 +566,9 @@ export default function Header({
           </div>
         </div>
       </div>
+    </header>
 
-      {/* ── MODAL EXPORT ───────────────────────────────────── */}
+      {/* ── MODAL EXPORT ─── rendered outside <header> to escape stacking context ── */}
       {showExportModal && (
         <div className="modal-overlay fixed inset-0 z-[60] flex items-end md:items-center justify-center p-0 md:p-4" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)' }}>
           <div className="modal-slide-up md:modal-enter w-full max-w-md rounded-t-2xl md:rounded-2xl overflow-hidden" style={{ background: 'var(--bg-surface)', boxShadow: 'var(--shadow-lg)', border: '1px solid var(--border-mid)' }}>
@@ -684,6 +686,6 @@ export default function Header({
           </div>
         </div>
       )}
-    </header>
+    </>
   );
 }
