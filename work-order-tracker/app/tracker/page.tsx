@@ -9,7 +9,7 @@ import {
   Server, Plus, Calendar, FileEdit, Clock,
   Check, ShieldAlert, Send, ArrowUpRight, ArrowDownRight,
   MinusCircle, Activity, Users, BarChart2, RefreshCw,
-  ChevronUp, ChevronDown, Info
+  ChevronUp, ChevronDown, Info, ArrowRightLeft, Save, Loader2, Pencil
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { id as indonesia } from 'date-fns/locale';
@@ -61,7 +61,7 @@ export default function TrackerPage() {
   const [editRequests, setEditRequests] = useState<any[]>([]);
   const [showApprovalPanel, setShowApprovalPanel] = useState(false);
 
-  // Request edit modal
+  // Request edit modal (untuk non-approver)
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [selectedRowForEdit, setSelectedRowForEdit] = useState<any>(null);
   const [requestAlasan, setRequestAlasan] = useState('');
@@ -72,9 +72,24 @@ export default function TrackerPage() {
     DEVICE: '',
   });
   const [submitting, setSubmitting] = useState(false);
-  const [indexOptions, setIndexOptions] = useState<{ bts: string[]; isp: string[]; device: string[] }>({
-    bts: [], isp: [], device: []
+  const [indexOptions, setIndexOptions] = useState<{ bts: string[]; isp: string[]; device: string[]; team: string[] }>({
+    bts: [], isp: [], device: [], team: []
   });
+
+  // Direct edit modal (untuk SUPER_DEV / ADMIN / NOC)
+  const [showDirectEditModal, setShowDirectEditModal] = useState(false);
+  const [directEditRow, setDirectEditRow] = useState<any>(null);
+  const [directEditFields, setDirectEditFields] = useState({
+    subject: '',
+    ISP: '',
+    BTS: '',
+    DEVICE: '',
+    TEAM: '',
+    TANGGAL: '',
+    STATUS: '',
+  });
+  const [directEditCategory, setDirectEditCategory] = useState('');
+  const [savingDirectEdit, setSavingDirectEdit] = useState(false);
 
   const [chartTrend, setChartTrend] = useState<any>({ series: [], options: {} });
   const [chartTeam, setChartTeam] = useState<any>({ series: [], options: {} });
@@ -364,6 +379,119 @@ export default function TrackerPage() {
     });
   };
 
+  // ── DIRECT EDIT (APPROVER ONLY) ─────────────────────────────
+  const openDirectEditModal = async (row: any) => {
+    setDirectEditRow(row);
+    setDirectEditCategory(selectedCategory); // default = kategori saat ini
+    setDirectEditFields({
+      subject: getSubject(row),
+      ISP: row.ISP || '',
+      BTS: row.BTS || '',
+      DEVICE: row.DEVICE || '',
+      TEAM: row.TEAM || '',
+      TANGGAL: row.TANGGAL || '',
+      STATUS: row.STATUS || '',
+    });
+    setShowDirectEditModal(true);
+
+    // Fetch options jika belum ada
+    if (indexOptions.bts.length === 0) {
+      const { data, error } = await supabase.from('Index').select('BTS, ISP, DEVICE, TEAM');
+      if (!error && data) {
+        const getUnique = (key: string) =>
+          [...new Set(data.map((item: any) => item[key]).filter(Boolean))] as string[];
+        setIndexOptions({
+          bts: getUnique('BTS'),
+          isp: getUnique('ISP'),
+          device: getUnique('DEVICE'),
+          team: getUnique('TEAM'),
+        });
+      }
+    }
+  };
+
+  const handleSaveDirectEdit = async () => {
+    if (!directEditRow) return;
+    setSavingDirectEdit(true);
+    const toastId = toast.loading('Menyimpan perubahan...');
+
+    const originalCategory = selectedCategory;
+    const originalTable = TABLE_MAP[originalCategory];
+    const targetTable = TABLE_MAP[directEditCategory];
+
+    // Tentukan kolom subject yang tepat untuk tabel tujuan
+    const getSubjectKey = (cat: string) => {
+      if (cat === 'Berhenti Sementara') return 'SUBJECT BERHENTI SEMENTARA';
+      if (cat === 'Berhenti Berlangganan') return 'SUBJECT BERHENTI BERLANGGANAN';
+      if (cat === 'Upgrade') return 'SUBJECT UPGRADE';
+      if (cat === 'Downgrade') return 'SUBJECT DOWNGRADE';
+      return 'SUBJECT BERLANGGANAN';
+    };
+
+    const subjectKey = getSubjectKey(directEditCategory);
+
+    // Build payload — id dikecualikan karena auto-generated
+    const payload: Record<string, any> = {
+      [subjectKey]: directEditFields.subject,
+      ISP: directEditFields.ISP,
+      BTS: directEditFields.BTS,
+      DEVICE: directEditFields.DEVICE,
+      TEAM: directEditFields.TEAM,
+      TANGGAL: directEditFields.TANGGAL,
+      STATUS: directEditFields.STATUS,
+    };
+
+    try {
+      if (directEditCategory === originalCategory) {
+        // ── KASUS 1: Kategori sama — cukup UPDATE di tabel yang sama ──────────
+        const { error } = await supabase
+          .from(originalTable)
+          .update(payload)
+          .eq('id', directEditRow.id);
+        if (error) throw error;
+
+        toast.success('Data berhasil diupdate!', { id: toastId });
+        await logActivity({
+          activity: 'TRACKER_EDIT_DIRECT',
+          subject: directEditFields.subject,
+          actor: userFullName,
+          detail: `Tabel: ${originalTable} · Edit langsung oleh ${userRole}`,
+        });
+      } else {
+        // ── KASUS 2: Kategori berbeda — INSERT ke tabel baru + DELETE dari lama ──
+        const { error: insertError } = await supabase
+          .from(targetTable)
+          .insert([payload]);
+        if (insertError) throw insertError;
+
+        const { error: deleteError } = await supabase
+          .from(originalTable)
+          .delete()
+          .eq('id', directEditRow.id);
+        if (deleteError) throw deleteError;
+
+        toast.success(
+          `Data dipindahkan dari "${originalCategory}" → "${directEditCategory}"!`,
+          { id: toastId }
+        );
+        await logActivity({
+          activity: 'TRACKER_CATEGORY_CHANGE',
+          subject: directEditFields.subject,
+          actor: userFullName,
+          detail: `${originalTable} → ${targetTable} · Diubah oleh ${userRole}`,
+        });
+      }
+
+      setShowDirectEditModal(false);
+      fetchData();
+      fetchGlobalStats();
+    } catch (err: any) {
+      toast.error('Gagal: ' + err.message, { id: toastId });
+    } finally {
+      setSavingDirectEdit(false);
+    }
+  };
+
   const activeConf = CATEGORY_CONFIG[selectedCategory];
   const currentMonthIdx = new Date().getMonth();
   const thisMonthPasang = globalStats.monthlyPasang?.[currentMonthIdx] || 0;
@@ -543,11 +671,18 @@ export default function TrackerPage() {
                     </td>
                     <td className="px-5 py-3 text-center">
                       {isApprover ? (
-                        <Link href={`#edit-${row.id}`} className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 text-xs font-semibold">
-                          <FileEdit size={11} /> Edit
-                        </Link>
+                        <button
+                          onClick={() => openDirectEditModal(row)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all"
+                          style={{ background: 'var(--accent-bg)', color: 'var(--accent)', border: '1px solid var(--accent-border)' }}
+                        >
+                          <Pencil size={11} /> Edit
+                        </button>
                       ) : (
-                        <button onClick={() => openRequestModal(row)} className="inline-flex items-center gap-1 text-slate-500 hover:text-blue-600 text-xs font-semibold transition-colors opacity-0 group-hover:opacity-100">
+                        <button
+                          onClick={() => openRequestModal(row)}
+                          className="inline-flex items-center gap-1 text-slate-500 hover:text-blue-600 text-xs font-semibold transition-colors opacity-0 group-hover:opacity-100"
+                        >
                           <FileEdit size={11} /> Request
                         </button>
                       )}
@@ -896,6 +1031,199 @@ export default function TrackerPage() {
                 <Send size={12} /> {submitting ? 'Mengirim...' : 'Kirim Request'}
               </button>
               <button onClick={() => setShowRequestModal(false)} className="px-4 py-2.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-200 transition-colors">Batal</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── DIRECT EDIT MODAL (APPROVER ONLY) ─────────────── */}
+      {showDirectEditModal && directEditRow && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}>
+          <div className="w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden modal-enter" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-mid)' }}>
+
+            {/* Header */}
+            <div className="px-5 py-4 border-b flex justify-between items-center shrink-0" style={{ borderColor: 'var(--border-light)', background: 'var(--bg-elevated)' }}>
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 rounded-lg" style={{ background: 'var(--accent-bg)', color: 'var(--accent)' }}>
+                  <Pencil size={14} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Edit Langsung</h3>
+                  <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                    Perubahan langsung diterapkan · <span className="font-semibold" style={{ color: 'var(--accent)' }}>{userRole}</span>
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowDirectEditModal(false)}
+                className="p-1.5 rounded-lg transition-colors"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 overflow-y-auto flex-1">
+
+              {/* ── PINDAH KATEGORI ── */}
+              <div className="rounded-xl p-4 space-y-2.5" style={{ background: 'var(--warning-bg)', border: '1px solid rgba(251,191,36,0.3)' }}>
+                <div className="flex items-center gap-2 mb-1">
+                  <ArrowRightLeft size={13} style={{ color: 'var(--warning)' }} />
+                  <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--warning)' }}>
+                    Kategori Transaksi
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <p className="text-[9px] font-bold uppercase mb-1" style={{ color: 'var(--text-muted)' }}>Saat ini</p>
+                    <div className="px-3 py-2 rounded-lg text-xs font-bold" style={{ background: 'var(--bg-elevated)', color: CATEGORY_CONFIG[selectedCategory]?.color, border: `1px solid ${CATEGORY_CONFIG[selectedCategory]?.border}` }}>
+                      {selectedCategory}
+                    </div>
+                  </div>
+                  <ArrowRightLeft size={14} style={{ color: 'var(--text-muted)' }} />
+                  <div className="flex-1">
+                    <p className="text-[9px] font-bold uppercase mb-1" style={{ color: 'var(--text-muted)' }}>Pindahkan ke</p>
+                    <select
+                      value={directEditCategory}
+                      onChange={(e) => setDirectEditCategory(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg text-xs font-bold outline-none transition-all"
+                      style={{ background: 'var(--bg-surface)', color: CATEGORY_CONFIG[directEditCategory]?.color || 'var(--text-primary)', border: `1px solid ${CATEGORY_CONFIG[directEditCategory]?.border || 'var(--border-mid)'}` }}
+                    >
+                      {Object.keys(TABLE_MAP).map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                {directEditCategory !== selectedCategory && (
+                  <div className="flex items-start gap-2 mt-2 p-2.5 rounded-lg" style={{ background: 'rgba(251,191,36,0.15)' }}>
+                    <Info size={11} className="shrink-0 mt-0.5" style={{ color: 'var(--warning)' }} />
+                    <p className="text-[10px]" style={{ color: 'var(--warning)' }}>
+                      Data akan <strong>dipindahkan</strong> dari tabel <em>{TABLE_MAP[selectedCategory]}</em> ke <em>{TABLE_MAP[directEditCategory]}</em>. Data lama akan dihapus secara otomatis.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* ── FIELD UTAMA ── */}
+              <div className="space-y-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Detail Data</p>
+
+                {/* Subject */}
+                <div>
+                  <label className="text-[10px] font-semibold block mb-1" style={{ color: 'var(--text-secondary)' }}>
+                    Subject / Nama Pelanggan <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    value={directEditFields.subject}
+                    onChange={(e) => setDirectEditFields(p => ({ ...p, subject: e.target.value }))}
+                    placeholder="Nama pelanggan..."
+                    className="w-full p-2 rounded-lg text-xs font-medium outline-none transition-all"
+                    style={{ background: 'var(--bg-input)', color: 'var(--text-primary)', border: '1px solid var(--border-mid)' }}
+                  />
+                </div>
+
+                {/* Grid 2 col */}
+                <div className="grid grid-cols-2 gap-3">
+                  {/* ISP */}
+                  <div>
+                    <label className="text-[10px] font-semibold block mb-1" style={{ color: 'var(--text-secondary)' }}>ISP</label>
+                    <select
+                      value={directEditFields.ISP}
+                      onChange={(e) => setDirectEditFields(p => ({ ...p, ISP: e.target.value }))}
+                      className="w-full p-2 rounded-lg text-xs outline-none transition-all"
+                      style={{ background: 'var(--bg-input)', color: 'var(--text-primary)', border: '1px solid var(--border-mid)' }}
+                    >
+                      <option value="">— ISP —</option>
+                      {indexOptions.isp.map((o, i) => <option key={i} value={o}>{o}</option>)}
+                    </select>
+                  </div>
+                  {/* TEAM */}
+                  <div>
+                    <label className="text-[10px] font-semibold block mb-1" style={{ color: 'var(--text-secondary)' }}>Team</label>
+                    <select
+                      value={directEditFields.TEAM}
+                      onChange={(e) => setDirectEditFields(p => ({ ...p, TEAM: e.target.value }))}
+                      className="w-full p-2 rounded-lg text-xs outline-none transition-all"
+                      style={{ background: 'var(--bg-input)', color: 'var(--text-primary)', border: '1px solid var(--border-mid)' }}
+                    >
+                      <option value="">— Team —</option>
+                      {indexOptions.team.map((o, i) => <option key={i} value={o}>{o}</option>)}
+                    </select>
+                  </div>
+                  {/* BTS */}
+                  <div>
+                    <label className="text-[10px] font-semibold block mb-1" style={{ color: 'var(--text-secondary)' }}>BTS</label>
+                    <select
+                      value={directEditFields.BTS}
+                      onChange={(e) => setDirectEditFields(p => ({ ...p, BTS: e.target.value }))}
+                      className="w-full p-2 rounded-lg text-xs outline-none transition-all"
+                      style={{ background: 'var(--bg-input)', color: 'var(--text-primary)', border: '1px solid var(--border-mid)' }}
+                    >
+                      <option value="">— BTS —</option>
+                      {indexOptions.bts.map((o, i) => <option key={i} value={o}>{o}</option>)}
+                    </select>
+                  </div>
+                  {/* DEVICE */}
+                  <div>
+                    <label className="text-[10px] font-semibold block mb-1" style={{ color: 'var(--text-secondary)' }}>Device</label>
+                    <select
+                      value={directEditFields.DEVICE}
+                      onChange={(e) => setDirectEditFields(p => ({ ...p, DEVICE: e.target.value }))}
+                      className="w-full p-2 rounded-lg text-xs outline-none transition-all"
+                      style={{ background: 'var(--bg-input)', color: 'var(--text-primary)', border: '1px solid var(--border-mid)' }}
+                    >
+                      <option value="">— Device —</option>
+                      {indexOptions.device.map((o, i) => <option key={i} value={o}>{o}</option>)}
+                    </select>
+                  </div>
+                  {/* TANGGAL */}
+                  <div>
+                    <label className="text-[10px] font-semibold block mb-1" style={{ color: 'var(--text-secondary)' }}>Tanggal</label>
+                    <input
+                      type="text"
+                      value={directEditFields.TANGGAL}
+                      onChange={(e) => setDirectEditFields(p => ({ ...p, TANGGAL: e.target.value }))}
+                      className="w-full p-2 rounded-lg text-xs outline-none transition-all font-mono"
+                      style={{ background: 'var(--bg-input)', color: 'var(--text-primary)', border: '1px solid var(--border-mid)' }}
+                    />
+                  </div>
+                  {/* STATUS */}
+                  <div>
+                    <label className="text-[10px] font-semibold block mb-1" style={{ color: 'var(--text-secondary)' }}>Status</label>
+                    <input
+                      value={directEditFields.STATUS}
+                      onChange={(e) => setDirectEditFields(p => ({ ...p, STATUS: e.target.value }))}
+                      className="w-full p-2 rounded-lg text-xs outline-none transition-all"
+                      style={{ background: 'var(--bg-input)', color: 'var(--text-primary)', border: '1px solid var(--border-mid)' }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-4 border-t flex gap-2.5 shrink-0" style={{ borderColor: 'var(--border-light)', background: 'var(--bg-elevated)' }}>
+              <button
+                onClick={handleSaveDirectEdit}
+                disabled={savingDirectEdit || !directEditFields.subject.trim()}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-bold text-white transition-all disabled:opacity-50"
+                style={{ background: directEditCategory !== selectedCategory ? 'linear-gradient(135deg,#f59e0b,#d97706)' : 'linear-gradient(135deg,var(--accent-mid),var(--accent-deep))' }}
+              >
+                {savingDirectEdit
+                  ? <><Loader2 size={12} className="animate-spin" /> Menyimpan...</>
+                  : directEditCategory !== selectedCategory
+                    ? <><ArrowRightLeft size={12} /> Pindahkan & Simpan</>
+                    : <><Save size={12} /> Simpan Perubahan</>
+                }
+              </button>
+              <button
+                onClick={() => setShowDirectEditModal(false)}
+                className="px-4 py-2.5 rounded-lg text-xs font-bold transition-colors"
+                style={{ background: 'var(--bg-subtle)', color: 'var(--text-secondary)' }}
+              >
+                Batal
+              </button>
             </div>
           </div>
         </div>
