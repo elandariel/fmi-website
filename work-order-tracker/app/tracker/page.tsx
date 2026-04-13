@@ -179,7 +179,7 @@ export default function TrackerPage() {
     const { data } = await supabase
       .from('WO_Edit_Requests')
       .select('*')
-      .eq('request_type', 'TRACKER')
+      .in('request_type', ['TRACKER', 'TRACKER_CATEGORY_CHANGE'])
       .eq('status', 'PENDING')
       .order('created_at', { ascending: false });
     setEditRequests(data || []);
