@@ -649,8 +649,9 @@ textarea:focus-visible {
 }
 
 [data-theme="light"] .header-root {
-  background: rgba(255,255,255,0.9);
-  backdrop-filter: blur(12px);
+  background: rgba(255,255,255,0.97);
+  /* backdrop-filter intentionally removed — it creates a new stacking context
+     that breaks position:fixed children (modals, dropdowns) in light mode */
 }
 
 /* ============================================================
@@ -774,3 +775,75 @@ textarea:focus-visible {
   border: 2px solid var(--bg-surface);
   animation: pulse-glow 2s ease-in-out infinite;
 }
+
+/* ============================================================
+   GLOBAL DARK-MODE TAILWIND REMAPPING
+   Maps common white/slate Tailwind utility classes to CSS
+   variables so ALL pages respond to the theme toggle without
+   needing per-page edits. In light mode, the variables resolve
+   back to their original light values automatically.
+   ============================================================ */
+
+/* Backgrounds */
+.bg-white    { background-color: var(--bg-surface)  !important; }
+.bg-slate-50 { background-color: var(--bg-elevated) !important; }
+.bg-slate-100{ background-color: var(--bg-subtle)   !important; }
+.bg-gray-50  { background-color: var(--bg-elevated) !important; }
+.bg-gray-100 { background-color: var(--bg-subtle)   !important; }
+
+/* Text */
+.text-slate-900 { color: var(--text-primary)   !important; }
+.text-slate-800 { color: var(--text-primary)   !important; }
+.text-slate-700 { color: var(--text-secondary) !important; }
+.text-slate-600 { color: var(--text-secondary) !important; }
+.text-slate-500 { color: var(--text-muted)     !important; }
+.text-slate-400 { color: var(--text-muted)     !important; }
+.text-gray-900  { color: var(--text-primary)   !important; }
+.text-gray-800  { color: var(--text-primary)   !important; }
+.text-gray-700  { color: var(--text-secondary) !important; }
+.text-gray-600  { color: var(--text-secondary) !important; }
+.text-gray-500  { color: var(--text-muted)     !important; }
+.text-gray-400  { color: var(--text-muted)     !important; }
+
+/* Borders */
+.border-slate-200 { border-color: var(--border-light) !important; }
+.border-slate-100 { border-color: var(--border-light) !important; }
+.border-gray-200  { border-color: var(--border-light) !important; }
+.border-gray-100  { border-color: var(--border-light) !important; }
+
+/* Dividers */
+.divide-slate-100 > :not([hidden]) ~ :not([hidden]) { border-color: var(--border-light) !important; }
+.divide-slate-200 > :not([hidden]) ~ :not([hidden]) { border-color: var(--border-light) !important; }
+
+/* Input / textarea / select */
+input:not([class*="bg-"]),
+textarea:not([class*="bg-"]),
+select:not([class*="bg-"]) {
+  background-color: var(--bg-input);
+  color: var(--text-primary);
+  border-color: var(--border-mid);
+}
+
+/* Status badge light-color overrides for dark mode */
+:root:not([data-theme="light"]) .bg-emerald-50 { background-color: rgba(16,185,129,0.12) !important; }
+:root:not([data-theme="light"]) .text-emerald-700 { color: #34d399 !important; }
+:root:not([data-theme="light"]) .border-emerald-200 { border-color: rgba(16,185,129,0.25) !important; }
+:root:not([data-theme="light"]) .bg-blue-50 { background-color: rgba(59,130,246,0.12) !important; }
+:root:not([data-theme="light"]) .text-blue-700 { color: #60a5fa !important; }
+:root:not([data-theme="light"]) .border-blue-200 { border-color: rgba(59,130,246,0.25) !important; }
+:root:not([data-theme="light"]) .bg-amber-50 { background-color: rgba(245,158,11,0.12) !important; }
+:root:not([data-theme="light"]) .text-amber-700 { color: #fbbf24 !important; }
+:root:not([data-theme="light"]) .border-amber-200 { border-color: rgba(245,158,11,0.25) !important; }
+:root:not([data-theme="light"]) .bg-violet-50 { background-color: rgba(139,92,246,0.12) !important; }
+:root:not([data-theme="light"]) .text-violet-700 { color: #a78bfa !important; }
+:root:not([data-theme="light"]) .border-violet-200 { border-color: rgba(139,92,246,0.25) !important; }
+:root:not([data-theme="light"]) .bg-rose-50 { background-color: rgba(244,63,94,0.12) !important; }
+:root:not([data-theme="light"]) .text-rose-700 { color: #fb7185 !important; }
+:root:not([data-theme="light"]) .border-rose-200 { border-color: rgba(244,63,94,0.25) !important; }
+
+/* Filter chips - active state */
+:root:not([data-theme="light"]) .bg-slate-900 { background-color: var(--bg-subtle) !important; }
+
+/* Shadow mixin — lighter in light mode */
+[data-theme="light"] .shadow-sm { box-shadow: var(--shadow-sm) !important; }
+[data-theme="light"] .shadow    { box-shadow: var(--shadow-md) !important; }

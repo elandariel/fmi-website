@@ -10,12 +10,22 @@ import {
 import { useRouter } from 'next/navigation';
 import { hasAccess, PERMISSIONS, Role } from '@/lib/permissions';
 
+// These are always used inside the dark-glass dropdown, so colors are hardcoded light
 const TYPE_COLOR: Record<string, { glow: string; badge: string; text: string; border: string }> = {
-  blue:    { glow: '#3b82f6', badge: 'rgba(59,130,246,0.15)',  text: '#60a5fa',  border: 'rgba(59,130,246,0.25)' },
-  red:     { glow: '#f43f5e', badge: 'rgba(244,63,94,0.15)',   text: '#fb7185',  border: 'rgba(244,63,94,0.25)' },
-  orange:  { glow: '#f59e0b', badge: 'rgba(245,158,11,0.15)',  text: '#fbbf24',  border: 'rgba(245,158,11,0.25)' },
-  emerald: { glow: '#10b981', badge: 'rgba(16,185,129,0.15)',  text: '#34d399',  border: 'rgba(16,185,129,0.25)' },
-  yellow:  { glow: '#eab308', badge: 'rgba(234,179,8,0.15)',   text: '#fde047',  border: 'rgba(234,179,8,0.25)' },
+  blue:    { glow: '#3b82f6', badge: 'rgba(59,130,246,0.18)',  text: '#93c5fd',  border: 'rgba(59,130,246,0.3)' },
+  red:     { glow: '#f43f5e', badge: 'rgba(244,63,94,0.18)',   text: '#fda4af',  border: 'rgba(244,63,94,0.3)' },
+  orange:  { glow: '#f59e0b', badge: 'rgba(245,158,11,0.18)',  text: '#fcd34d',  border: 'rgba(245,158,11,0.3)' },
+  emerald: { glow: '#10b981', badge: 'rgba(16,185,129,0.18)',  text: '#6ee7b7',  border: 'rgba(16,185,129,0.3)' },
+  yellow:  { glow: '#eab308', badge: 'rgba(234,179,8,0.18)',   text: '#fef08a',  border: 'rgba(234,179,8,0.3)' },
+};
+
+// Always-white text tokens for inside the dark-glass dropdown
+const DT = {
+  textPrimary:   '#f1f5f9',
+  textSecondary: '#94a3b8',
+  textMuted:     '#64748b',
+  border:        'rgba(255,255,255,0.08)',
+  hoverBg:       'rgba(255,255,255,0.06)',
 };
 
 export function NotificationBell() {
@@ -200,17 +210,17 @@ export function NotificationBell() {
             {/* Panel header */}
             <div
               className="px-4 py-3.5 flex items-center justify-between shrink-0"
-              style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+              style={{ borderBottom: `1px solid ${DT.border}` }}
             >
               <div className="flex items-center gap-2.5">
-                <div className="p-1.5 rounded-lg" style={{ background: 'rgba(244,63,94,0.15)', color: '#fb7185' }}>
+                <div className="p-1.5 rounded-lg" style={{ background: 'rgba(244,63,94,0.15)', color: '#fda4af' }}>
                   <AlertTriangle size={14} />
                 </div>
                 <div>
-                  <h2 className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
+                  <h2 className="font-bold text-sm" style={{ color: DT.textPrimary }}>
                     Missing Data Sinkronisasi
                   </h2>
-                  <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                  <p className="text-[11px] mt-0.5" style={{ color: DT.textMuted }}>
                     {missingItems.length > 0
                       ? `${missingItems.length} item perlu ditindaklanjuti`
                       : 'Semua data terintegrasi'}
@@ -221,9 +231,9 @@ export function NotificationBell() {
                 <button
                   onClick={checkMissingData}
                   className="p-1.5 rounded-lg transition-colors"
-                  style={{ color: 'var(--text-muted)' }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.07)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-primary)'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)'; }}
+                  style={{ color: DT.textMuted, background: 'transparent' }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = DT.hoverBg; (e.currentTarget as HTMLButtonElement).style.color = DT.textPrimary; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = DT.textMuted; }}
                   title="Refresh"
                 >
                   <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
@@ -231,9 +241,9 @@ export function NotificationBell() {
                 <button
                   onClick={() => setIsOpen(false)}
                   className="p-1.5 rounded-lg transition-colors"
-                  style={{ color: 'var(--text-muted)' }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.07)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-primary)'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)'; }}
+                  style={{ color: DT.textMuted, background: 'transparent' }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = DT.hoverBg; (e.currentTarget as HTMLButtonElement).style.color = DT.textPrimary; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = DT.textMuted; }}
                 >
                   <X size={15} />
                 </button>
@@ -245,7 +255,7 @@ export function NotificationBell() {
               {loading ? (
                 <div className="flex flex-col gap-2 pt-1">
                   {[1,2,3].map(i => (
-                    <div key={i} className="h-20 rounded-xl animate-pulse" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.06)' }} />
+                    <div key={i} className="h-20 rounded-xl animate-pulse" style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${DT.border}` }} />
                   ))}
                 </div>
               ) : missingItems.length === 0 ? (
@@ -255,8 +265,8 @@ export function NotificationBell() {
                     <CheckCircle2 size={26} style={{ color: '#10b981' }} />
                   </div>
                   <div>
-                    <p className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>Database Terintegrasi</p>
-                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Semua WO sudah tersinkronisasi</p>
+                    <p className="font-bold text-sm" style={{ color: DT.textPrimary }}>Database Terintegrasi</p>
+                    <p className="text-xs mt-0.5" style={{ color: DT.textMuted }}>Semua WO sudah tersinkronisasi</p>
                   </div>
                 </div>
               ) : (
@@ -268,7 +278,7 @@ export function NotificationBell() {
                       className="rounded-xl p-3.5 flex items-start justify-between gap-3 transition-all"
                       style={{
                         background: 'rgba(255,255,255,0.03)',
-                        border: `1px solid rgba(255,255,255,0.07)`,
+                        border: `1px solid ${DT.border}`,
                         borderLeft: `3px solid ${conf.glow}`,
                       }}
                       onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.055)'; }}
@@ -278,7 +288,7 @@ export function NotificationBell() {
                         {/* Meta */}
                         <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
                           <span className="text-[10px] font-medium flex items-center gap-1 px-2 py-0.5 rounded-full"
-                            style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                            style={{ background: DT.hoverBg, color: DT.textMuted, border: `1px solid ${DT.border}` }}>
                             <Calendar size={9} /> {item.date}
                           </span>
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
@@ -287,11 +297,11 @@ export function NotificationBell() {
                           </span>
                         </div>
                         {/* Subject */}
-                        <p className="font-semibold text-xs leading-snug mb-1.5 line-clamp-2" style={{ color: 'var(--text-primary)' }}>
+                        <p className="font-semibold text-xs leading-snug mb-1.5 line-clamp-2" style={{ color: DT.textPrimary }}>
                           {item.subject}
                         </p>
                         {/* Target table */}
-                        <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                        <p className="text-[10px]" style={{ color: DT.textMuted }}>
                           Missing di:{' '}
                           <span className="font-bold" style={{ color: conf.text }}>{item.targetTable}</span>
                         </p>
@@ -310,17 +320,17 @@ export function NotificationBell() {
                             <ExternalLink size={11} /> Input
                           </button>
                           <button
-                            onClick={() => { setSelectedItem(item); setReason(''); setShowReasonModal(true); }}
+                            onClick={() => { setSelectedItem(item); setReason(''); setIsOpen(false); setShowReasonModal(true); }}
                             className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold text-xs transition-all"
-                            style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', border: '1px solid rgba(255,255,255,0.09)' }}
-                            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(244,63,94,0.12)'; (e.currentTarget as HTMLButtonElement).style.color = '#fb7185'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(244,63,94,0.25)'; }}
-                            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.05)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.09)'; }}
+                            style={{ background: 'rgba(255,255,255,0.07)', color: DT.textSecondary, border: `1px solid ${DT.border}` }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(244,63,94,0.15)'; (e.currentTarget as HTMLButtonElement).style.color = '#fda4af'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(244,63,94,0.3)'; }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.07)'; (e.currentTarget as HTMLButtonElement).style.color = DT.textSecondary; (e.currentTarget as HTMLButtonElement).style.borderColor = DT.border; }}
                           >
                             <Trash2 size={11} /> Abaikan
                           </button>
                         </div>
                       ) : (
-                        <span className="text-[10px] font-semibold italic shrink-0" style={{ color: 'var(--text-muted)' }}>View Only</span>
+                        <span className="text-[10px] font-semibold italic shrink-0" style={{ color: DT.textMuted }}>View Only</span>
                       )}
                     </div>
                   );

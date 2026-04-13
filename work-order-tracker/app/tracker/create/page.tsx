@@ -150,7 +150,7 @@ function CreateTrackerContent() {
   const selectedLabel = TABLE_OPTIONS.find(o => o.value === selectedTable)?.label || '';
 
   return (
-    <div className="w-full max-w-3xl" style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>
+    <div className="w-full max-w-3xl" style={{ fontFamily: "'Inter', sans-serif" }}>
 
       {/* ── SUCCESS MODAL ── */}
       {showSuccessModal && (
@@ -357,7 +357,7 @@ export default function CreateTrackerPage() {
   return (
     <div
       className="min-h-screen p-6 md:p-8 flex justify-center items-start"
-      style={{ background: '#f4f6f9', fontFamily: "'IBM Plex Sans', sans-serif" }}
+      style={{ background: 'var(--bg-base)', fontFamily: "'Inter', sans-serif" }}
     >
       <Suspense fallback={
         <div className="flex h-64 items-center justify-center">

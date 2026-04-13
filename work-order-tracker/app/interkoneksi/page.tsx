@@ -278,7 +278,7 @@ export default function InterkoneksiPage() {
   return (
     <div
       className="min-h-screen p-6 md:p-8"
-      style={{ background: '#f4f6f9', fontFamily: "'IBM Plex Sans', sans-serif" }}
+      style={{ background: 'var(--bg-base)', fontFamily: "'Inter', sans-serif" }}
     >
       <div className="max-w-[1600px] mx-auto">
 
@@ -476,7 +476,7 @@ export default function InterkoneksiPage() {
           transition-transform duration-300 ease-in-out
           ${detailItem ? 'translate-x-0' : 'translate-x-full'}
         `}
-        style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+        style={{ fontFamily: "'Inter', sans-serif" }}
       >
         {detailItem && (
           <>

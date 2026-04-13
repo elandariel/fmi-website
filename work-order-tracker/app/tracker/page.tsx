@@ -197,7 +197,7 @@ export default function TrackerPage() {
     setChartTrend({
       series: [{ name: 'Jumlah', data: sortedDates.map(d => dateMap[d]) }],
       options: {
-        chart: { type: 'area', toolbar: { show: false }, fontFamily: "'IBM Plex Sans', sans-serif", background: 'transparent', animations: { enabled: true, speed: 500 } },
+        chart: { type: 'area', toolbar: { show: false }, fontFamily: "'Inter', sans-serif", background: 'transparent', animations: { enabled: true, speed: 500 } },
         xaxis: { categories: sortedDates, labels: { style: { fontSize: '10px', colors: '#94a3b8' } } },
         yaxis: { labels: { style: { fontSize: '10px', colors: '#94a3b8' } } },
         colors: [color],
@@ -217,7 +217,7 @@ export default function TrackerPage() {
     setChartTeam({
       series: [{ name: 'Total', data: sortedTeams.map(t => teamMap[t]) }],
       options: {
-        chart: { type: 'bar', toolbar: { show: false }, fontFamily: "'IBM Plex Sans', sans-serif", background: 'transparent' },
+        chart: { type: 'bar', toolbar: { show: false }, fontFamily: "'Inter', sans-serif", background: 'transparent' },
         xaxis: { categories: sortedTeams, labels: { style: { fontSize: '10px', colors: '#94a3b8' } } },
         yaxis: { labels: { style: { fontSize: '10px', colors: '#94a3b8' } } },
         colors: [color],
@@ -370,7 +370,7 @@ export default function TrackerPage() {
   const thisMonthPutus  = globalStats.monthlyPutus?.[currentMonthIdx]  || 0;
 
   return (
-    <div className="min-h-screen p-5 md:p-7" style={{ background: '#f0f2f5', fontFamily: "'IBM Plex Sans', sans-serif" }}>
+    <div className="min-h-screen p-5 md:p-7" style={{ background: 'var(--bg-base)', fontFamily: "'Inter', sans-serif" }}>
 
       {/* ── HEADER ──────────────────────────────────── */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-5">
@@ -641,7 +641,7 @@ export default function TrackerPage() {
                     { name: 'Putus', data: globalStats.monthlyPutus || [] },
                   ]}
                   options={{
-                    chart: { toolbar: { show: false }, fontFamily: "'IBM Plex Sans', sans-serif", background: 'transparent' },
+                    chart: { toolbar: { show: false }, fontFamily: "'Inter', sans-serif", background: 'transparent' },
                     colors: ['#10b981', '#ef4444'],
                     xaxis: { categories: MONTH_LABELS, labels: { style: { fontSize: '10px', colors: '#94a3b8' } } },
                     yaxis: { labels: { style: { fontSize: '10px', colors: '#94a3b8' } } },
@@ -695,7 +695,7 @@ export default function TrackerPage() {
                     height={180}
                     series={[{ name: 'Total', data: (modalChartMode === 'ISP' ? globalStats.byIsp : globalStats.byBts).map((i: any) => i.data) }]}
                     options={{
-                      chart: { toolbar: { show: false }, fontFamily: "'IBM Plex Sans', sans-serif" },
+                      chart: { toolbar: { show: false }, fontFamily: "'Inter', sans-serif" },
                       plotOptions: { bar: { horizontal: true, borderRadius: 3, barHeight: '60%' } },
                       colors: [modalChartMode === 'ISP' ? '#2d7dd2' : '#7c3aed'],
                       xaxis: { categories: (modalChartMode === 'ISP' ? globalStats.byIsp : globalStats.byBts).map((i: any) => i.name), labels: { style: { fontSize: '9px', colors: '#94a3b8' } } },

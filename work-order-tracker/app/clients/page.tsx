@@ -186,7 +186,7 @@ export default function ClientListPage() {
   const rangeTo = Math.min(page * ITEMS_PER_PAGE, totalRecords);
 
   return (
-    <div className="p-6 md:p-8 min-h-screen" style={{ background: '#f4f6f9', fontFamily: "'IBM Plex Sans', sans-serif" }}>
+    <div className="p-6 md:p-8 min-h-screen" style={{ background: 'var(--bg-base)', fontFamily: "'Inter', sans-serif" }}>
 
       {/* ── HEADER ── */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-7">

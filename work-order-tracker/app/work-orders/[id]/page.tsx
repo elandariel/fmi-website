@@ -144,7 +144,7 @@ export default function DetailWorkOrderPage() {
   };
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: '#f0f2f5' }}>
+    <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-base)' }}>
       <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
     </div>
   );
@@ -153,7 +153,7 @@ export default function DetailWorkOrderPage() {
   const statusStyle = STATUS_STYLE[(wo.STATUS || 'OPEN').toUpperCase()] || STATUS_STYLE['OPEN'];
 
   return (
-    <div className="min-h-screen p-5 md:p-7" style={{ background: '#f0f2f5', fontFamily: "'IBM Plex Sans', sans-serif" }}>
+    <div className="min-h-screen p-5 md:p-7" style={{ background: 'var(--bg-base)', fontFamily: "'Inter', sans-serif" }}>
       <div className="max-w-3xl mx-auto">
 
         {/* Back */}

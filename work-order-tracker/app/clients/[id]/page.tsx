@@ -104,7 +104,7 @@ function ClientDetailContent() {
   const statusStyle = getStatusStyle(client['STATUS']);
 
   return (
-    <div className="p-6 md:p-8 min-h-screen" style={{ background: '#f4f6f9', fontFamily: "'IBM Plex Sans', sans-serif" }}>
+    <div className="p-6 md:p-8 min-h-screen" style={{ background: 'var(--bg-base)', fontFamily: "'Inter', sans-serif" }}>
 
       {/* ── DELETE MODAL ── */}
       {showDeleteModal && (

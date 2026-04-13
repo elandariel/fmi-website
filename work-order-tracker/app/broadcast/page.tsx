@@ -138,7 +138,7 @@ export default function BroadcastPage() {
   return (
     <div
       className="p-6 md:p-8 min-h-screen flex flex-col lg:flex-row gap-5"
-      style={{ background: '#f4f6f9', fontFamily: "'IBM Plex Sans', sans-serif" }}
+      style={{ background: 'var(--bg-base)', fontFamily: "'Inter', sans-serif" }}
     >
 
       {/* ── LEFT: EDITOR ── */}

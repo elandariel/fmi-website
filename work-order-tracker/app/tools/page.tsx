@@ -49,7 +49,7 @@ export default function ToolsPage() {
     return (
       <div
         className="p-6 md:p-8 min-h-screen"
-        style={{ background: '#f4f6f9', fontFamily: "'IBM Plex Sans', sans-serif" }}
+        style={{ background: 'var(--bg-base)', fontFamily: "'Inter', sans-serif" }}
       >
         <div className="max-w-4xl mx-auto">
 
@@ -115,7 +115,7 @@ export default function ToolsPage() {
   return (
     <div
       className="p-6 md:p-8 min-h-screen"
-      style={{ background: '#f4f6f9', fontFamily: "'IBM Plex Sans', sans-serif" }}
+      style={{ background: 'var(--bg-base)', fontFamily: "'Inter', sans-serif" }}
     >
       <div className="max-w-7xl mx-auto">
         <button
