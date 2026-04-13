@@ -5,7 +5,7 @@ import {
   Upload, Download, X, FileSpreadsheet,
   Info, FileText, Table, Search, Loader2,
   User, Database, Server, TrendingUp, ClipboardList,
-  Network, Command, ChevronRight, Clock, Hash
+  Network, Command, ChevronRight, Moon, Sun
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { id as indonesia } from 'date-fns/locale';
@@ -60,7 +60,13 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 // ── KOMPONEN UTAMA ───────────────────────────────────────────
-export default function Header() {
+export default function Header({
+  theme = 'dark',
+  onToggleTheme,
+}: {
+  theme?: 'dark' | 'light';
+  onToggleTheme?: () => void;
+}) {
   const [mounted, setMounted]           = useState(false);
   const [time, setTime]                 = useState(new Date());
   const [showImportModal, setShowImportModal] = useState(false);
@@ -336,8 +342,8 @@ export default function Header() {
 
   return (
     <header
-      className="bg-white border-b border-slate-200 sticky top-0 z-40 w-full"
-      style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+      className="header-root sticky top-0 z-40 w-full"
+      style={{ fontFamily: "'Inter', sans-serif" }}
     >
       <div className="flex items-center gap-3 px-4 md:px-5 h-[60px]">
 
@@ -345,9 +351,9 @@ export default function Header() {
         <div className="flex-1 max-w-xl pl-10 md:pl-0" ref={searchRef}>
           <div className="relative">
             {/* Search icon / loading */}
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-muted)' }}>
               {isSearching
-                ? <Loader2 size={14} className="animate-spin text-blue-500" />
+                ? <Loader2 size={14} className="animate-spin" style={{ color: 'var(--accent)' }} />
                 : <Search size={14} />
               }
             </div>
@@ -360,17 +366,34 @@ export default function Header() {
               onChange={e => setSearchQuery(e.target.value)}
               onFocus={() => searchQuery.length >= 2 && setShowResults(true)}
               onKeyDown={handleKeyDown}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-20 text-xs outline-none focus:ring-2 focus:ring-blue-500/30 focus:bg-white focus:border-blue-300 transition-all text-slate-800 placeholder-slate-400"
+              className="w-full rounded-xl py-2 pl-9 pr-20 text-xs outline-none transition-all"
+              style={{
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border-mid)',
+                color: 'var(--text-primary)',
+                fontFamily: 'inherit',
+              }}
+              onFocusCapture={e => {
+                e.currentTarget.style.borderColor = 'var(--accent-mid)';
+                e.currentTarget.style.boxShadow = '0 0 0 3px var(--accent-bg)';
+              }}
+              onBlurCapture={e => {
+                e.currentTarget.style.borderColor = 'var(--border-mid)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
             />
 
             {/* Shortcut hint / clear */}
             <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
               {searchQuery ? (
-                <button onClick={clearSearch} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <button onClick={clearSearch} className="transition-colors" style={{ color: 'var(--text-muted)' }}>
                   <X size={13} />
                 </button>
               ) : (
-                <kbd className="hidden md:flex items-center gap-0.5 px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-[9px] font-semibold text-slate-400">
+                <kbd
+                  className="hidden md:flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-semibold"
+                  style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-mid)', color: 'var(--text-muted)' }}
+                >
                   <Command size={8} />K
                 </kbd>
               )}
@@ -379,15 +402,24 @@ export default function Header() {
 
           {/* ── HASIL SEARCH ──────────────────────────────── */}
           {showResults && (
-            <div className="modal-enter absolute left-0 top-full mt-1.5 w-full max-w-xl bg-white border border-slate-200 shadow-xl rounded-xl overflow-hidden z-50">
+            <div
+              className="modal-enter absolute left-0 top-full mt-2 w-full max-w-xl rounded-2xl overflow-hidden z-50"
+              style={{
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-mid)',
+                boxShadow: 'var(--shadow-lg)',
+              }}
+            >
               {searchResults.length === 0 && !isSearching ? (
-                <div className="px-4 py-8 text-center">
-                  <Search size={20} className="mx-auto text-slate-300 mb-2" />
-                  <p className="text-xs text-slate-400">Tidak ada hasil untuk <span className="font-semibold text-slate-600">"{searchQuery}"</span></p>
+                <div className="px-4 py-10 text-center">
+                  <Search size={20} className="mx-auto mb-2" style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    Tidak ada hasil untuk{' '}
+                    <span className="font-semibold" style={{ color: 'var(--text-secondary)' }}>"{searchQuery}"</span>
+                  </p>
                 </div>
               ) : (
-                <div className="max-h-[420px] overflow-y-auto">
-                  {/* Group by type */}
+                <div className="max-h-[420px] overflow-y-auto custom-scrollbar">
                   {(['Client','Work Order','Tracker','VLAN','Interkoneksi'] as const).map(type => {
                     const items = searchResults.filter(r => r.type === type);
                     if (items.length === 0) return null;
@@ -395,8 +427,14 @@ export default function Header() {
                     return (
                       <div key={type}>
                         {/* Group header */}
-                        <div className="px-3 py-1.5 bg-slate-50 border-b border-slate-100">
-                          <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">{type}</span>
+                        <div
+                          className="px-3 py-1.5"
+                          style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border-light)' }}
+                        >
+                          <span
+                            className="text-[9px] font-bold uppercase tracking-widest"
+                            style={{ color: 'var(--text-muted)' }}
+                          >{type}</span>
                         </div>
                         {items.map((result, idx) => {
                           const globalIdx = searchResults.indexOf(result);
@@ -404,41 +442,37 @@ export default function Header() {
                           return (
                             <button
                               key={idx}
-                              onClick={() => {
-                                router.push(result.link);
-                                setShowResults(false);
-                                setSearchQuery('');
-                              }}
+                              onClick={() => { router.push(result.link); setShowResults(false); setSearchQuery(''); }}
                               onMouseEnter={() => setActiveIdx(globalIdx)}
-                              className={`w-full flex items-center gap-3 px-3 py-2.5 transition-colors text-left border-b border-slate-50 last:border-0 ${isActive ? 'bg-blue-50' : 'hover:bg-slate-50'}`}
+                              className="w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors"
+                              style={{
+                                borderBottom: '1px solid var(--border-light)',
+                                background: isActive ? 'var(--accent-bg)' : 'transparent',
+                              }}
                             >
-                              {/* Type icon */}
                               <div
-                                className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border"
-                                style={{ background: cfg.bg, color: cfg.color, borderColor: cfg.border }}
+                                className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                                style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}
                               >
                                 {result.icon}
                               </div>
-
-                              {/* Label + meta */}
                               <div className="flex-1 min-w-0">
-                                <p className="text-xs font-semibold text-slate-800 truncate">{result.label}</p>
+                                <p className="text-xs font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{result.label}</p>
                                 <div className="flex items-center gap-2 mt-0.5">
                                   {result.subLabel && (
-                                    <span className="text-[10px] text-slate-400 truncate">{result.subLabel}</span>
+                                    <span className="text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>{result.subLabel}</span>
                                   )}
                                   {result.detail && (
                                     <span
-                                      className="text-[9px] font-bold px-1.5 py-0.5 rounded border"
-                                      style={{ background: cfg.bg, color: cfg.color, borderColor: cfg.border }}
+                                      className="text-[9px] font-bold px-1.5 py-0.5 rounded"
+                                      style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}
                                     >
                                       {result.detail}
                                     </span>
                                   )}
                                 </div>
                               </div>
-
-                              <ChevronRight size={12} className={`shrink-0 transition-colors ${isActive ? 'text-blue-400' : 'text-slate-300'}`} />
+                              <ChevronRight size={12} className="shrink-0" style={{ color: isActive ? 'var(--accent)' : 'var(--text-muted)' }} />
                             </button>
                           );
                         })}
@@ -450,10 +484,18 @@ export default function Header() {
 
               {/* Footer hint */}
               {searchResults.length > 0 && (
-                <div className="px-3 py-2 bg-slate-50 border-t border-slate-100 flex items-center gap-3 text-[9px] text-slate-400 font-semibold">
-                  <span className="flex items-center gap-1"><kbd className="px-1 py-0.5 bg-white border border-slate-200 rounded text-[8px]">↑↓</kbd> Navigasi</span>
-                  <span className="flex items-center gap-1"><kbd className="px-1 py-0.5 bg-white border border-slate-200 rounded text-[8px]">Enter</kbd> Buka</span>
-                  <span className="flex items-center gap-1"><kbd className="px-1 py-0.5 bg-white border border-slate-200 rounded text-[8px]">Esc</kbd> Tutup</span>
+                <div
+                  className="px-3 py-2 flex items-center gap-3 text-[9px] font-semibold"
+                  style={{ background: 'var(--bg-elevated)', borderTop: '1px solid var(--border-light)', color: 'var(--text-muted)' }}
+                >
+                  {['↑↓ Navigasi', 'Enter Buka', 'Esc Tutup'].map(hint => (
+                    <span key={hint} className="flex items-center gap-1">
+                      <kbd className="px-1 py-0.5 rounded text-[8px]" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-mid)' }}>
+                        {hint.split(' ')[0]}
+                      </kbd>
+                      {hint.split(' ').slice(1).join(' ')}
+                    </span>
+                  ))}
                   <span className="ml-auto">{searchResults.length} hasil</span>
                 </div>
               )}
@@ -467,7 +509,10 @@ export default function Header() {
           {/* Import */}
           <button
             onClick={() => setShowImportModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 rounded-lg text-[11px] font-semibold transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-all"
+            style={{ color: 'var(--text-secondary)', border: '1px solid var(--border-mid)', background: 'transparent' }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'var(--success)'; e.currentTarget.style.background = 'var(--success-bg)'; e.currentTarget.style.borderColor = 'rgba(52,211,153,0.3)'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'var(--border-mid)'; }}
           >
             <Upload size={13} />
             <span className="hidden sm:inline">Import</span>
@@ -476,24 +521,45 @@ export default function Header() {
           {/* Export */}
           <button
             onClick={() => setShowExportModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-slate-600 hover:text-blue-600 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 rounded-lg text-[11px] font-semibold transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-all"
+            style={{ color: 'var(--text-secondary)', border: '1px solid var(--border-mid)', background: 'transparent' }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.background = 'var(--accent-bg)'; e.currentTarget.style.borderColor = 'var(--accent-border)'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'var(--border-mid)'; }}
           >
             <Download size={13} />
             <span className="hidden sm:inline">Export</span>
           </button>
 
           {/* Divider */}
-          <div className="w-px h-6 bg-slate-200 mx-1" />
+          <div className="w-px h-5 mx-1" style={{ background: 'var(--border-mid)' }} />
+
+          {/* Theme toggle */}
+          <button
+            onClick={onToggleTheme}
+            className="p-2 rounded-xl transition-all"
+            style={{ color: 'var(--text-secondary)', border: '1px solid var(--border-mid)', background: 'transparent' }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.background = 'var(--accent-bg)'; e.currentTarget.style.borderColor = 'var(--accent-border)'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'var(--border-mid)'; }}
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          >
+            {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+          </button>
 
           {/* Notification bell */}
           <NotificationBell />
 
-          {/* Clock — hanya desktop */}
-          <div className="hidden lg:flex flex-col items-end pl-3 border-l border-slate-200 ml-1">
-            <p className="text-sm font-mono font-bold text-slate-700 leading-none tabular-nums">
+          {/* Clock — desktop only */}
+          <div
+            className="hidden lg:flex flex-col items-end pl-3 ml-1"
+            style={{ borderLeft: '1px solid var(--border-mid)' }}
+          >
+            <p
+              className="text-sm font-bold leading-none tabular-nums"
+              style={{ fontFamily: "'JetBrains Mono', monospace", color: 'var(--text-primary)' }}
+            >
               {format(time, 'HH:mm:ss')}
             </p>
-            <p className="text-[9px] text-slate-400 font-medium mt-0.5">
+            <p className="text-[9px] font-medium mt-0.5" style={{ color: 'var(--text-muted)' }}>
               {format(time, 'dd MMM yyyy', { locale: indonesia })}
             </p>
           </div>
@@ -502,19 +568,23 @@ export default function Header() {
 
       {/* ── MODAL EXPORT ───────────────────────────────────── */}
       {showExportModal && (
-        <div className="modal-overlay fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 md:p-4">
-          <div className="modal-slide-up md:modal-enter bg-white w-full max-w-md rounded-t-2xl md:rounded-2xl shadow-2xl overflow-hidden">
-            <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-              <h3 className="font-bold text-slate-800 flex items-center gap-2 text-sm">
-                <Download size={16} className="text-blue-600" /> Export Database
+        <div className="modal-overlay fixed inset-0 z-[60] flex items-end md:items-center justify-center p-0 md:p-4" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)' }}>
+          <div className="modal-slide-up md:modal-enter w-full max-w-md rounded-t-2xl md:rounded-2xl overflow-hidden" style={{ background: 'var(--bg-surface)', boxShadow: 'var(--shadow-lg)', border: '1px solid var(--border-mid)' }}>
+            <div className="p-4 flex justify-between items-center" style={{ borderBottom: '1px solid var(--border-light)', background: 'var(--bg-elevated)' }}>
+              <h3 className="font-bold flex items-center gap-2 text-sm" style={{ color: 'var(--text-primary)' }}>
+                <Download size={16} style={{ color: 'var(--accent)' }} /> Export Database
               </h3>
-              <button onClick={() => setShowExportModal(false)} className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-400"><X size={16} /></button>
+              <button onClick={() => setShowExportModal(false)} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-subtle)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+              ><X size={16} /></button>
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5 tracking-wider">Pilih Data</label>
+                <label className="text-[10px] font-bold uppercase block mb-1.5 tracking-wider" style={{ color: 'var(--text-muted)' }}>Pilih Data</label>
                 <select
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full p-2.5 rounded-xl text-xs font-semibold outline-none"
+                  style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-mid)', color: 'var(--text-primary)', fontFamily: 'inherit' }}
                   onChange={e => setExportConfig({ ...exportConfig, table: e.target.value })}
                   value={exportConfig.table}
                 >
@@ -523,13 +593,17 @@ export default function Header() {
                 </select>
               </div>
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5 tracking-wider">Format</label>
+                <label className="text-[10px] font-bold uppercase block mb-1.5 tracking-wider" style={{ color: 'var(--text-muted)' }}>Format</label>
                 <div className="grid grid-cols-3 gap-2">
                   {['CSV','EXCEL','PDF'].map(f => (
                     <button
                       key={f}
                       onClick={() => setExportConfig({ ...exportConfig, format: f })}
-                      className={`p-3 rounded-xl border text-[10px] font-bold transition-all flex flex-col items-center gap-1.5 ${exportConfig.format === f ? 'bg-blue-600 border-blue-600 text-white shadow-sm' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                      className="p-3 rounded-xl text-[10px] font-bold transition-all flex flex-col items-center gap-1.5"
+                      style={exportConfig.format === f
+                        ? { background: 'linear-gradient(135deg, var(--accent-mid), var(--accent-deep))', color: 'white', border: '1px solid var(--accent-mid)', boxShadow: '0 2px 12px var(--accent-glow)' }
+                        : { background: 'var(--bg-elevated)', border: '1px solid var(--border-mid)', color: 'var(--text-secondary)' }
+                      }
                     >
                       {f === 'PDF' ? <FileText size={15} /> : f === 'EXCEL' ? <FileSpreadsheet size={15} /> : <Table size={15} />}
                       {f}
@@ -539,7 +613,7 @@ export default function Header() {
               </div>
               <button
                 onClick={handleProcessExport}
-                className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-blue-700 transition flex items-center justify-center gap-2 shadow-sm"
+                className="btn btn-primary w-full justify-center py-3 text-xs uppercase tracking-wider"
               >
                 <Download size={15} /> Eksekusi Export
               </button>
@@ -550,21 +624,25 @@ export default function Header() {
 
       {/* ── MODAL IMPORT ───────────────────────────────────── */}
       {showImportModal && (
-        <div className="modal-overlay fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 md:p-4">
-          <div className="modal-slide-up md:modal-enter bg-white w-full max-w-lg rounded-t-2xl md:rounded-2xl shadow-2xl overflow-hidden">
-            <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-              <h3 className="font-bold text-slate-800 flex items-center gap-2 text-sm">
-                <FileSpreadsheet size={16} className="text-blue-600" /> Import CSV
+        <div className="modal-overlay fixed inset-0 z-[60] flex items-end md:items-center justify-center p-0 md:p-4" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)' }}>
+          <div className="modal-slide-up md:modal-enter w-full max-w-lg rounded-t-2xl md:rounded-2xl overflow-hidden" style={{ background: 'var(--bg-surface)', boxShadow: 'var(--shadow-lg)', border: '1px solid var(--border-mid)' }}>
+            <div className="p-4 flex justify-between items-center" style={{ borderBottom: '1px solid var(--border-light)', background: 'var(--bg-elevated)' }}>
+              <h3 className="font-bold flex items-center gap-2 text-sm" style={{ color: 'var(--text-primary)' }}>
+                <FileSpreadsheet size={16} style={{ color: 'var(--accent)' }} /> Import CSV
               </h3>
-              <button onClick={() => { setShowImportModal(false); setSelectedTable(''); }} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400">
+              <button onClick={() => { setShowImportModal(false); setSelectedTable(''); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-subtle)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+              >
                 <X size={16} />
               </button>
             </div>
-            <div className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
+            <div className="p-5 space-y-4 max-h-[80vh] overflow-y-auto custom-scrollbar">
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5 tracking-wider">Tabel Tujuan</label>
+                <label className="text-[10px] font-bold uppercase block mb-1.5 tracking-wider" style={{ color: 'var(--text-muted)' }}>Tabel Tujuan</label>
                 <select
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full p-2.5 rounded-xl text-xs font-semibold outline-none"
+                  style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-mid)', color: 'var(--text-primary)', fontFamily: 'inherit' }}
                   onChange={e => setSelectedTable(e.target.value)}
                   value={selectedTable}
                 >
@@ -575,22 +653,29 @@ export default function Header() {
 
               {selectedTable && (
                 <div className="space-y-3">
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5">
-                    <div className="flex items-center gap-2 text-amber-700 mb-2">
+                  <div className="rounded-xl p-3.5" style={{ background: 'var(--warning-bg)', border: '1px solid rgba(251,191,36,0.25)' }}>
+                    <div className="flex items-center gap-2 mb-2" style={{ color: 'var(--warning)' }}>
                       <Info size={12} />
                       <span className="text-[10px] font-bold uppercase tracking-wider">Header CSV yang dibutuhkan</span>
                     </div>
                     <div className="flex flex-wrap gap-1">
                       {TABLE_GUIDE[selectedTable].map(h => (
-                        <span key={h} className="px-2 py-0.5 bg-white text-slate-600 rounded border border-amber-200 font-mono text-[9px]">{h}</span>
+                        <span key={h} className="px-2 py-0.5 rounded font-mono text-[9px]"
+                          style={{ background: 'var(--bg-surface)', color: 'var(--text-secondary)', border: '1px solid var(--border-mid)' }}
+                        >{h}</span>
                       ))}
                     </div>
                   </div>
 
-                  <label className="w-full flex flex-col items-center justify-center py-8 border-2 border-dashed border-blue-200 bg-blue-50/30 rounded-xl hover:bg-blue-50 cursor-pointer transition-all">
-                    <Upload size={24} className="text-blue-400 mb-2" />
-                    <span className="text-xs font-semibold text-slate-600">Klik untuk pilih file CSV</span>
-                    <span className="text-[10px] text-slate-400 mt-0.5">Format: .csv</span>
+                  <label
+                    className="w-full flex flex-col items-center justify-center py-8 rounded-xl cursor-pointer transition-all"
+                    style={{ border: '2px dashed var(--accent-border)', background: 'var(--accent-bg)' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(99,102,241,0.15)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'var(--accent-bg)')}
+                  >
+                    <Upload size={24} className="mb-2" style={{ color: 'var(--accent)' }} />
+                    <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>Klik untuk pilih file CSV</span>
+                    <span className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Format: .csv</span>
                     <input type="file" accept=".csv" className="hidden" onChange={e => e.target.files?.[0] && processImport(e.target.files[0])} />
                   </label>
                 </div>

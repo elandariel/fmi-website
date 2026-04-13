@@ -1,11 +1,9 @@
 // components/PageWrapper.tsx
 // Wrapper konsisten untuk semua halaman — padding & max-width seragam
-// Cara pakai: bungkus konten halaman dengan <PageWrapper>...</PageWrapper>
 
 interface PageWrapperProps {
   children: React.ReactNode;
   className?: string;
-  // Untuk halaman yang butuh full width (tanpa max-width), set maxWidth={false}
   maxWidth?: boolean;
 }
 
@@ -21,7 +19,7 @@ export default function PageWrapper({
         ${maxWidth ? 'max-w-[1600px] mx-auto' : ''}
         ${className}
       `}
-      style={{ background: 'var(--bg-base)', fontFamily: "'IBM Plex Sans', sans-serif" }}
+      style={{ background: 'var(--bg-base)', fontFamily: "'Inter', sans-serif" }}
     >
       {children}
     </div>
