@@ -86,6 +86,7 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  scroll-behavior: smooth;
 }
 
 body {
@@ -387,3 +388,120 @@ body {
 .fade-up-delay-2 { animation-delay: 0.10s; }
 .fade-up-delay-3 { animation-delay: 0.15s; }
 .fade-up-delay-4 { animation-delay: 0.20s; }
+
+/* ============================================
+   MODAL ANIMATIONS
+   ============================================ */
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.97) translateY(6px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.modal-overlay { animation: overlayIn 0.2s ease forwards; }
+.modal-enter   { animation: modalIn  0.22s cubic-bezier(0.16,1,0.3,1) forwards; }
+.modal-slide-up { animation: slideUp 0.25s cubic-bezier(0.16,1,0.3,1) forwards; }
+
+/* ============================================
+   BUTTON STATES
+   ============================================ */
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.btn:active {
+  transform: translateY(0) !important;
+}
+
+/* ============================================
+   FOCUS VISIBLE
+   ============================================ */
+.focus-ring:focus-visible {
+  outline: 2px solid var(--blue-500);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Remove default focus ring, use custom */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--blue-500);
+  outline-offset: 2px;
+}
+
+/* ============================================
+   BADGE EXTENSIONS
+   ============================================ */
+.badge-purple { background: #f5f3ff; color: #6d28d9; }
+.badge-cyan   { background: #ecfeff; color: #0e7490; }
+.badge-orange { background: #fff7ed; color: #c2410c; }
+
+/* ============================================
+   TOOLTIP
+   ============================================ */
+.tooltip {
+  position: relative;
+}
+.tooltip::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--slate-800);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 99;
+}
+.tooltip:hover::after {
+  opacity: 1;
+}
+
+/* ============================================
+   EMPTY STATE
+   ============================================ */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.empty-state svg {
+  margin-bottom: 12px;
+  opacity: 0.35;
+}
+
+/* ============================================
+   TABLE ROW CLICK FEEDBACK
+   ============================================ */
+tbody tr.clickable {
+  cursor: pointer;
+}
+tbody tr.clickable:active {
+  background: var(--blue-50);
+}

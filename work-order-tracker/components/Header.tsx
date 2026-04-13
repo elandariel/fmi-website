@@ -342,7 +342,7 @@ export default function Header() {
       <div className="flex items-center gap-3 px-4 md:px-5 h-[60px]">
 
         {/* ── KIRI: SEARCH ───────────────────────────────── */}
-        <div className="flex-1 max-w-xl" ref={searchRef}>
+        <div className="flex-1 max-w-xl pl-10 md:pl-0" ref={searchRef}>
           <div className="relative">
             {/* Search icon / loading */}
             <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
@@ -379,9 +379,7 @@ export default function Header() {
 
           {/* ── HASIL SEARCH ──────────────────────────────── */}
           {showResults && (
-            <div className="absolute left-0 mt-1.5 w-full max-w-xl bg-white border border-slate-200 shadow-xl rounded-xl overflow-hidden z-50"
-              style={{ top: '60px' }}
-            >
+            <div className="modal-enter absolute left-0 top-full mt-1.5 w-full max-w-xl bg-white border border-slate-200 shadow-xl rounded-xl overflow-hidden z-50">
               {searchResults.length === 0 && !isSearching ? (
                 <div className="px-4 py-8 text-center">
                   <Search size={20} className="mx-auto text-slate-300 mb-2" />
@@ -504,9 +502,9 @@ export default function Header() {
 
       {/* ── MODAL EXPORT ───────────────────────────────────── */}
       {showExportModal && (
-        <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 md:p-4">
-          <div className="bg-white w-full max-w-md rounded-t-2xl md:rounded-2xl shadow-2xl overflow-hidden">
-            <div className="p-4 border-b border-slate-100 bg-blue-50 flex justify-between items-center">
+        <div className="modal-overlay fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 md:p-4">
+          <div className="modal-slide-up md:modal-enter bg-white w-full max-w-md rounded-t-2xl md:rounded-2xl shadow-2xl overflow-hidden">
+            <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
               <h3 className="font-bold text-slate-800 flex items-center gap-2 text-sm">
                 <Download size={16} className="text-blue-600" /> Export Database
               </h3>
@@ -552,8 +550,8 @@ export default function Header() {
 
       {/* ── MODAL IMPORT ───────────────────────────────────── */}
       {showImportModal && (
-        <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 md:p-4">
-          <div className="bg-white w-full max-w-lg rounded-t-2xl md:rounded-2xl shadow-2xl overflow-hidden">
+        <div className="modal-overlay fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 md:p-4">
+          <div className="modal-slide-up md:modal-enter bg-white w-full max-w-lg rounded-t-2xl md:rounded-2xl shadow-2xl overflow-hidden">
             <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
               <h3 className="font-bold text-slate-800 flex items-center gap-2 text-sm">
                 <FileSpreadsheet size={16} className="text-blue-600" /> Import CSV

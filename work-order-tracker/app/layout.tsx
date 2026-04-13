@@ -199,7 +199,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
               {/* Logo */}
               <div className={`
-                flex items-center border-b border-[#1e2a3a] h-[64px] shrink-0 px-4
+                flex items-center border-b border-[#1e2a3a] h-[60px] shrink-0 px-4
                 ${collapsed ? 'justify-center' : 'justify-between'}
               `}>
                 <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity min-w-0">

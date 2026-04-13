@@ -21,7 +21,7 @@ export default function PageWrapper({
         ${maxWidth ? 'max-w-[1600px] mx-auto' : ''}
         ${className}
       `}
-      style={{ background: '#f0f2f5', fontFamily: "'IBM Plex Sans', sans-serif" }}
+      style={{ background: 'var(--bg-base)', fontFamily: "'IBM Plex Sans', sans-serif" }}
     >
       {children}
     </div>
