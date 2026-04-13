@@ -29,12 +29,17 @@ const TEAM_CONFIG = {
 // ─── REALTIME STATUS INDICATOR ───────────────────────────────
 function LivePill({ connected }: { connected: boolean }) {
   return (
-    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase border transition-all duration-500 ${
-      connected
-        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-        : 'bg-slate-100 text-slate-400 border-slate-200'
-    }`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+    <div
+      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase transition-all duration-500"
+      style={connected
+        ? { background: 'rgba(16,185,129,0.12)', color: '#10b981', border: '1px solid rgba(16,185,129,0.3)' }
+        : { background: 'rgba(255,255,255,0.05)', color: '#4a5568', border: '1px solid rgba(255,255,255,0.08)' }
+      }
+    >
+      <span className="relative flex w-1.5 h-1.5">
+        {connected && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />}
+        <span className={`relative rounded-full w-1.5 h-1.5 ${connected ? 'bg-emerald-400' : 'bg-slate-500'}`} />
+      </span>
       {connected ? 'Live' : 'Connecting'}
     </div>
   );
@@ -310,31 +315,39 @@ export default function Dashboard() {
     : 0;
 
   return (
-    <div className="min-h-screen" style={{ background: '#f0f2f5', fontFamily: "'IBM Plex Sans', sans-serif" }}>
+    <div className="min-h-screen bg-grid" style={{ background: 'var(--bg-base)', fontFamily: "'Inter', sans-serif" }}>
       <style>{`
         @keyframes countUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
         .new-log-entry { animation: fadeSlideIn 0.35s ease-out; }
-        .stat-card { transition: transform 0.2s, box-shadow 0.2s; }
-        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
       `}</style>
 
       <div className="p-5 md:p-7 max-w-[1600px] mx-auto">
 
         {/* ── TOP BAR ────────────────────────────────────────── */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-7 gap-4">
           <div>
-            <div className="flex items-center gap-3 mb-1">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                <Clock size={11} />
+            <div className="flex items-center gap-3 mb-2">
+              <div
+                className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest px-3 py-1 rounded-full"
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-muted)' }}
+              >
+                <Clock size={10} />
                 {format(new Date(), 'EEEE, dd MMMM yyyy', { locale: indonesia })}
-              </p>
+              </div>
               <LivePill connected={isLive} />
             </div>
-            <h1 className="text-[22px] font-bold text-slate-900 tracking-tight">
+            <h1
+              className="text-[26px] font-black tracking-tight leading-tight"
+              style={{
+                background: 'linear-gradient(135deg, var(--text-primary) 40%, #10b981 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}
+            >
               {userFullName ? `${getGreeting()}, ${userFullName.split(' ')[0]}` : 'NOC Dashboard'}
             </h1>
-            <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1.5">
+            <p className="text-xs mt-1 flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
               <Signal size={10} />
               Update terakhir: {formatDistanceToNow(lastUpdated, { addSuffix: true, locale: indonesia })}
             </p>
@@ -345,25 +358,38 @@ export default function Dashboard() {
               <button
                 onClick={handleSyncSheet}
                 disabled={isSyncing}
-                className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg font-semibold text-xs shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-all disabled:opacity-50"
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold text-xs transition-all disabled:opacity-50"
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-secondary)' }}
               >
-                {isSyncing ? <RefreshCw size={13} className="animate-spin text-blue-500" /> : <Database size={13} className="text-emerald-500" />}
+                {isSyncing ? <RefreshCw size={13} className="animate-spin" style={{ color: '#10b981' }} /> : <Database size={13} style={{ color: '#10b981' }} />}
                 {isSyncing ? 'Syncing...' : 'Sync Sheet'}
               </button>
             )}
             {hasAccess(userRole, PERMISSIONS.OVERVIEW_ACTION) && (
-              <button disabled className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 text-slate-400 rounded-lg font-semibold text-xs opacity-50 cursor-not-allowed">
+              <button disabled className="flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold text-xs opacity-40 cursor-not-allowed"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', color: 'var(--text-muted)' }}>
                 <Archive size={13} /> Archive
               </button>
             )}
             {hasAccess(userRole, PERMISSIONS.CLIENT_ADD) && (
               <Link href="/work-orders/create">
-                <button className="flex items-center gap-2 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-xs shadow-sm transition-colors">
+                <button
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs text-white transition-all"
+                  style={{
+                    background: 'linear-gradient(135deg, #10b981, #059669)',
+                    boxShadow: '0 4px 20px rgba(16,185,129,0.35)',
+                  }}
+                >
                   <Plus size={13} /> Buat WO Baru
                 </button>
               </Link>
             )}
-            <button onClick={fetchDashboardData} className="p-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-500 shadow-sm transition-colors" title="Refresh data">
+            <button
+              onClick={fetchDashboardData}
+              className="p-2 rounded-xl transition-all"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)', color: 'var(--text-muted)' }}
+              title="Refresh data"
+            >
               <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
             </button>
           </div>
@@ -371,35 +397,35 @@ export default function Dashboard() {
 
         {/* ── APPROVAL BANNER ────────────────────────────────── */}
         {hasAccess(userRole, PERMISSIONS.OVERVIEW_ACTION) && pendingApprovals.length > 0 && (
-          <div className="mb-5 bg-white rounded-xl border border-rose-200 overflow-hidden shadow-sm">
-            <div className="px-5 py-3 border-b border-rose-100 flex items-center justify-between bg-rose-50">
+          <div className="mb-5 rounded-2xl overflow-hidden" style={{ background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.2)', backdropFilter: 'blur(16px)' }}>
+            <div className="px-5 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(248,113,113,0.15)', background: 'rgba(248,113,113,0.05)' }}>
               <div className="flex items-center gap-3">
-                <div className="p-1.5 bg-rose-100 rounded-lg text-rose-600"><ShieldAlert size={15} /></div>
+                <div className="p-1.5 rounded-lg" style={{ background: 'rgba(248,113,113,0.15)', color: '#f87171' }}><ShieldAlert size={15} /></div>
                 <div>
-                  <h3 className="text-sm font-bold text-rose-800">Pending Discard Approvals</h3>
-                  <p className="text-[11px] text-rose-500">Verifikasi pengabaian sinkronisasi data</p>
+                  <h3 className="text-sm font-bold" style={{ color: '#fca5a5' }}>Pending Discard Approvals</h3>
+                  <p className="text-[11px]" style={{ color: 'rgba(248,113,113,0.7)' }}>Verifikasi pengabaian sinkronisasi data</p>
                 </div>
               </div>
-              <span className="text-[10px] font-bold bg-rose-100 text-rose-700 px-2.5 py-1 rounded-full border border-rose-200">
+              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full" style={{ background: 'rgba(248,113,113,0.15)', color: '#f87171', border: '1px solid rgba(248,113,113,0.25)' }}>
                 {pendingApprovals.length} requests
               </span>
             </div>
             <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {pendingApprovals.map((item) => (
-                <div key={item.id} className="bg-slate-50 rounded-lg p-3.5 border border-slate-200 flex flex-col gap-3">
+                <div key={item.id} className="rounded-xl p-3.5 flex flex-col gap-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
                   <div className="flex justify-between items-start">
-                    <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 uppercase">{item.REQUESTED_BY || 'NOC'}</span>
-                    <span className="text-[10px] text-slate-400 font-mono">{item.created_at ? format(new Date(item.created_at), 'dd/MM HH:mm') : ''}</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase" style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981', border: '1px solid rgba(16,185,129,0.2)' }}>{item.REQUESTED_BY || 'NOC'}</span>
+                    <span className="text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>{item.created_at ? format(new Date(item.created_at), 'dd/MM HH:mm') : ''}</span>
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold text-slate-800 uppercase leading-tight mb-1 line-clamp-2">{item.SUBJECT_IGNORED}</h4>
-                    <p className="text-[11px] text-slate-500 italic">"{item.ALASAN}"</p>
+                    <h4 className="text-xs font-bold uppercase leading-tight mb-1 line-clamp-2" style={{ color: 'var(--text-primary)' }}>{item.SUBJECT_IGNORED}</h4>
+                    <p className="text-[11px] italic" style={{ color: 'var(--text-muted)' }}>"{item.ALASAN}"</p>
                   </div>
                   <div className="grid grid-cols-2 gap-2 mt-auto">
-                    <button onClick={() => handleApprovalAction(item.id, 'APPROVE')} className="flex items-center justify-center gap-1.5 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-md text-xs font-bold transition-colors">
+                    <button onClick={() => handleApprovalAction(item.id, 'APPROVE')} className="flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all text-white" style={{ background: 'linear-gradient(135deg, #10b981, #059669)', boxShadow: '0 2px 8px rgba(16,185,129,0.3)' }}>
                       <Check size={12} /> Approve
                     </button>
-                    <button onClick={() => handleApprovalAction(item.id, 'REJECT')} className="flex items-center justify-center gap-1.5 py-1.5 bg-white border border-rose-200 text-rose-500 hover:bg-rose-50 rounded-md text-xs font-bold transition-colors">
+                    <button onClick={() => handleApprovalAction(item.id, 'REJECT')} className="flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all" style={{ background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.25)', color: '#f87171' }}>
                       <X size={12} /> Reject
                     </button>
                   </div>
@@ -418,8 +444,7 @@ export default function Dashboard() {
             value={<AnimatedNumber value={realtimeStats.totalClient} />}
             sub="Database aktif"
             icon={<Users size={18} />}
-            accent="#1a5fad"
-            accentBg="#e8f0fb"
+            accentColor="#38bdf8"
             trend={realtimeClients.length > stats.totalClient ? `+${realtimeClients.length - stats.totalClient} baru` : null}
           />
           <StatCard
@@ -427,8 +452,7 @@ export default function Dashboard() {
             value={<AnimatedNumber value={realtimeStats.woPending} />}
             sub="Pending & Progress"
             icon={<Activity size={18} />}
-            accent="#7c3aed"
-            accentBg="#f3f0ff"
+            accentColor="#a78bfa"
             trend={null}
           />
           <StatCard
@@ -436,8 +460,7 @@ export default function Dashboard() {
             value={<AnimatedNumber value={realtimeStats.growthMonth} prefix="+" />}
             sub="Pelanggan baru"
             icon={<TrendingUp size={18} />}
-            accent="#059669"
-            accentBg="#ecfdf5"
+            accentColor="#10b981"
             trend={null}
           />
           <StatCard
@@ -445,32 +468,31 @@ export default function Dashboard() {
             value={<AnimatedNumber value={realtimeStats.totalVlanFree} />}
             sub={`${vlanUsagePercent}% slot terpakai`}
             icon={<Database size={18} />}
-            accent="#d97706"
-            accentBg="#fffbeb"
+            accentColor="#fbbf24"
             trend={null}
             progress={vlanUsagePercent}
           />
         </div>
 
-        {/* ── ROW 2: LOG HARI INI ─────────────────────────────── */}
-        <div className="grid grid-cols-3 lg:grid-cols-3 gap-4 mb-5">
+        {/* ── ROW 2: MINI STATS ───────────────────────────────── */}
+        <div className="grid grid-cols-3 gap-4 mb-5">
           <MiniStatCard
             label="Log Hari Ini"
             value={<AnimatedNumber value={realtimeStats.logsToday} />}
-            icon={<Zap size={14} className="text-amber-500" />}
-            color="amber"
+            icon={<Zap size={14} />}
+            color="#fbbf24"
           />
           <MiniStatCard
             label="Berlangganan 2026"
             value={<AnimatedNumber value={chartSummary.pasang} />}
-            icon={<ArrowUpRight size={14} className="text-emerald-500" />}
-            color="emerald"
+            icon={<ArrowUpRight size={14} />}
+            color="#10b981"
           />
           <MiniStatCard
             label="Putus 2026"
             value={<AnimatedNumber value={chartSummary.putus} />}
-            icon={<ArrowDownRight size={14} className="text-rose-500" />}
-            color="rose"
+            icon={<ArrowDownRight size={14} />}
+            color="#f87171"
           />
         </div>
 
@@ -478,40 +500,60 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
           {/* ── CHART ──────────────────────────────────────────── */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm lg:col-span-2 flex flex-col overflow-hidden">
+          <div className="glass lg:col-span-2 flex flex-col overflow-hidden">
             <div className="px-5 pt-5 pb-0">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
                 <div>
-                  <h3 className="font-bold text-slate-800 flex items-center gap-2 text-[14px]">
+                  <h3 className="font-bold flex items-center gap-2 text-[14px]" style={{ color: 'var(--text-primary)' }}>
                     {chartTab === 'CLIENT'
-                      ? <><Users size={15} className="text-emerald-600" /> Pertumbuhan Pelanggan</>
-                      : <><BarChart3 size={15} className="text-blue-600" /> Pertumbuhan Kapasitas</>
+                      ? <><Users size={15} style={{ color: '#10b981' }} /> Pertumbuhan Pelanggan</>
+                      : <><BarChart3 size={15} style={{ color: '#38bdf8' }} /> Pertumbuhan Kapasitas</>
                     }
                   </h3>
-                  <p className="text-[10px] text-slate-400 mt-0.5 uppercase tracking-wider font-semibold">Statistik 2026</p>
+                  <p className="text-[10px] mt-0.5 uppercase tracking-wider font-semibold" style={{ color: 'var(--text-muted)' }}>Statistik 2026</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="flex bg-slate-100 p-0.5 rounded-lg">
-                    <button onClick={() => setChartTab('CLIENT')} className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${chartTab === 'CLIENT' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}>Pelanggan</button>
-                    <button onClick={() => setChartTab('CAPACITY')} className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${chartTab === 'CAPACITY' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}>Kapasitas</button>
-                  </div>
+                <div className="flex p-0.5 rounded-xl" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <button
+                    onClick={() => setChartTab('CLIENT')}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                    style={chartTab === 'CLIENT'
+                      ? { background: 'rgba(16,185,129,0.15)', color: '#10b981', border: '1px solid rgba(16,185,129,0.25)' }
+                      : { color: 'var(--text-muted)' }
+                    }
+                  >Pelanggan</button>
+                  <button
+                    onClick={() => setChartTab('CAPACITY')}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                    style={chartTab === 'CAPACITY'
+                      ? { background: 'rgba(56,189,248,0.15)', color: '#38bdf8', border: '1px solid rgba(56,189,248,0.25)' }
+                      : { color: 'var(--text-muted)' }
+                    }
+                  >Kapasitas</button>
                 </div>
               </div>
               <ReactApexChart
                 options={{
-                  chart: { toolbar: { show: false }, fontFamily: "'IBM Plex Sans', sans-serif", background: 'transparent', animations: { enabled: true, easing: 'easeinout', speed: 600 } },
-                  colors: chartTab === 'CLIENT' ? ['#10b981', '#ef4444', '#f59e0b'] : ['#2d7dd2', '#94a3b8'],
+                  chart: { toolbar: { show: false }, fontFamily: "'Inter', sans-serif", background: 'transparent', animations: { enabled: true, easing: 'easeinout', speed: 700 } },
+                  colors: chartTab === 'CLIENT' ? ['#10b981', '#f87171', '#fbbf24'] : ['#38bdf8', '#6b7280'],
                   xaxis: {
                     categories: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'],
-                    labels: { style: { fontSize: '11px', fontWeight: 500, colors: '#94a3b8' } }
+                    labels: { style: { fontSize: '11px', fontWeight: 500, colors: '#4a5568' } },
+                    axisBorder: { color: 'rgba(255,255,255,0.06)' },
+                    axisTicks: { color: 'rgba(255,255,255,0.06)' },
                   },
-                  yaxis: { labels: { style: { fontSize: '11px', colors: '#94a3b8' } } },
-                  grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
-                  plotOptions: { bar: { borderRadius: 4, columnWidth: '52%' } },
-                  legend: { fontSize: '12px', fontWeight: 600, offsetY: 4 },
+                  yaxis: { labels: { style: { fontSize: '11px', colors: '#4a5568' } } },
+                  grid: { borderColor: 'rgba(255,255,255,0.05)', strokeDashArray: 4 },
+                  plotOptions: { bar: { borderRadius: 6, columnWidth: '50%', borderRadiusApplication: 'end' } },
+                  legend: { fontSize: '12px', fontWeight: 600, offsetY: 4, labels: { colors: '#8892a4' } },
                   dataLabels: { enabled: false },
-                  tooltip: { style: { fontFamily: "'IBM Plex Sans', sans-serif" } },
-                  states: { hover: { filter: { type: 'lighten', value: 0.1 } } }
+                  tooltip: {
+                    style: { fontFamily: "'Inter', sans-serif" },
+                    theme: 'dark',
+                  },
+                  fill: {
+                    type: 'gradient',
+                    gradient: { shade: 'dark', type: 'vertical', shadeIntensity: 0.3, opacityFrom: 1, opacityTo: 0.75 }
+                  },
                 }}
                 series={chartTab === 'CLIENT' ? chartData.client : chartData.capacity}
                 type="bar"
@@ -520,18 +562,18 @@ export default function Dashboard() {
             </div>
 
             {/* Chart Footer Summary */}
-            <div className="mt-auto bg-slate-50 border-t border-slate-100 px-5 py-3.5">
+            <div className="mt-auto px-5 py-3.5" style={{ borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.15)' }}>
               <div className="grid grid-cols-5 gap-2">
                 {[
                   { label: 'Pasang', val: chartSummary.pasang, color: '#10b981' },
-                  { label: 'Putus', val: chartSummary.putus, color: '#ef4444' },
-                  { label: 'Berhenti Smtr', val: chartSummary.BerhentiSementara, color: '#f59e0b' },
-                  { label: 'Upgrade', val: chartSummary.upgrade, color: '#2d7dd2' },
-                  { label: 'Downgrade', val: chartSummary.downgrade, color: '#94a3b8' },
+                  { label: 'Putus', val: chartSummary.putus, color: '#f87171' },
+                  { label: 'Berhenti Smtr', val: chartSummary.BerhentiSementara, color: '#fbbf24' },
+                  { label: 'Upgrade', val: chartSummary.upgrade, color: '#38bdf8' },
+                  { label: 'Downgrade', val: chartSummary.downgrade, color: '#6b7280' },
                 ].map((item) => (
                   <div key={item.label} className="text-center">
-                    <p className="text-[9px] text-slate-400 uppercase font-bold tracking-wider mb-1">{item.label}</p>
-                    <p className="text-base font-bold" style={{ color: item.color }}>{item.val}</p>
+                    <p className="text-[9px] uppercase font-bold tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>{item.label}</p>
+                    <p className="text-base font-black" style={{ color: item.color, textShadow: `0 0 12px ${item.color}60` }}>{item.val}</p>
                   </div>
                 ))}
               </div>
@@ -542,25 +584,25 @@ export default function Dashboard() {
           <div className="flex flex-col gap-4">
 
             {/* Jadwal Tim */}
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-              <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2 text-[13px]">
-                <div className="p-1.5 bg-blue-50 rounded-md text-blue-600"><Calendar size={13} /></div>
+            <div className="glass p-4">
+              <h3 className="font-bold mb-3 flex items-center gap-2 text-[13px]" style={{ color: 'var(--text-primary)' }}>
+                <div className="p-1.5 rounded-lg" style={{ background: 'rgba(56,189,248,0.12)', color: '#38bdf8' }}><Calendar size={13} /></div>
                 Jadwal Tim
               </h3>
               <div className="space-y-2.5">
-                <div className="bg-amber-50 p-3 rounded-lg border border-amber-100">
-                  <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider mb-2">Pagi · 08.00–16.00</p>
+                <div className="p-3 rounded-xl" style={{ background: 'rgba(251,191,36,0.07)', border: '1px solid rgba(251,191,36,0.18)' }}>
+                  <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: '#fbbf24' }}>Pagi · 08.00–16.00</p>
                   <div className="flex gap-2">
                     {morningSquad.map((name, i) => (
-                      <span key={i} className="flex-1 text-center text-xs font-semibold py-1.5 bg-white text-slate-700 rounded-md border border-amber-200">{name}</span>
+                      <span key={i} className="flex-1 text-center text-xs font-semibold py-1.5 rounded-lg" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-primary)', border: '1px solid rgba(251,191,36,0.2)' }}>{name}</span>
                     ))}
                   </div>
                 </div>
-                <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-100">
-                  <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider mb-2">Siang · 14.00–22.00</p>
+                <div className="p-3 rounded-xl" style={{ background: 'rgba(56,189,248,0.07)', border: '1px solid rgba(56,189,248,0.18)' }}>
+                  <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: '#38bdf8' }}>Siang · 14.00–22.00</p>
                   <div className="flex gap-2">
                     {afternoonSquad.map((name, i) => (
-                      <span key={i} className="flex-1 text-center text-xs font-semibold py-1.5 bg-white text-slate-700 rounded-md border border-indigo-200">{name}</span>
+                      <span key={i} className="flex-1 text-center text-xs font-semibold py-1.5 rounded-lg" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-primary)', border: '1px solid rgba(56,189,248,0.2)' }}>{name}</span>
                     ))}
                   </div>
                 </div>
@@ -568,30 +610,42 @@ export default function Dashboard() {
             </div>
 
             {/* Aktivitas Terkini — Realtime */}
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col flex-1 overflow-hidden">
-              <div className="px-4 py-3 border-b border-slate-100 flex justify-between items-center">
-                <h3 className="font-bold text-slate-800 text-[13px]">Aktivitas Terkini</h3>
+            <div className="glass flex flex-col flex-1 overflow-hidden">
+              <div className="px-4 py-3 flex justify-between items-center" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <h3 className="font-bold text-[13px]" style={{ color: 'var(--text-primary)' }}>Aktivitas Terkini</h3>
                 <div className="flex items-center gap-2">
                   <LivePill connected={isLive} />
-                  <Link href="/logs" className="p-1.5 hover:bg-slate-100 rounded-md transition-colors text-slate-400 hover:text-blue-600">
+                  <Link href="/logs" className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#10b981'; (e.currentTarget as HTMLElement).style.background = 'rgba(16,185,129,0.1)'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                  >
                     <List size={14} />
                   </Link>
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto divide-y divide-slate-50" style={{ maxHeight: '280px' }}>
+              <div className="flex-1 overflow-y-auto custom-scrollbar" style={{ maxHeight: '280px' }}>
                 {recentLogs.length === 0 ? (
-                  <p className="p-5 text-center text-xs text-slate-400 italic">Belum ada aktivitas</p>
+                  <p className="p-5 text-center text-xs italic" style={{ color: 'var(--text-muted)' }}>Belum ada aktivitas</p>
                 ) : recentLogs.map((log, idx) => (
-                  <div key={log.id} className={`px-4 py-2.5 hover:bg-slate-50 flex gap-3 transition-colors ${idx === 0 ? 'new-log-entry' : ''}`}>
-                    <div className="w-6 h-6 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-[9px] font-bold text-blue-600 shrink-0 uppercase mt-0.5">
+                  <div
+                    key={log.id}
+                    className={`px-4 py-2.5 flex gap-3 transition-colors ${idx === 0 ? 'new-log-entry' : ''}`}
+                    style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}
+                    onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.03)')}
+                    onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = 'transparent')}
+                  >
+                    <div
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 uppercase mt-0.5"
+                      style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.2)', color: '#10b981' }}
+                    >
                       {log.actor?.substring(0, 2) || 'SY'}
                     </div>
                     <div className="overflow-hidden min-w-0 flex-1">
                       <div className="flex justify-between items-start gap-1">
-                        <p className="text-[11px] font-semibold text-slate-700 truncate">{log.actor}</p>
-                        <p className="text-[9px] text-slate-400 shrink-0">{log.created_at ? format(new Date(log.created_at), 'HH:mm') : '-'}</p>
+                        <p className="text-[11px] font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{log.actor}</p>
+                        <p className="text-[9px] shrink-0 font-mono" style={{ color: 'var(--text-muted)' }}>{log.created_at ? format(new Date(log.created_at), 'HH:mm') : '-'}</p>
                       </div>
-                      <p className="text-[11px] text-slate-500 truncate mt-0.5">{log.SUBJECT}</p>
+                      <p className="text-[11px] truncate mt-0.5" style={{ color: 'var(--text-secondary)' }}>{log.SUBJECT}</p>
                     </div>
                   </div>
                 ))}
@@ -601,35 +655,46 @@ export default function Dashboard() {
         </div>
 
         {/* ── VLAN USAGE BAR ─────────────────────────────────── */}
-        <div className="mt-5 bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-          <div className="flex justify-between items-center mb-3">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 bg-amber-50 rounded-md text-amber-600"><Database size={13} /></div>
+        <div className="mt-5 glass p-5">
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl" style={{ background: 'rgba(251,191,36,0.1)', color: '#fbbf24' }}><Database size={15} /></div>
               <div>
-                <h3 className="font-bold text-slate-800 text-[13px]">VLAN Usage</h3>
-                <p className="text-[10px] text-slate-400">Kapasitas slot jaringan keseluruhan</p>
+                <h3 className="font-bold text-[13px]" style={{ color: 'var(--text-primary)' }}>VLAN Network Capacity</h3>
+                <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Kapasitas slot jaringan keseluruhan</p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-lg font-bold text-slate-800">{vlanUsagePercent}%</p>
-              <p className="text-[10px] text-slate-400">{realtimeStats.totalVlanUsed} / {realtimeStats.totalVlanFree + realtimeStats.totalVlanUsed} terpakai</p>
+              <p
+                className="text-2xl font-black"
+                style={{
+                  color: vlanUsagePercent > 85 ? '#f87171' : vlanUsagePercent > 60 ? '#fbbf24' : '#10b981',
+                  textShadow: `0 0 20px ${vlanUsagePercent > 85 ? 'rgba(248,113,113,0.4)' : vlanUsagePercent > 60 ? 'rgba(251,191,36,0.4)' : 'rgba(16,185,129,0.4)'}`,
+                }}
+              >{vlanUsagePercent}%</p>
+              <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{realtimeStats.totalVlanUsed} / {realtimeStats.totalVlanFree + realtimeStats.totalVlanUsed} terpakai</p>
             </div>
           </div>
-          <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+          <div className="w-full rounded-full h-3 overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
             <div
-              className="h-full rounded-full transition-all duration-700"
+              className="h-full rounded-full transition-all duration-1000"
               style={{
                 width: `${vlanUsagePercent}%`,
-                background: vlanUsagePercent > 85 ? '#ef4444' : vlanUsagePercent > 60 ? '#f59e0b' : '#10b981'
+                background: vlanUsagePercent > 85
+                  ? 'linear-gradient(90deg, #ef4444, #f87171)'
+                  : vlanUsagePercent > 60
+                  ? 'linear-gradient(90deg, #d97706, #fbbf24)'
+                  : 'linear-gradient(90deg, #059669, #10b981, #34d399)',
+                boxShadow: vlanUsagePercent > 85 ? '0 0 12px rgba(248,113,113,0.5)' : vlanUsagePercent > 60 ? '0 0 12px rgba(251,191,36,0.4)' : '0 0 12px rgba(16,185,129,0.4)',
               }}
             />
           </div>
           <div className="flex justify-between mt-2">
-            <span className="text-[10px] text-slate-400">0%</span>
-            <span className="text-[10px] font-medium" style={{ color: vlanUsagePercent > 85 ? '#ef4444' : vlanUsagePercent > 60 ? '#f59e0b' : '#10b981' }}>
-              {vlanUsagePercent > 85 ? 'Kapasitas kritis!' : vlanUsagePercent > 60 ? 'Perlu perhatian' : 'Normal'}
+            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>0%</span>
+            <span className="text-[10px] font-bold" style={{ color: vlanUsagePercent > 85 ? '#f87171' : vlanUsagePercent > 60 ? '#fbbf24' : '#10b981' }}>
+              {vlanUsagePercent > 85 ? '⚠ Kapasitas kritis!' : vlanUsagePercent > 60 ? 'Perlu perhatian' : '✓ Normal'}
             </span>
-            <span className="text-[10px] text-slate-400">100%</span>
+            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>100%</span>
           </div>
         </div>
 
@@ -734,26 +799,48 @@ export default function Dashboard() {
 }
 
 // ── STAT CARD ────────────────────────────────────────────────
-function StatCard({ title, value, sub, icon, accent, accentBg, trend, progress }: any) {
+function StatCard({ title, value, sub, icon, accentColor, trend, progress }: any) {
+  const color = accentColor || '#10b981';
   return (
-    <div className="stat-card bg-white rounded-xl border border-slate-200 shadow-sm p-4 relative overflow-hidden">
-      <div className="absolute top-0 left-0 w-full h-0.5" style={{ background: accent, opacity: 0.3 }} />
-      <div className="flex justify-between items-start mb-3">
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: accentBg, color: accent }}>
+    <div className="glass stat-card p-4 relative overflow-hidden group" style={{ borderRadius: 20 }}>
+      {/* Top glow line */}
+      <div className="absolute top-0 left-0 w-full h-[2px] rounded-t-[20px]"
+        style={{ background: `linear-gradient(90deg, transparent, ${color}, transparent)`, opacity: 0.7 }} />
+      {/* Ambient corner glow */}
+      <div className="absolute -top-8 -right-8 w-24 h-24 rounded-full pointer-events-none"
+        style={{ background: `radial-gradient(circle, ${color}22 0%, transparent 70%)` }} />
+
+      <div className="flex justify-between items-start mb-3 relative z-10">
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+          style={{ background: `${color}1a`, border: `1px solid ${color}33`, color }}>
           {icon}
         </div>
         {trend && (
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center gap-0.5">
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-0.5"
+            style={{ background: 'rgba(16,185,129,0.12)', color: '#34d399', border: '1px solid rgba(16,185,129,0.2)' }}>
             <ArrowUpRight size={10} />{trend}
           </span>
         )}
       </div>
-      <p className="text-2xl font-bold text-slate-900 leading-none mb-1">{value}</p>
-      <p className="text-xs font-semibold text-slate-600">{title}</p>
-      <p className="text-[11px] text-slate-400 mt-0.5">{sub}</p>
+
+      <p className="text-2xl font-bold leading-none mb-1 relative z-10"
+        style={{ color: 'var(--text-primary)' }}>{value}</p>
+      <p className="text-xs font-semibold relative z-10" style={{ color: 'var(--text-secondary)' }}>{title}</p>
+      <p className="text-[11px] mt-0.5 relative z-10" style={{ color: 'var(--text-muted)' }}>{sub}</p>
+
       {progress !== undefined && (
-        <div className="mt-3 w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-          <div className="h-full rounded-full transition-all duration-700" style={{ width: `${progress}%`, background: progress > 85 ? '#ef4444' : progress > 60 ? '#f59e0b' : accent }} />
+        <div className="mt-3 w-full rounded-full h-1.5 overflow-hidden relative z-10"
+          style={{ background: 'rgba(255,255,255,0.07)' }}>
+          <div className="h-full rounded-full transition-all duration-700"
+            style={{
+              width: `${progress}%`,
+              background: progress > 85
+                ? 'linear-gradient(90deg,#ef4444,#f87171)'
+                : progress > 60
+                  ? 'linear-gradient(90deg,#f59e0b,#fcd34d)'
+                  : `linear-gradient(90deg,${color},${color}cc)`,
+              boxShadow: `0 0 8px ${progress > 85 ? '#ef4444' : progress > 60 ? '#f59e0b' : color}66`,
+            }} />
         </div>
       )}
     </div>
@@ -762,18 +849,17 @@ function StatCard({ title, value, sub, icon, accent, accentBg, trend, progress }
 
 // ── MINI STAT CARD ───────────────────────────────────────────
 function MiniStatCard({ label, value, icon, color }: any) {
-  const colorMap: any = {
-    amber:   { bg: '#fffbeb', border: '#fde68a', text: '#92400e' },
-    emerald: { bg: '#ecfdf5', border: '#a7f3d0', text: '#065f46' },
-    rose:    { bg: '#fff1f2', border: '#fecdd3', text: '#881337' },
-  };
-  const c = colorMap[color];
+  // color is now a hex string e.g. "#fbbf24"
+  const c = color || '#10b981';
   return (
-    <div className="rounded-xl border p-3.5 flex items-center gap-3" style={{ background: c.bg, borderColor: c.border }}>
-      <div className="p-2 bg-white rounded-lg border" style={{ borderColor: c.border }}>{icon}</div>
+    <div className="glass p-3.5 flex items-center gap-3" style={{ borderRadius: 16 }}>
+      <div className="p-2 rounded-xl flex items-center justify-center"
+        style={{ background: `${c}1a`, border: `1px solid ${c}30`, color: c }}>
+        {icon}
+      </div>
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: c.text }}>{label}</p>
-        <p className="text-xl font-bold" style={{ color: c.text }}>{value}</p>
+        <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: `${c}bb` }}>{label}</p>
+        <p className="text-xl font-bold" style={{ color: c }}>{value}</p>
       </div>
     </div>
   );
@@ -781,21 +867,29 @@ function MiniStatCard({ label, value, icon, color }: any) {
 
 // ── SKELETON ────────────────────────────────────────────────
 function DashboardSkeleton() {
+  const shimmer = {
+    background: 'linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.09) 50%, rgba(255,255,255,0.04) 75%)',
+    backgroundSize: '200% 100%',
+    animation: 'shimmer 1.6s infinite',
+    borderRadius: 16,
+    border: '1px solid rgba(255,255,255,0.06)',
+  } as React.CSSProperties;
   return (
-    <div className="p-5 md:p-7" style={{ background: '#f0f2f5', minHeight: '100vh' }}>
-      <div className="h-6 w-40 bg-slate-200 rounded mb-1 animate-pulse" />
-      <div className="h-4 w-56 bg-slate-100 rounded mb-6 animate-pulse" />
+    <div className="p-5 md:p-7" style={{ background: 'var(--bg-base)', minHeight: '100vh' }}>
+      <style>{`@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}`}</style>
+      <div style={{ ...shimmer, height: 24, width: 160, marginBottom: 6 }} />
+      <div style={{ ...shimmer, height: 16, width: 224, marginBottom: 28 }} />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-        {[1,2,3,4].map(i => <div key={i} className="h-28 bg-white rounded-xl border border-slate-200 animate-pulse" />)}
+        {[1,2,3,4].map(i => <div key={i} style={{ ...shimmer, height: 112 }} />)}
       </div>
       <div className="grid grid-cols-3 gap-4 mb-5">
-        {[1,2,3].map(i => <div key={i} className="h-16 bg-white rounded-xl border border-slate-200 animate-pulse" />)}
+        {[1,2,3].map(i => <div key={i} style={{ ...shimmer, height: 64 }} />)}
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div className="lg:col-span-2 h-72 bg-white rounded-xl border border-slate-200 animate-pulse" />
+        <div className="lg:col-span-2" style={{ ...shimmer, height: 288 }} />
         <div className="flex flex-col gap-4">
-          <div className="h-32 bg-white rounded-xl border border-slate-200 animate-pulse" />
-          <div className="h-48 bg-white rounded-xl border border-slate-200 animate-pulse" />
+          <div style={{ ...shimmer, height: 128 }} />
+          <div style={{ ...shimmer, height: 192 }} />
         </div>
       </div>
     </div>

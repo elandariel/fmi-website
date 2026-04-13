@@ -23,13 +23,13 @@
   --sidebar-text:     #6b7a96;
   --sidebar-text-dim: #334155;
 
-  /* Accent — Indigo/Violet (elegan) */
-  --accent:        #818cf8;
-  --accent-mid:    #6366f1;
-  --accent-deep:   #4f46e5;
-  --accent-glow:   rgba(99,102,241,0.28);
-  --accent-bg:     rgba(99,102,241,0.1);
-  --accent-border: rgba(99,102,241,0.3);
+  /* Accent — Emerald Green (online/connected) */
+  --accent:        #10b981;
+  --accent-mid:    #059669;
+  --accent-deep:   #047857;
+  --accent-glow:   rgba(16,185,129,0.28);
+  --accent-bg:     rgba(16,185,129,0.08);
+  --accent-border: rgba(16,185,129,0.28);
 
   /* Gold — sentuhan premium */
   --gold:     #fbbf24;
@@ -58,11 +58,11 @@
   --shadow-sm:   0 2px 8px rgba(0,0,0,0.45);
   --shadow-md:   0 4px 24px rgba(0,0,0,0.55), 0 1px 4px rgba(0,0,0,0.4);
   --shadow-lg:   0 12px 48px rgba(0,0,0,0.65), 0 4px 12px rgba(0,0,0,0.5);
-  --shadow-glow: 0 0 32px rgba(99,102,241,0.2), 0 0 8px rgba(99,102,241,0.1);
+  --shadow-glow: 0 0 32px rgba(16,185,129,0.18), 0 0 8px rgba(16,185,129,0.1);
 
   /* Alias untuk komponen lama */
-  --blue-50:  rgba(99,102,241,0.06);
-  --blue-100: rgba(99,102,241,0.12);
+  --blue-50:  rgba(16,185,129,0.06);
+  --blue-100: rgba(16,185,129,0.12);
   --blue-400: var(--accent);
   --blue-500: var(--accent-mid);
   --blue-600: var(--accent-deep);
@@ -111,12 +111,12 @@
   --sidebar-text:     #6b7a96;
   --sidebar-text-dim: #334155;
 
-  --accent:        #4f46e5;
-  --accent-mid:    #4338ca;
-  --accent-deep:   #3730a3;
-  --accent-glow:   rgba(79,70,229,0.2);
-  --accent-bg:     rgba(79,70,229,0.07);
-  --accent-border: rgba(79,70,229,0.2);
+  --accent:        #059669;
+  --accent-mid:    #047857;
+  --accent-deep:   #065f46;
+  --accent-glow:   rgba(5,150,105,0.2);
+  --accent-bg:     rgba(5,150,105,0.07);
+  --accent-border: rgba(5,150,105,0.22);
 
   --gold:    #d97706;
   --gold-bg: rgba(217,119,6,0.07);
@@ -676,6 +676,77 @@ textarea:focus-visible {
   border-radius: 50%;
   background: var(--success);
   animation: liveRing 1.5s ease-out infinite;
+}
+
+/* ============================================================
+   GLASSMORPHISM CARD (Netra-style)
+   ============================================================ */
+.glass {
+  background: rgba(13, 21, 36, 0.55);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.15s ease;
+}
+
+.glass:hover {
+  border-color: rgba(16,185,129,0.35);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.5), 0 0 28px rgba(16,185,129,0.1), inset 0 1px 0 rgba(255,255,255,0.08);
+  transform: translateY(-1px);
+}
+
+[data-theme="light"] .glass {
+  background: rgba(255,255,255,0.75);
+  border-color: rgba(0,0,0,0.07);
+  box-shadow: 0 4px 24px rgba(15,23,42,0.1), inset 0 1px 0 rgba(255,255,255,0.9);
+}
+
+[data-theme="light"] .glass:hover {
+  border-color: rgba(5,150,105,0.3);
+  box-shadow: 0 8px 32px rgba(15,23,42,0.12), 0 0 20px rgba(5,150,105,0.08);
+}
+
+/* Stat number glow */
+.stat-number-glow {
+  text-shadow: 0 0 24px rgba(16,185,129,0.4);
+}
+
+/* Emerald glow line at top of card */
+.card-glow-top::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 20px; right: 20px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(16,185,129,0.6), transparent);
+  border-radius: 0;
+}
+
+/* Network grid pattern background */
+.bg-grid {
+  background-image:
+    linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Live pulse ring */
+@keyframes liveRingPulse {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+.live-pulse-ring {
+  position: relative;
+}
+.live-pulse-ring::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: #10b981;
+  animation: liveRingPulse 1.8s ease-out infinite;
 }
 
 /* ============================================================

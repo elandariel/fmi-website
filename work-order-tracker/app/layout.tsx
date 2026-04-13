@@ -50,9 +50,9 @@ function SidebarItem({
           <span
             className="absolute inset-0 rounded-xl"
             style={{
-              background: 'linear-gradient(135deg, rgba(99,102,241,0.35) 0%, rgba(124,58,237,0.25) 100%)',
-              border: '1px solid rgba(99,102,241,0.3)',
-              boxShadow: '0 0 16px rgba(99,102,241,0.15)',
+              background: 'linear-gradient(135deg, rgba(16,185,129,0.22) 0%, rgba(5,150,105,0.15) 100%)',
+              border: '1px solid rgba(16,185,129,0.28)',
+              boxShadow: '0 0 16px rgba(16,185,129,0.12)',
             }}
           />
         )}
@@ -61,7 +61,7 @@ function SidebarItem({
         {isActive && !collapsed && (
           <span
             className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full"
-            style={{ background: 'linear-gradient(180deg, #818cf8, #a78bfa)' }}
+            style={{ background: 'linear-gradient(180deg, #10b981, #059669)' }}
           />
         )}
 
@@ -70,7 +70,7 @@ function SidebarItem({
           <span className="absolute inset-0 rounded-xl bg-white/0 group-hover:bg-white/[0.04] transition-colors" />
         )}
 
-        <span className={`relative shrink-0 z-10 transition-colors ${isActive ? 'text-indigo-300' : 'group-hover:text-indigo-300'}`}>
+        <span className={`relative shrink-0 z-10 transition-colors ${isActive ? 'text-emerald-400' : 'group-hover:text-emerald-400'}`}>
           {icon}
         </span>
 
@@ -266,9 +266,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     className="shrink-0 rounded-xl overflow-hidden transition-all duration-300 group-hover:shadow-[0_0_20px_rgba(99,102,241,0.4)]"
                     style={{
                       width: 34, height: 34,
-                      background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+                      background: 'linear-gradient(135deg, #059669, #047857)',
                       padding: 2,
-                      boxShadow: '0 2px 12px rgba(99,102,241,0.3)',
+                      boxShadow: '0 2px 12px rgba(16,185,129,0.3)',
                     }}
                   >
                     <Image
@@ -375,9 +375,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <div
                     className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold text-white"
                     style={{
-                      background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
-                      boxShadow: '0 0 12px rgba(99,102,241,0.35)',
-                      border: '2px solid rgba(99,102,241,0.4)',
+                      background: 'linear-gradient(135deg, #10b981, #059669)',
+                      boxShadow: '0 0 12px rgba(16,185,129,0.35)',
+                      border: '2px solid rgba(16,185,129,0.4)',
                     }}
                   >
                     {userProfile.name.charAt(0).toUpperCase()}
