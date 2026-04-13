@@ -65,6 +65,7 @@ export default function TrackerPage() {
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [selectedRowForEdit, setSelectedRowForEdit] = useState<any>(null);
   const [requestAlasan, setRequestAlasan] = useState('');
+  const [requestCategory, setRequestCategory] = useState('');
   const [proposedFields, setProposedFields] = useState({
     subject: '',
     ISP: '',
@@ -265,6 +266,7 @@ export default function TrackerPage() {
       DEVICE: row.DEVICE || '',
     });
     setRequestAlasan('');
+    setRequestCategory(selectedCategory); // default = kategori aktif saat ini
     setShowRequestModal(true);
 
     // Fetch options dari tabel Index kalau belum ada
@@ -277,6 +279,7 @@ export default function TrackerPage() {
           bts: getUnique('BTS'),
           isp: getUnique('ISP'),
           device: getUnique('DEVICE'),
+          team: [],
         });
       }
     }
@@ -284,18 +287,22 @@ export default function TrackerPage() {
 
   const handleSubmitRequest = async () => {
     if (!requestAlasan.trim()) { toast.error('Alasan edit wajib diisi!'); return; }
-    const tableName = TABLE_MAP[selectedCategory];
+    const sourceCategory = selectedCategory;
+    const tableName = TABLE_MAP[sourceCategory];
+    const isCategoryChange = requestCategory !== sourceCategory;
 
-    // Cari kolom subject yang tepat sesuai kategori
-    let subjectKey = 'SUBJECT BERLANGGANAN';
-    if (selectedCategory === 'Berhenti Sementara') subjectKey = 'SUBJECT BERHENTI SEMENTARA';
-    else if (selectedCategory === 'Berhenti Berlangganan') subjectKey = 'SUBJECT BERHENTI BERLANGGANAN';
-    else if (selectedCategory === 'Upgrade') subjectKey = 'SUBJECT UPGRADE';
-    else if (selectedCategory === 'Downgrade') subjectKey = 'SUBJECT DOWNGRADE';
-
+    // Cari kolom subject yang tepat sesuai kategori sumber
+    const getSubjectKey = (cat: string) => {
+      if (cat === 'Berhenti Sementara') return 'SUBJECT BERHENTI SEMENTARA';
+      if (cat === 'Berhenti Berlangganan') return 'SUBJECT BERHENTI BERLANGGANAN';
+      if (cat === 'Upgrade') return 'SUBJECT UPGRADE';
+      if (cat === 'Downgrade') return 'SUBJECT DOWNGRADE';
+      return 'SUBJECT BERLANGGANAN';
+    };
+    const subjectKey = getSubjectKey(sourceCategory);
     const originalSubject = getSubject(selectedRowForEdit);
 
-    // Kumpulkan hanya field yang benar-benar berubah
+    // Kumpulkan field yang benar-benar berubah
     const proposed_changes: Record<string, string> = {};
     const original_data: Record<string, string> = {};
 
@@ -316,7 +323,12 @@ export default function TrackerPage() {
       original_data['DEVICE'] = selectedRowForEdit.DEVICE || '';
     }
 
-    if (Object.keys(proposed_changes).length === 0) {
+    // Kalau ada pindah kategori, simpan meta info di proposed_changes
+    if (isCategoryChange) {
+      proposed_changes['__target_category'] = requestCategory;
+      proposed_changes['__target_table'] = TABLE_MAP[requestCategory];
+      original_data['__source_category'] = sourceCategory;
+    } else if (Object.keys(proposed_changes).length === 0) {
       toast.error('Tidak ada perubahan yang dibuat.');
       return;
     }
@@ -325,7 +337,7 @@ export default function TrackerPage() {
     const toastId = toast.loading('Mengirim request...');
 
     const { error } = await supabase.from('WO_Edit_Requests').insert({
-      request_type: 'TRACKER',
+      request_type: isCategoryChange ? 'TRACKER_CATEGORY_CHANGE' : 'TRACKER',
       target_table: tableName,
       target_id: selectedRowForEdit.id,
       target_subject: originalSubject,
@@ -339,14 +351,16 @@ export default function TrackerPage() {
 
     if (error) toast.error('Gagal: ' + error.message, { id: toastId });
     else {
-      toast.success('Request edit terkirim!', { id: toastId });
+      toast.success(isCategoryChange ? 'Request pindah kategori terkirim!' : 'Request edit terkirim!', { id: toastId });
       setShowRequestModal(false);
       fetchEditRequests();
       await logActivity({
         activity: 'TRACKER_EDIT_REQUEST',
-        subject: getSubject(selectedRowForEdit),
+        subject: originalSubject,
         actor: userFullName,
-        detail: `Alasan: ${requestAlasan} · Tabel: ${TABLE_MAP[selectedCategory]}`,
+        detail: isCategoryChange
+          ? `Request pindah kategori: ${sourceCategory} → ${requestCategory} · Alasan: ${requestAlasan}`
+          : `Alasan: ${requestAlasan} · Tabel: ${tableName}`,
       });
     }
     setSubmitting(false);
@@ -354,17 +368,63 @@ export default function TrackerPage() {
 
   const handleApproveTracker = async (req: any) => {
     const toastId = toast.loading('Memproses...');
-    const { error } = await supabase.from(req.target_table).update(req.proposed_changes).eq('id', req.target_id);
-    if (error) { toast.error('Gagal: ' + error.message, { id: toastId }); return; }
-    await supabase.from('WO_Edit_Requests').update({ status: 'APPROVED', reviewed_by: userFullName, reviewed_at: new Date().toISOString() }).eq('id', req.id);
-    toast.success('Approved!', { id: toastId });
-    fetchData(); fetchEditRequests();
-    await logActivity({
-      activity: 'TRACKER_EDIT_APPROVED',
-      subject: req.target_subject,
-      actor: userFullName,
-      detail: `Tabel: ${req.target_table} · Disetujui dari request ${req.requested_by}`,
-    });
+
+    if (req.request_type === 'TRACKER_CATEGORY_CHANGE') {
+      const targetTable = req.proposed_changes['__target_table'];
+      const targetCategory = req.proposed_changes['__target_category'];
+      const sourceCategory = req.original_data?.['__source_category'] || '';
+
+      // Ambil data penuh dari tabel sumber
+      const { data: rowData, error: fetchErr } = await supabase
+        .from(req.target_table)
+        .select('*')
+        .eq('id', req.target_id)
+        .single();
+
+      if (fetchErr || !rowData) {
+        toast.error('Gagal mengambil data sumber: ' + (fetchErr?.message || 'tidak ditemukan'), { id: toastId });
+        return;
+      }
+
+      // Buat payload untuk tabel tujuan (tanpa id & created_at)
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { id: _id, created_at: _ca, ...rowPayload } = rowData;
+
+      // Terapkan field changes (kecuali key __ meta)
+      for (const [k, v] of Object.entries(req.proposed_changes as Record<string, string>)) {
+        if (!k.startsWith('__')) rowPayload[k] = v;
+      }
+
+      // INSERT ke tabel tujuan
+      const { error: insertErr } = await supabase.from(targetTable).insert([rowPayload]);
+      if (insertErr) { toast.error('Gagal insert ke tabel tujuan: ' + insertErr.message, { id: toastId }); return; }
+
+      // DELETE dari tabel sumber
+      const { error: deleteErr } = await supabase.from(req.target_table).delete().eq('id', req.target_id);
+      if (deleteErr) { toast.error('Gagal hapus dari tabel sumber: ' + deleteErr.message, { id: toastId }); return; }
+
+      await supabase.from('WO_Edit_Requests').update({ status: 'APPROVED', reviewed_by: userFullName, reviewed_at: new Date().toISOString() }).eq('id', req.id);
+      toast.success(`Approved! Data dipindahkan → ${targetCategory}`, { id: toastId });
+      fetchData(); fetchEditRequests();
+      await logActivity({
+        activity: 'TRACKER_CATEGORY_CHANGE',
+        subject: req.target_subject,
+        actor: userFullName,
+        detail: `${sourceCategory} → ${targetCategory} · Disetujui dari request ${req.requested_by}`,
+      });
+    } else {
+      const { error } = await supabase.from(req.target_table).update(req.proposed_changes).eq('id', req.target_id);
+      if (error) { toast.error('Gagal: ' + error.message, { id: toastId }); return; }
+      await supabase.from('WO_Edit_Requests').update({ status: 'APPROVED', reviewed_by: userFullName, reviewed_at: new Date().toISOString() }).eq('id', req.id);
+      toast.success('Approved!', { id: toastId });
+      fetchData(); fetchEditRequests();
+      await logActivity({
+        activity: 'TRACKER_EDIT_APPROVED',
+        subject: req.target_subject,
+        actor: userFullName,
+        detail: `Tabel: ${req.target_table} · Disetujui dari request ${req.requested_by}`,
+      });
+    }
   };
 
   const handleRejectTracker = async (req: any) => {
@@ -781,7 +841,7 @@ export default function TrackerPage() {
                     xaxis: { categories: MONTH_LABELS, labels: { style: { fontSize: '10px', colors: '#94a3b8' } } },
                     yaxis: { labels: { style: { fontSize: '10px', colors: '#94a3b8' } } },
                     grid: { borderColor: 'rgba(255,255,255,0.06)', strokeDashArray: 4 },
-                    plotOptions: { bar: { borderRadius: 3, columnWidth: '60%', grouped: true } },
+                    plotOptions: { bar: { borderRadius: 3, columnWidth: '60%' } },
                     dataLabels: { enabled: false },
                     legend: { show: false },
                     tooltip: { theme: 'dark' },
@@ -871,23 +931,52 @@ export default function TrackerPage() {
                         {req.created_at && ' · ' + format(new Date(req.created_at), 'dd MMM HH:mm', { locale: indonesia })}
                       </p>
                     </div>
-                    <span className="text-[9px] font-bold px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-full">PENDING</span>
+                    <div className="flex items-center gap-1.5">
+                      {req.request_type === 'TRACKER_CATEGORY_CHANGE' && (
+                        <span className="text-[9px] font-bold px-2 py-0.5 bg-amber-100 text-amber-700 border border-amber-200 rounded-full flex items-center gap-1">
+                          <ArrowRightLeft size={8} /> Pindah Kategori
+                        </span>
+                      )}
+                      <span className="text-[9px] font-bold px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-full">PENDING</span>
+                    </div>
                   </div>
+
+                  {/* Khusus kategori change: tampilkan info pindah tabel */}
+                  {req.request_type === 'TRACKER_CATEGORY_CHANGE' && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 flex items-center gap-2">
+                      <ArrowRightLeft size={12} className="text-amber-600 shrink-0" />
+                      <div className="text-[10px] text-amber-800 flex items-center gap-1.5 flex-wrap">
+                        <span className="font-bold">{req.original_data?.['__source_category'] || '?'}</span>
+                        <span className="text-amber-500">(tabel: {req.target_table})</span>
+                        <span className="mx-1">→</span>
+                        <span className="font-bold">{req.proposed_changes?.['__target_category'] || '?'}</span>
+                        <span className="text-amber-500">(tabel: {req.proposed_changes?.['__target_table'] || '?'})</span>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="bg-slate-50 rounded-lg p-2.5 border border-slate-100">
                     <p className="text-[10px] font-bold text-slate-400 mb-1">Alasan</p>
                     <p className="text-xs italic text-slate-700">"{req.alasan}"</p>
                   </div>
-                  <div className="bg-blue-50 rounded-lg p-2.5 border border-blue-100">
-                    <p className="text-[10px] font-bold text-blue-600 mb-1.5">Perubahan</p>
-                    {Object.entries(req.proposed_changes || {}).map(([k, v]) => (
-                      <div key={k} className="text-[10px] flex gap-2">
-                        <span className="font-bold text-slate-500">{k}:</span>
-                        <span className="text-rose-500 line-through">{String(req.original_data?.[k] || '—')}</span>
-                        <span>→</span>
-                        <span className="text-emerald-600 font-semibold">{String(v)}</span>
-                      </div>
-                    ))}
-                  </div>
+
+                  {/* Field changes (filter out __ meta keys) */}
+                  {Object.entries(req.proposed_changes || {}).filter(([k]) => !k.startsWith('__')).length > 0 && (
+                    <div className="bg-blue-50 rounded-lg p-2.5 border border-blue-100">
+                      <p className="text-[10px] font-bold text-blue-600 mb-1.5">Perubahan Field</p>
+                      {Object.entries(req.proposed_changes || {})
+                        .filter(([k]) => !k.startsWith('__'))
+                        .map(([k, v]) => (
+                          <div key={k} className="text-[10px] flex gap-2">
+                            <span className="font-bold text-slate-500">{k}:</span>
+                            <span className="text-rose-500 line-through">{String(req.original_data?.[k] || '—')}</span>
+                            <span>→</span>
+                            <span className="text-emerald-600 font-semibold">{String(v)}</span>
+                          </div>
+                        ))
+                      }
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-2">
                     <button onClick={() => handleApproveTracker(req)} className="flex items-center justify-center gap-1.5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition-colors">
                       <Check size={11} /> Approve
@@ -919,6 +1008,58 @@ export default function TrackerPage() {
             </div>
 
             <div className="p-5 space-y-4 max-h-[65vh] overflow-y-auto">
+
+              {/* ── KATEGORI TRANSAKSI ── */}
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider block mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                  Kategori Transaksi
+                </label>
+                <div className="grid grid-cols-1 gap-1.5">
+                  {Object.keys(TABLE_MAP).map(cat => {
+                    const conf = CATEGORY_CONFIG[cat];
+                    const isSelected = requestCategory === cat;
+                    const isCurrent = cat === selectedCategory;
+                    return (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setRequestCategory(cat)}
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-left transition-all border"
+                        style={{
+                          background: isSelected ? conf.bg : 'transparent',
+                          borderColor: isSelected ? conf.color + '66' : 'var(--border-light)',
+                          color: isSelected ? conf.color : 'var(--text-secondary)',
+                        }}
+                      >
+                        <span
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={{ background: conf.color, opacity: isSelected ? 1 : 0.35 }}
+                        />
+                        <span className="flex-1">{cat}</span>
+                        {isCurrent && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: conf.bg, color: conf.color }}>
+                            Sekarang
+                          </span>
+                        )}
+                        {isSelected && !isCurrent && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                            Pindah ke sini
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                {requestCategory !== selectedCategory && (
+                  <div className="mt-2 p-2.5 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
+                    <ArrowRightLeft size={12} className="text-amber-600 shrink-0 mt-0.5" />
+                    <p className="text-[10px] text-amber-700 leading-relaxed">
+                      <span className="font-bold">Request pindah kategori:</span> Data akan dipindahkan dari tabel <span className="font-mono font-bold">{TABLE_MAP[selectedCategory]}</span> ke <span className="font-mono font-bold">{TABLE_MAP[requestCategory]}</span> setelah disetujui Admin/NOC.
+                    </p>
+                  </div>
+                )}
+              </div>
+
               {/* Alasan */}
               <div>
                 <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block mb-1.5">
@@ -976,15 +1117,24 @@ export default function TrackerPage() {
               {/* Preview perubahan */}
               {(() => {
                 const original = getSubject(selectedRowForEdit);
-                const hasChanges =
+                const categoryChanged = requestCategory !== selectedCategory;
+                const hasFieldChanges =
                   proposedFields.subject !== original ||
                   proposedFields.ISP !== (selectedRowForEdit.ISP || '') ||
                   proposedFields.BTS !== (selectedRowForEdit.BTS || '') ||
                   proposedFields.DEVICE !== (selectedRowForEdit.DEVICE || '');
-                if (!hasChanges) return null;
+                if (!hasFieldChanges && !categoryChanged) return null;
                 return (
                   <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-3">
-                    <p className="text-[10px] font-bold text-emerald-700 uppercase mb-2">Field yang akan diubah:</p>
+                    <p className="text-[10px] font-bold text-emerald-700 uppercase mb-2">Ringkasan perubahan:</p>
+                    {categoryChanged && (
+                      <div className="text-[10px] text-amber-700 flex gap-2 mb-1 bg-amber-50 rounded px-2 py-1 border border-amber-100">
+                        <span className="font-bold w-16 shrink-0">Kategori:</span>
+                        <span className="text-rose-500 line-through">{selectedCategory}</span>
+                        <span className="shrink-0">→</span>
+                        <span className="font-semibold">{requestCategory}</span>
+                      </div>
+                    )}
                     {proposedFields.subject !== original && (
                       <div className="text-[10px] text-emerald-700 flex gap-2 mb-1">
                         <span className="font-bold w-16 shrink-0">Subject:</span>
@@ -1026,9 +1176,17 @@ export default function TrackerPage() {
               <button
                 onClick={handleSubmitRequest}
                 disabled={submitting}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-lg text-xs font-bold transition-colors"
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 disabled:bg-slate-300 text-white rounded-lg text-xs font-bold transition-colors"
+                style={{
+                  background: requestCategory !== selectedCategory
+                    ? 'linear-gradient(135deg,#f59e0b,#d97706)'
+                    : '#2563eb',
+                }}
               >
-                <Send size={12} /> {submitting ? 'Mengirim...' : 'Kirim Request'}
+                {requestCategory !== selectedCategory
+                  ? <><ArrowRightLeft size={12} /> {submitting ? 'Mengirim...' : 'Request Pindah Kategori'}</>
+                  : <><Send size={12} /> {submitting ? 'Mengirim...' : 'Kirim Request'}</>
+                }
               </button>
               <button onClick={() => setShowRequestModal(false)} className="px-4 py-2.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-200 transition-colors">Batal</button>
             </div>
