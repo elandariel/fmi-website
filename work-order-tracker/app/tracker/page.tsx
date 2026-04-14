@@ -386,9 +386,27 @@ export default function TrackerPage() {
         return;
       }
 
+      // Helper: nama kolom SUBJECT per kategori
+      const getSubjectKey = (cat: string) => {
+        if (cat === 'Berhenti Berlangganan') return 'SUBJECT BERHENTI BERLANGGANAN';
+        if (cat === 'Berhenti Sementara')    return 'SUBJECT BERHENTI SEMENTARA';
+        if (cat === 'Upgrade')               return 'SUBJECT UPGRADE';
+        if (cat === 'Downgrade')             return 'SUBJECT DOWNGRADE';
+        return 'SUBJECT BERLANGGANAN';
+      };
+      const srcSubjectKey = getSubjectKey(sourceCategory);
+      const tgtSubjectKey = getSubjectKey(targetCategory);
+
       // Buat payload untuk tabel tujuan (tanpa id & created_at)
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { id: _id, created_at: _ca, ...rowPayload } = rowData;
+
+      // Rename kolom subject: hapus kolom sumber, tambah kolom tujuan
+      if (srcSubjectKey !== tgtSubjectKey) {
+        const subjectValue = rowPayload[srcSubjectKey] ?? '';
+        delete rowPayload[srcSubjectKey];
+        rowPayload[tgtSubjectKey] = subjectValue;
+      }
 
       // Terapkan field changes (kecuali key __ meta)
       for (const [k, v] of Object.entries(req.proposed_changes as Record<string, string>)) {
