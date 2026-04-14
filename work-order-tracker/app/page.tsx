@@ -228,8 +228,8 @@ export default function Dashboard() {
       const { count: pendingCount } = await supabase.from('Report Bulanan').select('id', { count: 'exact', head: true }).in('STATUS', ['PENDING', 'OPEN', 'PROGRESS', 'ON PROGRESS']);
 
       // ── Fetch semua data client & WO untuk realtime tracking ──
-      const { data: allClients } = await supabase.from('Data Client Corporate').select('id, created_at');
-      const { data: allWOs } = await supabase.from('Report Bulanan').select('id, STATUS, created_at');
+      const { data: allClients } = await supabase.from('Data Client Corporate').select('id');
+      const { data: allWOs } = await supabase.from('Report Bulanan').select('id, STATUS');
       if (allClients) setInitialClients(allClients);
       if (allWOs) setInitialWorkOrders(allWOs);
 
