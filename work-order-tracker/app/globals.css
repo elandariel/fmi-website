@@ -7,76 +7,76 @@
    "Clarity through power, beauty through purpose"
    ============================================================ */
 
-/* ── DARK MODE (DEFAULT) ──────────────────────────────────── */
-/*   Dioptimasi untuk kenyamanan mata: latar lebih hangat,    */
-/*   teks lebih soft, kontras lebih seimbang (~6–8:1)         */
+/* ── DARK MODE (DEFAULT) — Charcoal / GitHub Dark ────────── */
+/*   Netral abu-abu gelap, terbukti paling nyaman di mata,    */
+/*   tidak ada warna biru/navy dominan (inspired GitHub Dark) */
 :root {
-  /* Backgrounds — warm navy, bukan pure black */
-  --bg-base:     #111318;
-  --bg-surface:  #181c26;
-  --bg-elevated: #1f2435;
-  --bg-subtle:   #252b3b;
-  --bg-input:    #161922;
+  /* Backgrounds */
+  --bg-base:     #0d1117;
+  --bg-surface:  #161b22;
+  --bg-elevated: #21262d;
+  --bg-subtle:   #2d333b;
+  --bg-input:    #0d1117;
 
-  /* Sidebar — sedikit lebih terang dari sebelumnya */
-  --sidebar-bg:       #0d0f17;
-  --sidebar-border:   rgba(255,255,255,0.06);
-  --sidebar-hover:    rgba(129,140,248,0.08);
-  --sidebar-text:     #7a8ba0;
-  --sidebar-text-dim: #3d4f65;
+  /* Sidebar — lebih gelap dari bg-base, subtle */
+  --sidebar-bg:       #010409;
+  --sidebar-border:   rgba(240,246,252,0.08);
+  --sidebar-hover:    rgba(16,185,129,0.07);
+  --sidebar-text:     #8b949e;
+  --sidebar-text-dim: #3d444d;
 
-  /* Accent — Emerald Green (online/connected) */
-  --accent:        #10b981;
-  --accent-mid:    #059669;
-  --accent-deep:   #047857;
-  --accent-glow:   rgba(16,185,129,0.22);
-  --accent-bg:     rgba(16,185,129,0.09);
-  --accent-border: rgba(16,185,129,0.25);
+  /* Accent — Emerald Green */
+  --accent:        #3fb950;
+  --accent-mid:    #2ea043;
+  --accent-deep:   #238636;
+  --accent-glow:   rgba(63,185,80,0.22);
+  --accent-bg:     rgba(63,185,80,0.1);
+  --accent-border: rgba(63,185,80,0.28);
 
-  /* Gold — sentuhan premium */
-  --gold:     #f5c842;
-  --gold-bg:  rgba(245,200,66,0.1);
+  /* Gold */
+  --gold:     #e3b341;
+  --gold-bg:  rgba(227,179,65,0.1);
 
-  /* Semantic — desaturasi sedikit agar tidak menyilaukan */
-  --success:     #4ade80;
-  --success-bg:  rgba(74,222,128,0.09);
-  --warning:     #fbbf24;
-  --warning-bg:  rgba(251,191,36,0.09);
-  --danger:      #fb7185;
-  --danger-bg:   rgba(251,113,133,0.09);
-  --info:        #60a5fa;
-  --info-bg:     rgba(96,165,250,0.09);
+  /* Semantic — GitHub-calibrated */
+  --success:     #3fb950;
+  --success-bg:  rgba(63,185,80,0.1);
+  --warning:     #e3b341;
+  --warning-bg:  rgba(227,179,65,0.1);
+  --danger:      #f85149;
+  --danger-bg:   rgba(248,81,73,0.1);
+  --info:        #58a6ff;
+  --info-bg:     rgba(88,166,255,0.1);
 
-  /* Text — softer white, mengurangi kelelahan mata */
-  --text-primary:   #d4dce8;
-  --text-secondary: #7a8ba0;
-  --text-muted:     #434f63;
+  /* Text — GitHub Dark text values */
+  --text-primary:   #e6edf3;
+  --text-secondary: #8b949e;
+  --text-muted:     #484f58;
 
-  /* Borders — sedikit lebih terlihat */
-  --border-light: rgba(255,255,255,0.07);
-  --border-mid:   rgba(255,255,255,0.12);
+  /* Borders — GitHub-style subtle */
+  --border-light: rgba(240,246,252,0.1);
+  --border-mid:   rgba(240,246,252,0.15);
 
   /* Shadows */
-  --shadow-sm:   0 2px 8px rgba(0,0,0,0.35);
-  --shadow-md:   0 4px 24px rgba(0,0,0,0.45), 0 1px 4px rgba(0,0,0,0.3);
-  --shadow-lg:   0 12px 48px rgba(0,0,0,0.55), 0 4px 12px rgba(0,0,0,0.4);
-  --shadow-glow: 0 0 32px rgba(16,185,129,0.15), 0 0 8px rgba(16,185,129,0.08);
+  --shadow-sm:   0 2px 8px rgba(1,4,9,0.5);
+  --shadow-md:   0 4px 24px rgba(1,4,9,0.6), 0 1px 4px rgba(1,4,9,0.4);
+  --shadow-lg:   0 12px 48px rgba(1,4,9,0.7), 0 4px 12px rgba(1,4,9,0.5);
+  --shadow-glow: 0 0 32px rgba(63,185,80,0.15), 0 0 8px rgba(63,185,80,0.08);
 
   /* Alias untuk komponen lama */
-  --blue-50:  rgba(16,185,129,0.07);
-  --blue-100: rgba(16,185,129,0.13);
+  --blue-50:  rgba(63,185,80,0.08);
+  --blue-100: rgba(63,185,80,0.14);
   --blue-400: var(--accent);
   --blue-500: var(--accent-mid);
   --blue-600: var(--accent-deep);
   --slate-50:  var(--bg-elevated);
   --slate-100: var(--bg-subtle);
-  --slate-200: rgba(255,255,255,0.09);
-  --slate-300: rgba(255,255,255,0.16);
+  --slate-200: rgba(240,246,252,0.1);
+  --slate-300: rgba(240,246,252,0.18);
   --slate-400: var(--text-muted);
   --slate-500: var(--text-secondary);
-  --slate-600: #7a8ba0;
-  --slate-700: #4e5d75;
-  --slate-800: #303d52;
+  --slate-600: #8b949e;
+  --slate-700: #484f58;
+  --slate-800: #2d333b;
   --slate-900: var(--text-primary);
 
   /* Typography */
