@@ -10,6 +10,7 @@ import {
   Network, Zap
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { logActivity, getActorName } from '@/lib/logger';
 
 // ─────────────────────────────────────────────
 // DETAIL DRAWER HELPERS
@@ -89,7 +90,7 @@ export default function InterkoneksiPage() {
     ID_Pelanggan: '', Nama_ISP: '', Location: '', Lantai: '',
     Device: '', SN_Perangkat: '', Rack: '', OTB: '', Type: '',
     Port: '', No_Reff: '', Label: '', Kapasitas: '', Limitasi: '',
-    Status: 'Active'
+    Status: 'Active', Note: ''
   };
 
   const [formData, setFormData] = useState(emptyForm);
@@ -250,7 +251,7 @@ export default function InterkoneksiPage() {
       Type: item?.Type || '',                 Port: item?.Port || '',
       No_Reff: item?.No_Reff || '',           Label: item?.Label || '',
       Kapasitas: item?.Kapasitas || '',       Limitasi: item?.Limitasi || '',
-      Status: item?.Status || 'Active'
+      Status: item?.Status || 'Active',       Note: item?.Note || ''
     });
     setIsModalOpen(true);
   };
@@ -374,6 +375,11 @@ export default function InterkoneksiPage() {
                             }`}
                           >
                             {item.ID_Pelanggan || '—'}
+                            {item.Note && (
+                              <span title="Ada catatan" className="inline-flex shrink-0">
+                                <Info size={10} className="text-amber-500" />
+                              </span>
+                            )}
                             <ChevronRight
                               size={12}
                               className={`transition-all duration-200 ${
@@ -591,6 +597,38 @@ export default function InterkoneksiPage() {
                 <DrawerField label="Label"         value={detailItem.Label}        wrap span />
               </DrawerSection>
 
+              {/* Note — always shown, highlight if has content */}
+              <div
+                className="rounded-xl overflow-hidden"
+                style={{ border: `1px solid ${detailItem.Note ? 'rgba(251,191,36,0.4)' : 'var(--border-light)'}` }}
+              >
+                <div
+                  className="px-4 py-2.5 border-b flex items-center gap-2"
+                  style={{
+                    background: detailItem.Note ? 'rgba(251,191,36,0.08)' : 'var(--bg-elevated)',
+                    borderColor: detailItem.Note ? 'rgba(251,191,36,0.3)' : 'var(--border-light)'
+                  }}
+                >
+                  <span className={detailItem.Note ? 'text-amber-500' : 'text-slate-400'}>
+                    <Info size={13} />
+                  </span>
+                  <p className={`text-[10px] font-bold uppercase tracking-widest ${detailItem.Note ? 'text-amber-600' : 'text-slate-400'}`}>
+                    Catatan / Note
+                  </p>
+                </div>
+                <div className="p-4" style={{ background: 'var(--bg-surface)' }}>
+                  {detailItem.Note ? (
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap break-words" style={{ color: 'var(--text-primary)' }}>
+                      {detailItem.Note}
+                    </p>
+                  ) : (
+                    <p className="text-xs italic" style={{ color: 'var(--text-muted)' }}>
+                      Tidak ada catatan untuk data ini.
+                    </p>
+                  )}
+                </div>
+              </div>
+
             </div>
           </>
         )}
@@ -616,7 +654,7 @@ export default function InterkoneksiPage() {
               </button>
             </div>
 
-            <div className="p-6 max-h-[65vh] overflow-y-auto">
+            <div className="p-6 max-h-[65vh] overflow-y-auto space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[11px] font-bold text-blue-600 uppercase tracking-widest">Status</label>
@@ -644,6 +682,22 @@ export default function InterkoneksiPage() {
                     />
                   </div>
                 ))}
+              </div>
+
+              {/* Note — full width textarea */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-bold text-amber-600 uppercase tracking-widest flex items-center gap-1.5">
+                  <Info size={11} /> Catatan / Note
+                </label>
+                <textarea
+                  value={formData.Note}
+                  onChange={(e) => setFormData({ ...formData, Note: e.target.value })}
+                  placeholder="Tambahkan catatan tambahan tentang interkoneksi ini..."
+                  rows={3}
+                  className="input resize-none leading-relaxed"
+                  style={{ minHeight: '72px' }}
+                />
+                <p className="text-[10px] text-slate-400">Note hanya bisa dilihat dengan klik ID Pelanggan.</p>
               </div>
             </div>
 

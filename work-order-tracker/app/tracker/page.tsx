@@ -107,8 +107,9 @@ export default function TrackerPage() {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      const { data: profile } = await supabase.from('profiles').select('role, full_name').eq('id', user.id).single();
-      if (profile) { setUserRole(profile.role as Role); setUserFullName(profile.full_name || ''); }
+      const { data: profile, error: profileErr } = await supabase.from('profiles').select('role, full_name').eq('id', user.id).single();
+      if (!profileErr && profile) { setUserRole(profile.role as Role); setUserFullName(profile.full_name || ''); }
+      else if (profileErr) console.warn('[Tracker] Profile fetch error:', profileErr.message);
     }
     const tableName = TABLE_MAP[selectedCategory];
     if (!tableName) { setLoading(false); return; }

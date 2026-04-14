@@ -103,11 +103,12 @@ export default function WorkOrderPage() {
       if (updateError) throw updateError;
 
       // Update status request jadi APPROVED
-      await supabase.from('WO_Edit_Requests').update({
+      const { error: approveError } = await supabase.from('WO_Edit_Requests').update({
         status: 'APPROVED',
         reviewed_by: userFullName,
         reviewed_at: new Date().toISOString()
       }).eq('id', req.id);
+      if (approveError) throw approveError;
 
       toast.success('Edit disetujui & diterapkan!', { id: toastId });
       fetchData();

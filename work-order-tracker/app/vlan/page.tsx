@@ -147,8 +147,8 @@ export default function VlanPage() {
   };
 
   const handleSaveChanges = async () => {
+    if (!editingVlan.id) { toast.error('ID VLAN tidak ditemukan, tidak bisa update.'); return; }
     setIsSaving(true);
-    const matchQuery = editingVlan.id ? { id: editingVlan.id } : { VLAN: editingVlan.VLAN };
 
     const { error } = await supabase
       .from(selectedTable.table)
@@ -162,7 +162,7 @@ export default function VlanPage() {
         'FE_PORT': editingVlan['FE_PORT'],
         'FE_MODE': editingVlan['FE_MODE']
       })
-      .match(matchQuery); 
+      .eq('id', editingVlan.id); 
 
     if (error) {
       toast.error('Gagal update: ' + error.message);
@@ -189,7 +189,7 @@ export default function VlanPage() {
     setIsSaving(true);
     setShowResetConfirm(false);
     
-    const matchQuery = editingVlan.id ? { id: editingVlan.id } : { VLAN: editingVlan.VLAN };
+    if (!editingVlan.id) { toast.error('ID VLAN tidak ditemukan, tidak bisa reset.'); setIsSaving(false); return; }
 
     const { error } = await supabase
       .from(selectedTable.table)
@@ -199,7 +199,7 @@ export default function VlanPage() {
         'NE_SWITCH POP': '-', 'NE_PORT': '-', 'NE_MODE': '-',
         'FE_SWITCH POP': '-', 'FE_PORT': '-', 'FE_MODE': '-'
       })
-      .match(matchQuery);
+      .eq('id', editingVlan.id);
 
     if (error) {
       toast.error('Gagal reset: ' + error.message);
