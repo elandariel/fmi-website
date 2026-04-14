@@ -7,76 +7,76 @@
    "Clarity through power, beauty through purpose"
    ============================================================ */
 
-/* ── DARK MODE (DEFAULT) — Charcoal / GitHub Dark ────────── */
-/*   Netral abu-abu gelap, terbukti paling nyaman di mata,    */
-/*   tidak ada warna biru/navy dominan (inspired GitHub Dark) */
+/* ── DARK MODE (DEFAULT) — Anthracite / Modern SaaS ──────── */
+/*   Inspired by reference design: warm graphite, clean card  */
+/*   elevation, near-white text, no blue/navy tint            */
 :root {
-  /* Backgrounds */
-  --bg-base:     #0d1117;
-  --bg-surface:  #161b22;
-  --bg-elevated: #21262d;
-  --bg-subtle:   #2d333b;
-  --bg-input:    #0d1117;
+  /* Backgrounds — warm anthracite layers */
+  --bg-base:     #13141a;   /* canvas — deepest layer          */
+  --bg-surface:  #1c1e27;   /* cards, panels                   */
+  --bg-elevated: #24262f;   /* elevated cards, dropdowns       */
+  --bg-subtle:   #2c2e3a;   /* hover states, table rows        */
+  --bg-input:    #1c1e27;   /* input fields                    */
 
-  /* Sidebar — lebih gelap dari bg-base, subtle */
-  --sidebar-bg:       #010409;
-  --sidebar-border:   rgba(240,246,252,0.08);
+  /* Sidebar — slightly deeper than canvas */
+  --sidebar-bg:       #0f1015;
+  --sidebar-border:   rgba(255,255,255,0.06);
   --sidebar-hover:    rgba(16,185,129,0.07);
-  --sidebar-text:     #8b949e;
-  --sidebar-text-dim: #3d444d;
+  --sidebar-text:     #8e90a0;
+  --sidebar-text-dim: #404356;
 
   /* Accent — Emerald Green */
-  --accent:        #3fb950;
-  --accent-mid:    #2ea043;
-  --accent-deep:   #238636;
-  --accent-glow:   rgba(63,185,80,0.22);
-  --accent-bg:     rgba(63,185,80,0.1);
-  --accent-border: rgba(63,185,80,0.28);
+  --accent:        #10b981;
+  --accent-mid:    #059669;
+  --accent-deep:   #047857;
+  --accent-glow:   rgba(16,185,129,0.25);
+  --accent-bg:     rgba(16,185,129,0.1);
+  --accent-border: rgba(16,185,129,0.28);
 
   /* Gold */
-  --gold:     #e3b341;
-  --gold-bg:  rgba(227,179,65,0.1);
+  --gold:     #f5c842;
+  --gold-bg:  rgba(245,200,66,0.1);
 
-  /* Semantic — GitHub-calibrated */
-  --success:     #3fb950;
-  --success-bg:  rgba(63,185,80,0.1);
-  --warning:     #e3b341;
-  --warning-bg:  rgba(227,179,65,0.1);
-  --danger:      #f85149;
-  --danger-bg:   rgba(248,81,73,0.1);
-  --info:        #58a6ff;
-  --info-bg:     rgba(88,166,255,0.1);
+  /* Semantic */
+  --success:     #10b981;
+  --success-bg:  rgba(16,185,129,0.1);
+  --warning:     #f5c842;
+  --warning-bg:  rgba(245,200,66,0.1);
+  --danger:      #f87171;
+  --danger-bg:   rgba(248,113,113,0.1);
+  --info:        #60a5fa;
+  --info-bg:     rgba(96,165,250,0.1);
 
-  /* Text — GitHub Dark text values */
-  --text-primary:   #e6edf3;
-  --text-secondary: #8b949e;
-  --text-muted:     #484f58;
+  /* Text — warm near-white like reference */
+  --text-primary:   #f2f2f7;   /* near white, slightly warm     */
+  --text-secondary: #9496a8;   /* muted gray                    */
+  --text-muted:     #4c4f62;   /* very dim                      */
 
-  /* Borders — GitHub-style subtle */
-  --border-light: rgba(240,246,252,0.1);
-  --border-mid:   rgba(240,246,252,0.15);
+  /* Borders — very subtle, cards "float" not boxed */
+  --border-light: rgba(255,255,255,0.06);
+  --border-mid:   rgba(255,255,255,0.10);
 
-  /* Shadows */
-  --shadow-sm:   0 2px 8px rgba(1,4,9,0.5);
-  --shadow-md:   0 4px 24px rgba(1,4,9,0.6), 0 1px 4px rgba(1,4,9,0.4);
-  --shadow-lg:   0 12px 48px rgba(1,4,9,0.7), 0 4px 12px rgba(1,4,9,0.5);
-  --shadow-glow: 0 0 32px rgba(63,185,80,0.15), 0 0 8px rgba(63,185,80,0.08);
+  /* Shadows — deeper for warm graphite feel */
+  --shadow-sm:   0 1px 4px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.25);
+  --shadow-md:   0 4px 20px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3);
+  --shadow-lg:   0 12px 48px rgba(0,0,0,0.6), 0 4px 16px rgba(0,0,0,0.4);
+  --shadow-glow: 0 0 32px rgba(16,185,129,0.18), 0 0 8px rgba(16,185,129,0.1);
 
   /* Alias untuk komponen lama */
-  --blue-50:  rgba(63,185,80,0.08);
-  --blue-100: rgba(63,185,80,0.14);
+  --blue-50:  rgba(16,185,129,0.08);
+  --blue-100: rgba(16,185,129,0.14);
   --blue-400: var(--accent);
   --blue-500: var(--accent-mid);
   --blue-600: var(--accent-deep);
   --slate-50:  var(--bg-elevated);
   --slate-100: var(--bg-subtle);
-  --slate-200: rgba(240,246,252,0.1);
-  --slate-300: rgba(240,246,252,0.18);
+  --slate-200: rgba(255,255,255,0.08);
+  --slate-300: rgba(255,255,255,0.15);
   --slate-400: var(--text-muted);
   --slate-500: var(--text-secondary);
-  --slate-600: #8b949e;
-  --slate-700: #484f58;
-  --slate-800: #2d333b;
+  --slate-600: #8e90a0;
+  --slate-700: #4c4f62;
+  --slate-800: #2c2e3a;
   --slate-900: var(--text-primary);
 
   /* Typography */
@@ -283,6 +283,28 @@ body {
 .card:hover {
   box-shadow: var(--shadow-lg);
   border-color: var(--border-mid);
+}
+
+/* Dark mode: cards "float" with deeper shadow, no harsh border */
+:root:not([data-theme="light"]) .card {
+  border-color: rgba(255,255,255,0.05);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.45), 0 1px 3px rgba(0,0,0,0.3);
+}
+:root:not([data-theme="light"]) .card:hover {
+  box-shadow: 0 8px 32px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.35);
+  border-color: rgba(255,255,255,0.09);
+}
+:root:not([data-theme="light"]) .table-container {
+  border-color: rgba(255,255,255,0.05);
+  box-shadow: 0 2px 16px rgba(0,0,0,0.4), 0 1px 4px rgba(0,0,0,0.25);
+}
+:root:not([data-theme="light"]) .stat-card {
+  border-color: rgba(255,255,255,0.05);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.45), 0 1px 3px rgba(0,0,0,0.3);
+}
+:root:not([data-theme="light"]) .stat-card:hover {
+  box-shadow: 0 8px 28px rgba(0,0,0,0.55), var(--shadow-glow);
+  border-color: var(--accent-border);
 }
 
 /* ============================================================
