@@ -8,73 +8,75 @@
    ============================================================ */
 
 /* ── DARK MODE (DEFAULT) ──────────────────────────────────── */
+/*   Dioptimasi untuk kenyamanan mata: latar lebih hangat,    */
+/*   teks lebih soft, kontras lebih seimbang (~6–8:1)         */
 :root {
-  /* Backgrounds */
-  --bg-base:     #080d16;
-  --bg-surface:  #0d1524;
-  --bg-elevated: #111d30;
-  --bg-subtle:   #162236;
-  --bg-input:    #0a1020;
+  /* Backgrounds — warm navy, bukan pure black */
+  --bg-base:     #111318;
+  --bg-surface:  #181c26;
+  --bg-elevated: #1f2435;
+  --bg-subtle:   #252b3b;
+  --bg-input:    #161922;
 
-  /* Sidebar */
-  --sidebar-bg:       #05080f;
-  --sidebar-border:   rgba(255,255,255,0.05);
+  /* Sidebar — sedikit lebih terang dari sebelumnya */
+  --sidebar-bg:       #0d0f17;
+  --sidebar-border:   rgba(255,255,255,0.06);
   --sidebar-hover:    rgba(129,140,248,0.08);
-  --sidebar-text:     #6b7a96;
-  --sidebar-text-dim: #334155;
+  --sidebar-text:     #7a8ba0;
+  --sidebar-text-dim: #3d4f65;
 
   /* Accent — Emerald Green (online/connected) */
   --accent:        #10b981;
   --accent-mid:    #059669;
   --accent-deep:   #047857;
-  --accent-glow:   rgba(16,185,129,0.28);
-  --accent-bg:     rgba(16,185,129,0.08);
-  --accent-border: rgba(16,185,129,0.28);
+  --accent-glow:   rgba(16,185,129,0.22);
+  --accent-bg:     rgba(16,185,129,0.09);
+  --accent-border: rgba(16,185,129,0.25);
 
   /* Gold — sentuhan premium */
-  --gold:     #fbbf24;
-  --gold-bg:  rgba(251,191,36,0.1);
+  --gold:     #f5c842;
+  --gold-bg:  rgba(245,200,66,0.1);
 
-  /* Semantic */
-  --success:     #34d399;
-  --success-bg:  rgba(52,211,153,0.1);
+  /* Semantic — desaturasi sedikit agar tidak menyilaukan */
+  --success:     #4ade80;
+  --success-bg:  rgba(74,222,128,0.09);
   --warning:     #fbbf24;
-  --warning-bg:  rgba(251,191,36,0.1);
-  --danger:      #f87171;
-  --danger-bg:   rgba(248,113,113,0.1);
-  --info:        #38bdf8;
-  --info-bg:     rgba(56,189,248,0.1);
+  --warning-bg:  rgba(251,191,36,0.09);
+  --danger:      #fb7185;
+  --danger-bg:   rgba(251,113,133,0.09);
+  --info:        #60a5fa;
+  --info-bg:     rgba(96,165,250,0.09);
 
-  /* Text */
-  --text-primary:   #f1f5f9;
-  --text-secondary: #8892a4;
-  --text-muted:     #4a5568;
+  /* Text — softer white, mengurangi kelelahan mata */
+  --text-primary:   #d4dce8;
+  --text-secondary: #7a8ba0;
+  --text-muted:     #434f63;
 
-  /* Borders */
-  --border-light: rgba(255,255,255,0.06);
-  --border-mid:   rgba(255,255,255,0.11);
+  /* Borders — sedikit lebih terlihat */
+  --border-light: rgba(255,255,255,0.07);
+  --border-mid:   rgba(255,255,255,0.12);
 
-  /* Shadows — dalam & dramatis untuk dark */
-  --shadow-sm:   0 2px 8px rgba(0,0,0,0.45);
-  --shadow-md:   0 4px 24px rgba(0,0,0,0.55), 0 1px 4px rgba(0,0,0,0.4);
-  --shadow-lg:   0 12px 48px rgba(0,0,0,0.65), 0 4px 12px rgba(0,0,0,0.5);
-  --shadow-glow: 0 0 32px rgba(16,185,129,0.18), 0 0 8px rgba(16,185,129,0.1);
+  /* Shadows */
+  --shadow-sm:   0 2px 8px rgba(0,0,0,0.35);
+  --shadow-md:   0 4px 24px rgba(0,0,0,0.45), 0 1px 4px rgba(0,0,0,0.3);
+  --shadow-lg:   0 12px 48px rgba(0,0,0,0.55), 0 4px 12px rgba(0,0,0,0.4);
+  --shadow-glow: 0 0 32px rgba(16,185,129,0.15), 0 0 8px rgba(16,185,129,0.08);
 
   /* Alias untuk komponen lama */
-  --blue-50:  rgba(16,185,129,0.06);
-  --blue-100: rgba(16,185,129,0.12);
+  --blue-50:  rgba(16,185,129,0.07);
+  --blue-100: rgba(16,185,129,0.13);
   --blue-400: var(--accent);
   --blue-500: var(--accent-mid);
   --blue-600: var(--accent-deep);
   --slate-50:  var(--bg-elevated);
   --slate-100: var(--bg-subtle);
-  --slate-200: rgba(255,255,255,0.08);
-  --slate-300: rgba(255,255,255,0.15);
+  --slate-200: rgba(255,255,255,0.09);
+  --slate-300: rgba(255,255,255,0.16);
   --slate-400: var(--text-muted);
   --slate-500: var(--text-secondary);
-  --slate-600: #6b7a96;
-  --slate-700: #4a5568;
-  --slate-800: #2d3748;
+  --slate-600: #7a8ba0;
+  --slate-700: #4e5d75;
+  --slate-800: #303d52;
   --slate-900: var(--text-primary);
 
   /* Typography */
@@ -157,6 +159,15 @@
   --slate-700: #334155;
   --slate-800: #1e293b;
   --slate-900: #0f172a;
+}
+
+/* ============================================================
+   BROADCAST TICKER OFFSET
+   Ketika ticker aktif, sidebar & main perlu turun 32px
+   ============================================================ */
+body[data-ticker="true"] aside,
+body[data-ticker="true"] main {
+  margin-top: 32px;
 }
 
 /* ============================================================
