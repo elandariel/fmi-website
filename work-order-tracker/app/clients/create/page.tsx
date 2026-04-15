@@ -111,6 +111,7 @@ ${data['Konfigurasi'] || '-'}
       'STATUS':           formData['STATUS'],
       'Kapasitas':        formData['Kapasitas'],
       'RX ONT/SFP':       formData['RX ONT/SFP'],
+      'SN ONT/SFP':       formData['SN ONT'],
       'Data Pelanggan':   'Sudah Ditambahkan',
       'Daftar Vlan':      'Sudah Ditambahkan',
       'MRTG':             'Sudah Ditambahkan',

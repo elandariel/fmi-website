@@ -211,6 +211,7 @@ function ClientDetailContent() {
               <InfoRow label="VLAN / VMAN" value={client['VMAN / VLAN']} mono />
               <InfoRow label="Interkoneksi" value={client['Near End']} />
               <InfoRow label="Last PoP" value={client['Far End']} />
+              <InfoRow label="SN ONT/SFP" value={client['SN ONT/SFP']} mono />
               <InfoRow label="Officer" value={client['Officer']} />
             </div>
           </div>
