@@ -72,19 +72,29 @@ export default function ClientListPage() {
       const XLSX = await import('xlsx');
 
       const rows = allData.map((c) => ({
-        'ID Pelanggan': c['ID Pelanggan'] || '',
+        'ID Pelanggan':   c['ID Pelanggan']  || '',
         'Nama Pelanggan': c['Nama Pelanggan'] || '',
-        'Alamat': c['ALAMAT'] || '',
-        'Kapasitas': c['Kapasitas'] || '',
-        'Status': c['STATUS'] || '',
-        'RX ONT/SFP': c['RX ONT/SFP'] || '',
+        'Alamat':         c['ALAMAT']         || '',
+        'VLAN / VMAN':    c['VMAN / VLAN']    || '',
+        'Near End':       c['Near End']       || '',
+        'Far End':        c['Far End']        || '',
+        'Kapasitas':      c['Kapasitas']      || '',
+        'RX ONT/SFP':     c['RX ONT/SFP']    || '',
+        'SN ONT/SFP':     c['SN ONT/SFP']    || '',
+        'Status':         c['STATUS']         || '',
+        'Officer':        c['Officer']        || '',
+        'Data Pelanggan': c['Data Pelanggan'] || '',
+        'Daftar Vlan':    c['Daftar Vlan']    || '',
+        'MRTG':           c['MRTG']           || '',
       }));
 
       const ws = XLSX.utils.json_to_sheet(rows);
 
       // Column widths
       ws['!cols'] = [
-        { wch: 16 }, { wch: 36 }, { wch: 46 }, { wch: 14 }, { wch: 14 }, { wch: 14 },
+        { wch: 16 }, { wch: 36 }, { wch: 46 }, { wch: 14 }, { wch: 20 },
+        { wch: 20 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 14 },
+        { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
       ];
 
       const wb = XLSX.utils.book_new();
@@ -128,30 +138,40 @@ export default function ClientListPage() {
       const tableRows = allData.map((c) => [
         c['ID Pelanggan'] || '—',
         c['Nama Pelanggan'] || '—',
-        c['ALAMAT'] ? c['ALAMAT'].substring(0, 50) + (c['ALAMAT'].length > 50 ? '…' : '') : '—',
+        c['ALAMAT'] ? c['ALAMAT'].substring(0, 40) + (c['ALAMAT'].length > 40 ? '…' : '') : '—',
+        c['VMAN / VLAN'] || '—',
+        c['Near End'] || '—',
+        c['Far End'] || '—',
         c['Kapasitas'] || '—',
-        c['STATUS'] || '—',
         c['RX ONT/SFP'] || '—',
+        c['SN ONT/SFP'] || '—',
+        c['STATUS'] || '—',
+        c['Officer'] || '—',
       ]);
 
       autoTable(doc, {
         startY: search ? 33 : 28,
-        head: [['ID Pelanggan', 'Nama Pelanggan', 'Alamat', 'Kapasitas', 'Status', 'RX ONT/SFP']],
+        head: [['ID Pelanggan', 'Nama Pelanggan', 'Alamat', 'VLAN', 'Near End', 'Far End', 'Kapasitas', 'RX ONT/SFP', 'SN ONT/SFP', 'Status', 'Officer']],
         body: tableRows,
         theme: 'striped',
-        headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold', fontSize: 8 },
-        bodyStyles: { fontSize: 7.5 },
+        headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold', fontSize: 7 },
+        bodyStyles: { fontSize: 6.5 },
         columnStyles: {
-          0: { cellWidth: 24 },
-          1: { cellWidth: 52 },
-          2: { cellWidth: 80 },
-          3: { cellWidth: 22 },
-          4: { cellWidth: 22 },
-          5: { cellWidth: 22 },
+          0: { cellWidth: 22 },
+          1: { cellWidth: 38 },
+          2: { cellWidth: 45 },
+          3: { cellWidth: 14 },
+          4: { cellWidth: 20 },
+          5: { cellWidth: 20 },
+          6: { cellWidth: 18 },
+          7: { cellWidth: 18 },
+          8: { cellWidth: 20 },
+          9: { cellWidth: 16 },
+          10: { cellWidth: 26 },
         },
         didDrawCell: (data: any) => {
           // Highlight status cells
-          if (data.section === 'body' && data.column.index === 4) {
+          if (data.section === 'body' && data.column.index === 9) {
             const status = (data.cell.raw || '').toString().toLowerCase();
             if (status.includes('active') || status.includes('ok')) {
               doc.setFillColor(236, 253, 245);
