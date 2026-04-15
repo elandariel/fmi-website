@@ -2,15 +2,107 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { 
-  Save, ArrowLeft, Loader2, TrendingUp, 
-  CheckCircle, UserPlus, List
+import {
+  Save, ArrowLeft, Loader2, TrendingUp,
+  CheckCircle, UserPlus, List, ChevronDown, X
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { logActivity } from '@/lib/logger';
+
+// ─────────────────────────────────────────────
+// SEARCHABLE SELECT COMPONENT
+// ─────────────────────────────────────────────
+function SearchableSelect({
+  name, value, onChange, options, placeholder,
+}: {
+  name: string;
+  value: string;
+  onChange: (name: string, val: string) => void;
+  options: string[];
+  placeholder?: string;
+}) {
+  const [query, setQuery]     = useState(value);
+  const [open, setOpen]       = useState(false);
+  const ref                   = useRef<HTMLDivElement>(null);
+
+  // Sync query when value changes externally
+  useEffect(() => { setQuery(value); }, [value]);
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const filtered = options.filter(o => o.toLowerCase().includes(query.toLowerCase()));
+
+  const select = (opt: string) => {
+    setQuery(opt);
+    onChange(name, opt);
+    setOpen(false);
+  };
+
+  const clear = () => {
+    setQuery('');
+    onChange(name, '');
+  };
+
+  return (
+    <div ref={ref} className="relative">
+      <div className="relative flex items-center">
+        <input
+          type="text"
+          value={query}
+          onChange={e => { setQuery(e.target.value); onChange(name, e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          placeholder={placeholder || '— Ketik untuk cari —'}
+          className="input pr-16"
+          autoComplete="off"
+        />
+        <div className="absolute right-2 flex items-center gap-1">
+          {query && (
+            <button type="button" onClick={clear} className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-slate-600 transition-colors">
+              <X size={12} />
+            </button>
+          )}
+          <button type="button" onClick={() => setOpen(o => !o)} className="p-1 rounded hover:bg-white/10 text-slate-400 transition-colors">
+            <ChevronDown size={13} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+          </button>
+        </div>
+      </div>
+
+      {open && (
+        <div
+          className="absolute z-50 mt-1 w-full rounded-lg border shadow-xl overflow-hidden"
+          style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border-mid)', maxHeight: 220 }}
+        >
+          <div className="overflow-y-auto" style={{ maxHeight: 220 }}>
+            {filtered.length === 0 ? (
+              <div className="px-3 py-2.5 text-xs text-slate-400 italic">Tidak ada hasil</div>
+            ) : (
+              filtered.map((opt, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onMouseDown={() => select(opt)}
+                  className={`w-full text-left px-3 py-2 text-sm transition-colors hover:bg-blue-500/10 hover:text-blue-400 ${opt === value ? 'bg-blue-500/15 text-blue-400 font-semibold' : 'text-slate-300'}`}
+                >
+                  {opt}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const TABLE_OPTIONS = [
   { label: 'Pelanggan Baru (Pasang)', value: 'Berlangganan 2026' },
@@ -74,6 +166,7 @@ function CreateTrackerContent() {
   }, [subjectFromWO]);
 
   const handleChange = (e: any) => setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleSelect = (name: string, val: string) => setFormData(prev => ({ ...prev, [name]: val }));
 
   const handleSave = async (e: any) => {
     e.preventDefault();
@@ -260,28 +353,40 @@ function CreateTrackerContent() {
         <FormSection title="Detail Teknis">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField label="BTS">
-              <select name="BTS" value={formData['BTS']} onChange={handleChange} className="input bg-white">
-                <option value="">— Pilih BTS —</option>
-                {options.bts.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
-              </select>
+              <SearchableSelect
+                name="BTS"
+                value={formData['BTS']}
+                onChange={handleSelect}
+                options={options.bts}
+                placeholder="— Ketik untuk cari BTS —"
+              />
             </FormField>
             <FormField label="ISP">
-              <select name="ISP" value={formData['ISP']} onChange={handleChange} className="input bg-white">
-                <option value="">— Pilih ISP —</option>
-                {options.isp.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
-              </select>
+              <SearchableSelect
+                name="ISP"
+                value={formData['ISP']}
+                onChange={handleSelect}
+                options={options.isp}
+                placeholder="— Ketik untuk cari ISP —"
+              />
             </FormField>
             <FormField label="Device / Perangkat">
-              <select name="DEVICE" value={formData['DEVICE']} onChange={handleChange} className="input bg-white">
-                <option value="">— Pilih Device —</option>
-                {options.device.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
-              </select>
+              <SearchableSelect
+                name="DEVICE"
+                value={formData['DEVICE']}
+                onChange={handleSelect}
+                options={options.device}
+                placeholder="— Ketik untuk cari Device —"
+              />
             </FormField>
             <FormField label="Team Pelaksana">
-              <select name="TEAM" value={formData['TEAM']} onChange={handleChange} className="input bg-white">
-                <option value="">— Pilih Team —</option>
-                {options.team.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
-              </select>
+              <SearchableSelect
+                name="TEAM"
+                value={formData['TEAM']}
+                onChange={handleSelect}
+                options={options.team}
+                placeholder="— Ketik untuk cari Team —"
+              />
             </FormField>
           </div>
           <FormField label="Problem / Catatan">
