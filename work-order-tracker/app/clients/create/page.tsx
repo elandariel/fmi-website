@@ -92,16 +92,28 @@ ${data['Konfigurasi'] || '-'}
       return;
     }
 
+    // Fetch user dulu sebelum insert — diperlukan untuk kolom Officer
+    const { data: { user } } = await supabase.auth.getUser();
+    let actorName = 'System';
+    if (user) {
+      const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single();
+      actorName = profile?.full_name || user.email || 'User';
+    }
+
     const dbPayload = {
-      'ID Pelanggan': formData['ID Pelanggan'],
-      'Nama Pelanggan': formData['Nama Pelanggan'],
-      'ALAMAT': formData['ALAMAT'],
-      'VMAN / VLAN': formData['VMAN / VLAN'],
-      'Near End': formData['Near End'],
-      'Far End': formData['Far End'],
-      'STATUS': formData['STATUS'],
-      'Kapasitas': formData['Kapasitas'],
-      'RX ONT/SFP': formData['RX ONT/SFP'],
+      'Officer':          actorName,
+      'ID Pelanggan':     formData['ID Pelanggan'],
+      'Nama Pelanggan':   formData['Nama Pelanggan'],
+      'ALAMAT':           formData['ALAMAT'],
+      'VMAN / VLAN':      formData['VMAN / VLAN'],
+      'Near End':         formData['Near End'],
+      'Far End':          formData['Far End'],
+      'STATUS':           formData['STATUS'],
+      'Kapasitas':        formData['Kapasitas'],
+      'RX ONT/SFP':       formData['RX ONT/SFP'],
+      'Data Pelanggan':   'Sudah Ditambahkan',
+      'Daftar Vlan':      'Sudah Ditambahkan',
+      'MRTG':             'Sudah Ditambahkan',
     };
 
     const { error } = await supabase.from('Data Client Corporate').insert([dbPayload]);
@@ -110,12 +122,6 @@ ${data['Konfigurasi'] || '-'}
       toast.error('Gagal menyimpan: ' + error.message);
       setSaving(false);
     } else {
-      const { data: { user } } = await supabase.auth.getUser();
-      let actorName = 'System';
-      if (user) {
-        const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single();
-        actorName = profile?.full_name || user.email || 'User';
-      }
       await logActivity({ activity: 'Input Client Corp', subject: formData['Nama Pelanggan'], actor: actorName });
       downloadTxt(formData);
       toast.success('Client Berhasil Disimpan!', {
