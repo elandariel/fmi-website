@@ -35,7 +35,8 @@ function EditClientContent() {
     'Far End': '',
     'STATUS': '',
     'Kapasitas': '',
-    'RX ONT/SFP': ''
+    'RX ONT/SFP': '',
+    'SN ONT/SFP': '',
   });
 
   useEffect(() => {
@@ -67,13 +68,14 @@ function EditClientContent() {
       .from('Data Client Corporate')
       .update({
         'Nama Pelanggan': formData['Nama Pelanggan'],
-        'ALAMAT': formData['ALAMAT'],
-        'VMAN / VLAN': formData['VMAN / VLAN'],
-        'Near End': formData['Near End'],
-        'Far End': formData['Far End'],
-        'STATUS': formData['STATUS'],
-        'Kapasitas': formData['Kapasitas'],
-        'RX ONT/SFP': formData['RX ONT/SFP']
+        'ALAMAT':         formData['ALAMAT'],
+        'VMAN / VLAN':    formData['VMAN / VLAN'],
+        'Near End':       formData['Near End'],
+        'Far End':        formData['Far End'],
+        'STATUS':         formData['STATUS'],
+        'Kapasitas':      formData['Kapasitas'],
+        'RX ONT/SFP':     formData['RX ONT/SFP'],
+        'SN ONT/SFP':     formData['SN ONT/SFP'],
       })
       .eq('id', id);
 
@@ -216,7 +218,7 @@ function EditClientContent() {
 
         {/* ── GROUP 2: TEKNIS ── */}
         <FormSection title="Spesifikasi Teknis">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <FormField label="VLAN / VMAN">
               <input
                 name="VMAN / VLAN"
@@ -238,6 +240,15 @@ function EditClientContent() {
                 name="RX ONT/SFP"
                 value={formData['RX ONT/SFP'] || ''}
                 onChange={handleChange}
+                className="input font-mono"
+              />
+            </FormField>
+            <FormField label="SN ONT/SFP">
+              <input
+                name="SN ONT/SFP"
+                value={formData['SN ONT/SFP'] || ''}
+                onChange={handleChange}
+                placeholder="ZTEGC8..."
                 className="input font-mono"
               />
             </FormField>
