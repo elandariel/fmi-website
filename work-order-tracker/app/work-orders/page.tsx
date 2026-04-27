@@ -159,7 +159,7 @@ export default function WorkOrderPage() {
   const solvedCount  = (statusCounts['SOLVED'] || 0) + (statusCounts['CLOSED'] || 0);
 
   return (
-    <div className="min-h-screen p-5 md:p-7" style={{ background: '#f0f2f5', fontFamily: "'IBM Plex Sans', sans-serif" }}>
+    <div className="min-h-screen p-5 md:p-7" style={{ background: 'var(--bg-base)', fontFamily: 'var(--font-sans)' }}>
 
       {/* ── HEADER ──────────────────────────────────── */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">

@@ -186,7 +186,7 @@ export default function ClientListPage() {
   const rangeTo = Math.min(page * ITEMS_PER_PAGE, totalRecords);
 
   return (
-    <div className="p-6 md:p-8 min-h-screen" style={{ background: '#f4f6f9', fontFamily: "'IBM Plex Sans', sans-serif" }}>
+    <div className="p-6 md:p-8 min-h-screen" style={{ background: 'var(--bg-base)', fontFamily: 'var(--font-sans)' }}>
 
       {/* ── HEADER ── */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-7">
@@ -275,7 +275,7 @@ export default function ClientListPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead>
-              <tr className="border-b border-slate-100" style={{ background: '#f8fafc' }}>
+              <tr className="border-b border-slate-100 bg-slate-50">
                 <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">ID</th>
                 <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Nama Pelanggan</th>
                 <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Kapasitas</th>

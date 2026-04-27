@@ -173,7 +173,7 @@ export default function LogActivityPage() {
   const activeFilters = (moduleFilter !== 'ALL' ? 1 : 0) + (categoryFilter !== 'ALL' ? 1 : 0);
 
   return (
-    <div className="min-h-screen p-5 md:p-7" style={{ background: '#f0f2f5', fontFamily: "'IBM Plex Sans', sans-serif" }}>
+    <div className="min-h-screen p-5 md:p-7" style={{ background: 'var(--bg-base)', fontFamily: 'var(--font-sans)' }}>
 
       {/* ── HEADER ──────────────────────────────────── */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-5">

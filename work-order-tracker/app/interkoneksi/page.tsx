@@ -278,7 +278,7 @@ export default function InterkoneksiPage() {
   return (
     <div
       className="min-h-screen p-6 md:p-8"
-      style={{ background: '#f4f6f9', fontFamily: "'IBM Plex Sans', sans-serif" }}
+      style={{ background: 'var(--bg-base)', fontFamily: 'var(--font-sans)' }}
     >
       <div className="max-w-[1600px] mx-auto">
 
@@ -329,7 +329,7 @@ export default function InterkoneksiPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left whitespace-nowrap">
               <thead>
-                <tr className="border-b border-slate-100" style={{ background: '#f8fafc' }}>
+                <tr className="border-b border-slate-100 bg-slate-50">
                   <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">ID & Status</th>
                   <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">ISP / Pelanggan</th>
                   <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-center">Site & Lokasi</th>
@@ -476,7 +476,7 @@ export default function InterkoneksiPage() {
           transition-transform duration-300 ease-in-out
           ${detailItem ? 'translate-x-0' : 'translate-x-full'}
         `}
-        style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+        style={{ fontFamily: 'var(--font-sans)' }}
       >
         {detailItem && (
           <>
