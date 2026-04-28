@@ -793,6 +793,35 @@ textarea:focus-visible {
 }
 
 /* ============================================================
+   APEXCHARTS — Tooltip text fix
+   body { color: var(--text-primary) } di dark mode = near-white,
+   diwariskan ke tooltip → text invisible di atas white background.
+   Override paksa semua elemen tooltip ke dark.
+   ============================================================ */
+.apexcharts-tooltip,
+.apexcharts-tooltip-title {
+  color: #1e293b !important;
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+.apexcharts-tooltip *,
+.apexcharts-tooltip-text,
+.apexcharts-tooltip-text-y-label,
+.apexcharts-tooltip-text-y-value,
+.apexcharts-tooltip-text-z-label,
+.apexcharts-tooltip-text-z-value,
+.apexcharts-tooltip-series-group,
+.apexcharts-tooltip-marker ~ span {
+  color: #1e293b !important;
+}
+.apexcharts-xaxistooltip,
+.apexcharts-xaxistooltip * {
+  color: #1e293b !important;
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* ============================================================
    NOTIFICATION DOT
    ============================================================ */
 .notif-dot {

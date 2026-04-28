@@ -7,13 +7,44 @@ import {
   FileSpreadsheet, Loader2, MapPin,
   Edit3, CheckCircle2, AlertCircle, Download, Upload,
   Server, Tag, ChevronRight, Info,
-  Network, Zap
+  Network, Zap, ChevronLeft, AlertTriangle,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { logActivity, getActorName } from '@/lib/logger'; // INTER-BUG-01
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// RFC 4180 CSV parser — INTER-BUG-02
+// Handles: quoted fields, commas inside quotes, escaped ""
+// ─────────────────────────────────────────────────────────────
+function parseCSVLine(line: string): string[] {
+  const fields: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        // escaped double-quote inside quoted field
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (ch === ',' && !inQuotes) {
+      fields.push(current.trim());
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+  fields.push(current.trim());
+  return fields;
+}
+
+// ─────────────────────────────────────────────────────────────
 // DETAIL DRAWER HELPERS
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 function DrawerSection({
   icon, title, color, children
 }: { icon: React.ReactNode; title: string; color: string; children: React.ReactNode }) {
@@ -36,12 +67,11 @@ function DrawerField({
   mono?: boolean;
   accent?: boolean;
   span?: boolean;
-  wrap?: boolean; // allow text to wrap — no truncate
+  wrap?: boolean;
 }) {
   const empty = !value;
   return (
-    <div className={`
-      rounded-lg p-3 border
+    <div className={`rounded-lg p-3 border
       ${accent ? 'bg-blue-50 border-blue-100' : 'bg-slate-50 border-slate-100'}
       ${span ? 'col-span-2' : ''}
     `}>
@@ -61,18 +91,34 @@ function DrawerField({
   );
 }
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// STATUS FILTER TYPE
+// ─────────────────────────────────────────────────────────────
+type StatusFilter = 'ALL' | 'Active' | 'Dismantle';
+
+// ─────────────────────────────────────────────────────────────
 // MAIN PAGE
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 export default function InterkoneksiPage() {
-  const [loading, setLoading]         = useState(false);
-  const [syncing, setSyncing]         = useState(false);
-  const [searchTerm, setSearchTerm]   = useState('');
-  const [data, setData]               = useState<any[]>([]);
+  const [loading,   setLoading]   = useState(false);
+  const [syncing,   setSyncing]   = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [data,      setData]      = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
-  const [detailItem, setDetailItem]   = useState<any>(null);
+  const [detailItem,  setDetailItem]  = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // INTER-UX-01: status filter
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
+
+  // INTER-UX-03: delete confirmation modal
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [deleting,     setDeleting]     = useState(false);
+
+  // INTER-BUG-03: pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 15;
 
   const SS_CONFIG = {
     url:  'https://script.google.com/macros/s/AKfycbx7aZ3bzoAXXaewspBpas0MalHe0694WXfyJzHeMSb85YE9kZh49R_5xhcRoZzaTL8p/exec',
@@ -80,10 +126,11 @@ export default function InterkoneksiPage() {
     name: 'Data Interkoneksi'
   };
 
-  const supabase = createBrowserClient(
+  // INTER-BUG-04: supabase singleton
+  const supabase = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  ), []);
 
   const emptyForm = {
     ID_Pelanggan: '', Nama_ISP: '', Location: '', Lantai: '',
@@ -94,6 +141,7 @@ export default function InterkoneksiPage() {
 
   const [formData, setFormData] = useState(emptyForm);
 
+  // ── Fetch ──────────────────────────────────────────────────
   const fetchData = async () => {
     setLoading(true);
     const { data: inter, error } = await supabase
@@ -104,19 +152,28 @@ export default function InterkoneksiPage() {
 
   useEffect(() => { fetchData(); }, []);
 
+  // Reset to page 1 when filter/search changes
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, statusFilter]);
+
+  // ── INTER-BUG-02: RFC 4180 CSV import ─────────────────────
   const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
-        const content = event.target?.result as string;
-        const lines = content.split('\n').filter(l => l.trim() !== '');
+        const content  = event.target?.result as string;
+        // Normalise line endings
+        const lines    = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+          .split('\n').filter(l => l.trim() !== '');
         if (lines.length < 2) return;
-        const rawHeaders   = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+
+        const rawHeaders   = parseCSVLine(lines[0]); // RFC 4180
         const validColumns = Object.keys(emptyForm);
+
         const importedData = lines.slice(1).map(line => {
-          const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
+          const values = parseCSVLine(line);
           const row: any = {};
           rawHeaders.forEach((header, index) => {
             if (validColumns.includes(header) && header.toLowerCase() !== 'id')
@@ -124,32 +181,33 @@ export default function InterkoneksiPage() {
           });
           return row;
         }).filter(row => Object.keys(row).length > 0);
+
         toast.warning(`Upsert ${importedData.length} data ke database?`, {
-            action: {
-              label: 'Ya, Proses',
-              onClick: async () => {
-                setLoading(true);
-                try {
-                  const { error } = await supabase.from('Data Interkoneksi').upsert(importedData);
-                  if (error) throw error;
-                  toast.success('Import Berhasil!');
-                  fetchData();
-                  const actorName = await getActorName(supabase);
-                  await logActivity({
-                    activity: 'INTERKONEKSI_IMPORT',
-                    subject: `${importedData.length} baris data`,
-                    actor: actorName,
-                  });
-                } catch (err: any) {
-                  toast.error('Gagal import: ' + err.message);
-                } finally {
-                  setLoading(false);
-                }
+          action: {
+            label: 'Ya, Proses',
+            onClick: async () => {
+              setLoading(true);
+              try {
+                const { error } = await supabase.from('Data Interkoneksi').upsert(importedData);
+                if (error) throw error;
+                toast.success('Import Berhasil!');
+                fetchData();
+                const actor = await getActorName(supabase);
+                await logActivity({
+                  activity: 'INTERKONEKSI_IMPORT',
+                  subject: `${importedData.length} baris data`,
+                  actor,
+                });
+              } catch (err: any) {
+                toast.error('Gagal import: ' + err.message);
+              } finally {
+                setLoading(false);
               }
-            },
-            cancel: { label: 'Batal', onClick: () => {} },
-            duration: 8000,
-          });
+            }
+          },
+          cancel: { label: 'Batal', onClick: () => {} },
+          duration: 8000,
+        });
       } catch (err: any) {
         toast.error('Gagal: ' + err.message);
       } finally {
@@ -160,12 +218,13 @@ export default function InterkoneksiPage() {
     reader.readAsText(file);
   };
 
+  // ── CSV export ──────────────────────────────────────────────
   const handleExportCSV = () => {
     if (data.length === 0) return toast.error('Data kosong');
-    const headers = Object.keys(emptyForm);
-    const csvRows = [
+    const headers  = Object.keys(emptyForm);
+    const csvRows  = [
       headers.join(','),
-      ...data.map(row => headers.map(h => `"${row[h] || ''}"`).join(','))
+      ...data.map(row => headers.map(h => `"${(row[h] || '').replace(/"/g, '""')}"`).join(','))
     ];
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csvRows.join('\n')], { type: 'text/csv' }));
@@ -173,27 +232,57 @@ export default function InterkoneksiPage() {
     a.click();
   };
 
-  const filteredData = useMemo(() =>
-    data.filter(item =>
-      Object.values(item).some(val =>
-        String(val).toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    ),
-    [searchTerm, data]
+  // ── Filter + search + paginate ──────────────────────────────
+  const filteredData = useMemo(() => {
+    const s = searchTerm.toLowerCase();
+    return data.filter(item => {
+      // INTER-UX-01: status filter
+      if (statusFilter !== 'ALL' && item.Status !== statusFilter) return false;
+      // search
+      if (!s) return true;
+      return Object.values(item).some(val =>
+        String(val ?? '').toLowerCase().includes(s)
+      );
+    });
+  }, [searchTerm, statusFilter, data]);
+
+  // INTER-BUG-03: paginate
+  const totalPages    = Math.max(1, Math.ceil(filteredData.length / ITEMS_PER_PAGE));
+  const paginatedData = filteredData.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
   );
 
+  // Counts for filter chips
+  const countAll      = data.length;
+  const countActive   = data.filter(d => d.Status !== 'Dismantle').length;
+  const countDismantle = data.filter(d => d.Status === 'Dismantle').length;
+
+  // ── Submit (create / update) — INTER-BUG-01 ────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
+      const actor = await getActorName(supabase);
       if (editingItem) {
         await supabase.from('Data Interkoneksi').update(formData).eq('id', editingItem.id);
         toast.success('Data berhasil diupdate!');
-        if (detailItem?.id === editingItem.id)
-          setDetailItem({ ...detailItem, ...formData });
+        if (detailItem?.id === editingItem.id) setDetailItem({ ...detailItem, ...formData });
+        await logActivity({
+          activity: 'INTERKONEKSI_EDIT',
+          subject:  formData.ID_Pelanggan || `ID ${editingItem.id}`,
+          actor,
+          detail:   `ISP: ${formData.Nama_ISP}`,
+        });
       } else {
         await supabase.from('Data Interkoneksi').insert([formData]);
         toast.success('Data berhasil ditambahkan!');
+        await logActivity({
+          activity: 'INTERKONEKSI_CREATE',
+          subject:  formData.ID_Pelanggan || '—',
+          actor,
+          detail:   `ISP: ${formData.Nama_ISP}`,
+        });
       }
       setIsModalOpen(false);
       fetchData();
@@ -202,30 +291,28 @@ export default function InterkoneksiPage() {
     } finally { setLoading(false); }
   };
 
-  const handleDelete = async (id: number) => {
-    const itemToDelete = data.find((d: any) => d.id === id);
-    toast.warning('Hapus data ini permanen?', {
-      action: {
-        label: 'Ya, Hapus',
-        onClick: async () => {
-          setLoading(true);
-          try {
-            await supabase.from('Data Interkoneksi').delete().eq('id', id);
-            toast.success('Data berhasil dihapus');
-            if (detailItem?.id === id) setDetailItem(null);
-            fetchData();
-            const actorName = await getActorName(supabase);
-            await logActivity({
-              activity: 'INTERKONEKSI_DELETE',
-              subject: itemToDelete?.['NAMA'] || itemToDelete?.['name'] || `ID ${id}`,
-              actor: actorName,
-            });
-          } finally { setLoading(false); }
-        }
-      },
-      cancel: { label: 'Batal', onClick: () => {} },
-      duration: 6000,
-    });
+  // INTER-UX-03: delete — trigger confirmation modal instead of toast
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await supabase.from('Data Interkoneksi').delete().eq('id', deleteTarget.id);
+      toast.success('Data berhasil dihapus');
+      if (detailItem?.id === deleteTarget.id) setDetailItem(null);
+      fetchData();
+      const actor = await getActorName(supabase);
+      await logActivity({
+        activity: 'INTERKONEKSI_DELETE',
+        subject:  deleteTarget.ID_Pelanggan || `ID ${deleteTarget.id}`,
+        actor,
+        detail:   `ISP: ${deleteTarget.Nama_ISP}`,
+      });
+    } catch (err: any) {
+      toast.error('Gagal hapus: ' + err.message);
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
+    }
   };
 
   const handleSyncSheet = async () => {
@@ -243,14 +330,14 @@ export default function InterkoneksiPage() {
   const openModal = (item: any = null) => {
     setEditingItem(item);
     setFormData({
-      ID_Pelanggan: item?.ID_Pelanggan || '', Nama_ISP: item?.Nama_ISP || '',
-      Location: item?.Location || '',         Lantai: item?.Lantai || '',
-      Device: item?.Device || '',             SN_Perangkat: item?.SN_Perangkat || '',
-      Rack: item?.Rack || '',                 OTB: item?.OTB || '',
-      Type: item?.Type || '',                 Port: item?.Port || '',
-      No_Reff: item?.No_Reff || '',           Label: item?.Label || '',
-      Kapasitas: item?.Kapasitas || '',       Limitasi: item?.Limitasi || '',
-      Status: item?.Status || 'Active'
+      ID_Pelanggan:  item?.ID_Pelanggan  || '', Nama_ISP:     item?.Nama_ISP     || '',
+      Location:      item?.Location      || '', Lantai:       item?.Lantai       || '',
+      Device:        item?.Device        || '', SN_Perangkat: item?.SN_Perangkat || '',
+      Rack:          item?.Rack          || '', OTB:          item?.OTB          || '',
+      Type:          item?.Type          || '', Port:         item?.Port         || '',
+      No_Reff:       item?.No_Reff       || '', Label:        item?.Label        || '',
+      Kapasitas:     item?.Kapasitas     || '', Limitasi:     item?.Limitasi     || '',
+      Status:        item?.Status        || 'Active'
     });
     setIsModalOpen(true);
   };
@@ -274,7 +361,7 @@ export default function InterkoneksiPage() {
 
   const isActive = (item: any) => item?.Status !== 'Dismantle';
 
-  // ─────────────────────────────────────────────
+  // ── RENDER ─────────────────────────────────────────────────
   return (
     <div
       className="min-h-screen p-6 md:p-8"
@@ -282,7 +369,7 @@ export default function InterkoneksiPage() {
     >
       <div className="max-w-[1600px] mx-auto">
 
-        {/* ── HEADER ── */}
+        {/* ── HEADER ─────────────────────────────────────── */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
           <div>
             <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
@@ -308,8 +395,9 @@ export default function InterkoneksiPage() {
           </div>
         </div>
 
-        {/* ── SEARCH ── */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-5 flex items-center overflow-hidden">
+        {/* ── SEARCH + STATUS FILTER ──────────────────────── */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-5 flex flex-col md:flex-row gap-0 overflow-hidden">
+          {/* Search */}
           <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
             <input
@@ -319,12 +407,31 @@ export default function InterkoneksiPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="px-5 border-l border-slate-100 text-xs font-semibold text-slate-400 flex items-center gap-1.5 whitespace-nowrap">
-            Total: <span className="text-blue-600 font-bold text-sm">{filteredData.length}</span>
+
+          {/* INTER-UX-01: Status filter chips */}
+          <div className="px-4 border-t md:border-t-0 md:border-l border-slate-100 flex items-center gap-1.5 py-2 md:py-0">
+            {([
+              { key: 'ALL',      label: `Semua (${countAll})`,          active: 'bg-slate-800 text-white border-slate-800' },
+              { key: 'Active',   label: `Active (${countActive})`,      active: 'bg-emerald-600 text-white border-emerald-600' },
+              { key: 'Dismantle',label: `Dismantle (${countDismantle})`, active: 'bg-rose-600 text-white border-rose-600' },
+            ] as { key: StatusFilter; label: string; active: string }[]).map(f => (
+              <button key={f.key} onClick={() => setStatusFilter(f.key)}
+                className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition-all whitespace-nowrap ${
+                  statusFilter === f.key
+                    ? f.active
+                    : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                }`}>
+                {f.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="px-4 border-t md:border-t-0 md:border-l border-slate-100 text-xs font-semibold text-slate-400 flex items-center gap-1.5 whitespace-nowrap py-2 md:py-0">
+            <span className="text-blue-600 font-bold text-sm">{filteredData.length}</span> hasil
           </div>
         </div>
 
-        {/* ── TABLE ── */}
+        {/* ── TABLE ───────────────────────────────────────── */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left whitespace-nowrap">
@@ -347,7 +454,7 @@ export default function InterkoneksiPage() {
                       </td>
                     ))}</tr>
                   ))
-                ) : filteredData.length === 0 ? (
+                ) : paginatedData.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="py-16 text-center">
                       <div className="flex flex-col items-center gap-2 text-slate-400">
@@ -357,14 +464,14 @@ export default function InterkoneksiPage() {
                     </td>
                   </tr>
                 ) : (
-                  filteredData.map((item) => {
+                  paginatedData.map((item) => {
                     const isSelected = detailItem?.id === item.id;
                     return (
                       <tr
                         key={item.id}
                         className={`transition-colors group ${isSelected ? 'bg-blue-50/50' : 'hover:bg-blue-50/30'}`}
                       >
-                        {/* ID — click to open drawer */}
+                        {/* ID */}
                         <td className="px-5 py-3.5">
                           <p className="font-mono text-[10px] text-slate-400 mb-0.5">#{item.id}</p>
                           <button
@@ -377,9 +484,7 @@ export default function InterkoneksiPage() {
                             <ChevronRight
                               size={12}
                               className={`transition-all duration-200 ${
-                                isSelected
-                                  ? 'opacity-100 text-blue-600'
-                                  : 'opacity-0 group-hover/id:opacity-100'
+                                isSelected ? 'opacity-100 text-blue-600' : 'opacity-0 group-hover/id:opacity-100'
                               }`}
                             />
                           </button>
@@ -426,9 +531,9 @@ export default function InterkoneksiPage() {
                           )}
                         </td>
 
-                        {/* Actions */}
+                        {/* INTER-UX-02: Actions — selalu visible, tidak opacity-0 */}
                         <td className="px-5 py-3.5 text-right">
-                          <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center justify-end gap-1">
                             <button
                               onClick={() => setDetailItem(isSelected ? null : item)}
                               className={`p-1.5 rounded-md transition-all ${
@@ -440,10 +545,19 @@ export default function InterkoneksiPage() {
                             >
                               <Info size={14} />
                             </button>
-                            <button onClick={() => openModal(item)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all" title="Edit">
+                            <button
+                              onClick={() => openModal(item)}
+                              className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all"
+                              title="Edit"
+                            >
                               <Edit3 size={14} />
                             </button>
-                            <button onClick={() => handleDelete(item.id)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-all" title="Hapus">
+                            {/* INTER-UX-03: set deleteTarget instead of toast confirm */}
+                            <button
+                              onClick={() => setDeleteTarget(item)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-all"
+                              title="Hapus"
+                            >
                               <Trash2 size={14} />
                             </button>
                           </div>
@@ -455,22 +569,46 @@ export default function InterkoneksiPage() {
               </tbody>
             </table>
           </div>
+
+          {/* INTER-BUG-03: Pagination bar */}
+          {filteredData.length > ITEMS_PER_PAGE && (
+            <div className="px-5 py-3.5 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
+              <p className="text-xs text-slate-400 font-medium">
+                Menampilkan{' '}
+                <span className="text-slate-600 font-semibold">
+                  {(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredData.length)}
+                </span>{' '}
+                dari <span className="text-slate-600 font-semibold">{filteredData.length}</span> data
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-slate-600"
+                >
+                  <ChevronLeft size={14} /> Prev
+                </button>
+                <span className="text-xs text-slate-500 font-medium px-1">{currentPage} / {totalPages}</span>
+                <button
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-slate-600"
+                >
+                  Next <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* ══════════════════════════════════════════
-          DETAIL DRAWER — slide from right
-          Fixed overlay (dim) + animated panel
-      ══════════════════════════════════════════ */}
-      {/* Dim backdrop — click to close */}
+      {/* ── DETAIL DRAWER — slide from right ───────────────── */}
       <div
         className={`fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-[2px] transition-opacity duration-300 ${
           detailItem ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
         onClick={() => setDetailItem(null)}
       />
-
-      {/* Drawer panel */}
       <div
         className={`fixed top-0 right-0 bottom-0 z-50 w-[480px] bg-white shadow-2xl flex flex-col
           transition-transform duration-300 ease-in-out
@@ -480,17 +618,11 @@ export default function InterkoneksiPage() {
       >
         {detailItem && (
           <>
-            {/* Accent bar */}
-            <div
-              className="h-1 w-full shrink-0"
-              style={{
-                background: isActive(detailItem)
-                  ? 'linear-gradient(90deg, #2563eb, #60a5fa)'
-                  : 'linear-gradient(90deg, #e11d48, #fb7185)'
-              }}
-            />
-
-            {/* Drawer header */}
+            <div className="h-1 w-full shrink-0" style={{
+              background: isActive(detailItem)
+                ? 'linear-gradient(90deg, #2563eb, #60a5fa)'
+                : 'linear-gradient(90deg, #e11d48, #fb7185)'
+            }} />
             <div className="px-6 py-5 border-b border-slate-100 bg-slate-50 shrink-0">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
@@ -507,30 +639,21 @@ export default function InterkoneksiPage() {
                       #{detailItem.id}
                     </span>
                   </div>
-                  {/* Title — allow wrap, large and clear */}
                   <h2 className="text-xl font-bold text-slate-900 leading-tight break-words">
                     {detailItem.ID_Pelanggan || '—'}
                   </h2>
                   <p className="text-sm text-slate-500 mt-1 break-words">{detailItem.Nama_ISP || '—'}</p>
                 </div>
-                <button
-                  onClick={() => setDetailItem(null)}
-                  className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-lg transition-colors shrink-0 mt-0.5"
-                >
+                <button onClick={() => setDetailItem(null)} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-lg transition-colors shrink-0 mt-0.5">
                   <X size={17} />
                 </button>
               </div>
-
-              {/* Action buttons */}
               <div className="flex gap-2.5 mt-4">
-                <button
-                  onClick={() => openModal(detailItem)}
-                  className="flex-1 flex items-center justify-center gap-2 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-sm"
-                >
+                <button onClick={() => openModal(detailItem)} className="flex-1 flex items-center justify-center gap-2 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-sm">
                   <Edit3 size={13} /> Edit Data
                 </button>
                 <button
-                  onClick={() => handleDelete(detailItem.id)}
+                  onClick={() => setDeleteTarget(detailItem)}
                   className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 rounded-lg text-xs font-semibold transition-all"
                 >
                   <Trash2 size={13} /> Hapus
@@ -538,65 +661,82 @@ export default function InterkoneksiPage() {
               </div>
             </div>
 
-            {/* Drawer body — scrollable, all text wraps */}
             <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-white">
-
-              {/* Lokasi */}
               <DrawerSection icon={<MapPin size={13} />} title="Lokasi" color="text-blue-600">
                 <DrawerField label="Location" value={detailItem.Location} wrap />
                 <DrawerField label="Lantai"   value={detailItem.Lantai}   wrap />
               </DrawerSection>
-
-              {/* Perangkat */}
               <DrawerSection icon={<Server size={13} />} title="Perangkat" color="text-indigo-600">
                 <DrawerField label="Device"       value={detailItem.Device}       mono wrap />
                 <DrawerField label="SN Perangkat" value={detailItem.SN_Perangkat} mono wrap />
                 <DrawerField label="OTB"          value={detailItem.OTB}          wrap />
                 <DrawerField label="Type"         value={detailItem.Type}         wrap />
               </DrawerSection>
-
-              {/* Koneksi & Port */}
               <DrawerSection icon={<Network size={13} />} title="Koneksi & Port" color="text-violet-600">
                 <DrawerField label="Rack" value={detailItem.Rack} wrap />
                 <DrawerField label="Port" value={detailItem.Port} mono accent wrap />
               </DrawerSection>
-
-              {/* Kapasitas — big cards */}
               <DrawerSection icon={<Zap size={13} />} title="Kapasitas" color="text-emerald-600">
                 <div className="col-span-2 grid grid-cols-2 gap-3">
                   <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-center">
                     <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-2">Kapasitas</p>
-                    <p className="text-2xl font-bold text-blue-700 font-mono leading-none">
-                      {detailItem.Kapasitas || '—'}
-                    </p>
+                    <p className="text-2xl font-bold text-blue-700 font-mono leading-none">{detailItem.Kapasitas || '—'}</p>
                   </div>
-                  <div className={`border rounded-xl p-4 text-center ${
-                    detailItem.Limitasi ? 'bg-rose-50 border-rose-100' : 'bg-slate-50 border-slate-100'
-                  }`}>
-                    <p className={`text-[10px] font-bold uppercase tracking-widest mb-2 ${
-                      detailItem.Limitasi ? 'text-rose-400' : 'text-slate-400'
-                    }`}>Limitasi</p>
-                    <p className={`text-2xl font-bold font-mono leading-none ${
-                      detailItem.Limitasi ? 'text-rose-600' : 'text-slate-300'
-                    }`}>
-                      {detailItem.Limitasi || '—'}
-                    </p>
+                  <div className={`border rounded-xl p-4 text-center ${detailItem.Limitasi ? 'bg-rose-50 border-rose-100' : 'bg-slate-50 border-slate-100'}`}>
+                    <p className={`text-[10px] font-bold uppercase tracking-widest mb-2 ${detailItem.Limitasi ? 'text-rose-400' : 'text-slate-400'}`}>Limitasi</p>
+                    <p className={`text-2xl font-bold font-mono leading-none ${detailItem.Limitasi ? 'text-rose-600' : 'text-slate-300'}`}>{detailItem.Limitasi || '—'}</p>
                   </div>
                 </div>
               </DrawerSection>
-
-              {/* Referensi */}
               <DrawerSection icon={<Tag size={13} />} title="Referensi & Label" color="text-amber-600">
                 <DrawerField label="No. Referensi" value={detailItem.No_Reff} mono wrap span />
                 <DrawerField label="Label"         value={detailItem.Label}        wrap span />
               </DrawerSection>
-
             </div>
           </>
         )}
       </div>
 
-      {/* ── FORM MODAL ── */}
+      {/* ── INTER-UX-03: DELETE CONFIRMATION MODAL ─────────── */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-[420px] overflow-hidden border border-slate-200">
+            <div className="p-6 text-center border-b border-slate-100">
+              <div className="w-14 h-14 bg-rose-100 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle size={28} />
+              </div>
+              <h2 className="text-lg font-bold text-slate-800">Hapus Data Ini?</h2>
+              <p className="text-sm text-slate-500 mt-2">
+                Kamu yakin ingin menghapus data interkoneksi{' '}
+                <strong className="text-slate-800">{deleteTarget.ID_Pelanggan || `ID ${deleteTarget.id}`}</strong>
+                {deleteTarget.Nama_ISP && <> — <span className="text-blue-600">{deleteTarget.Nama_ISP}</span></>}?
+              </p>
+              <p className="text-xs text-rose-500 mt-2 font-semibold">Tindakan ini tidak dapat dibatalkan.</p>
+            </div>
+            <div className="p-4 bg-slate-50 flex gap-3">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                className="flex-1 py-2.5 px-4 bg-white text-slate-700 border border-slate-200 rounded-xl font-bold hover:bg-slate-100 transition disabled:opacity-50"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                disabled={deleting}
+                className="flex-1 py-2.5 px-4 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 transition shadow-lg shadow-rose-500/20 flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {deleting
+                  ? <><Loader2 size={14} className="animate-spin" /> Menghapus...</>
+                  : <><Trash2 size={14} /> Ya, Hapus</>
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── FORM MODAL ──────────────────────────────────────── */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
           <form
@@ -614,7 +754,6 @@ export default function InterkoneksiPage() {
                 <X size={18} />
               </button>
             </div>
-
             <div className="p-6 max-h-[65vh] overflow-y-auto">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="flex flex-col gap-1.5">
@@ -645,7 +784,6 @@ export default function InterkoneksiPage() {
                 ))}
               </div>
             </div>
-
             <div className="px-6 py-4 bg-slate-50 border-t flex justify-end gap-2.5">
               <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-700 hover:bg-slate-200 rounded-lg transition-all">
                 Batal

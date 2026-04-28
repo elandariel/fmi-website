@@ -1,15 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
 import https from "https";
 import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 
-// ─── Supabase (service role — untuk lookup odoo_credentials) ─
+// ─── Supabase service role (bypass RLS) ───────────────────────
 const sb = () =>
   createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-// ─── Lookup credentials per team (fallback ke env jika tidak ada) ─
+// ─── Credentials dari session user yang sedang login ──────────
+// Priority: user_odoo_keys → odoo_credentials (legacy) → env fallback
+async function getCredsFromSession(): Promise<{ username: string; apiKey: string; source: string } | null> {
+  try {
+    const cookieStore = await cookies();
+    const supabase    = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { cookies: { getAll() { return cookieStore.getAll(); } } }
+    );
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user?.id || !user?.email) return null;
+
+    const { data } = await sb()
+      .from("user_odoo_keys")
+      .select("odoo_api_key, is_active")
+      .eq("user_id", user.id)
+      .eq("is_active", true)
+      .single();
+
+    if (data?.odoo_api_key) {
+      return { username: user.email, apiKey: data.odoo_api_key, source: user.email };
+    }
+  } catch { /* session tidak tersedia atau tabel belum ada */ }
+  return null;
+}
+
+// ─── Legacy: lookup per team_name (fallback ke env) ───────────
 async function getCredsFor(openedBy?: string): Promise<{ username: string; apiKey: string; source: string }> {
   const fallback = {
     username: process.env.ODOO_USERNAME!,
@@ -27,7 +56,7 @@ async function getCredsFor(openedBy?: string): Promise<{ username: string; apiKe
     if (data?.odoo_username && data?.odoo_api_key) {
       return { username: data.odoo_username, apiKey: data.odoo_api_key, source: data.display_name || openedBy };
     }
-  } catch { /* tabel belum dibuat atau team tidak ditemukan → fallback */ }
+  } catch { /* tabel tidak ada atau team tidak ditemukan */ }
   return fallback;
 }
 
@@ -298,8 +327,17 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: false, error: `Status "${status}" tidak dikenal` }, { status: 400 });
     }
 
-    // ── Ambil credentials (per-team atau fallback default) ──
-    const creds = await getCredsFor(openedBy);
+    // ── Ambil credentials: WAJIB dari session user ────────
+    // Tidak ada fallback — user harus set API key sendiri
+    const creds = await getCredsFromSession();
+    if (!creds) {
+      return NextResponse.json({
+        success:     false,
+        error:       "Odoo API Key belum dikonfigurasi",
+        needsApiKey: true,
+        hint:        "Buka Profil → Integrasi Odoo → input API Key kamu dari portal.fibermedia.co.id",
+      }, { status: 403 });
+    }
 
     // ── 1. Cari ticket ID berdasarkan field "number" ───────
     const ids: number[] = await callWith(

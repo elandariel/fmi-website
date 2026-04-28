@@ -112,7 +112,7 @@ function CreateTrackerContent() {
       actorName = profile?.full_name || 'User';
     }
     await logActivity({
-      activity: 'Input Tracker',
+      activity: 'TRACKER_CREATE',
       subject: `[${selectedTable}] ${formData['SUBJECT BERLANGGANAN']}`,
       actor: actorName
     });

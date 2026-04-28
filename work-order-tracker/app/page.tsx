@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
@@ -20,10 +20,11 @@ import { toast } from 'sonner';
 
 const ReactApexChart = dynamic(() => import('react-apexcharts'), { ssr: false });
 
+// BUG-05 fix: static config only — isWeekA_Morning dihitung di dalam komponen
+// agar selalu pakai tanggal saat render, bukan saat module dimuat
 const TEAM_CONFIG = {
   teamA: ['Anan', 'Shidiq'],
   teamB: ['Ilham', 'Andi'],
-  isWeekA_Morning: getISOWeek(new Date()) % 2 !== 0
 };
 
 // ─── REALTIME STATUS INDICATOR ───────────────────────────────
@@ -45,19 +46,33 @@ function LivePill({ connected }: { connected: boolean }) {
   );
 }
 
-// ─── ANIMATED COUNTER ────────────────────────────────────────
+// ─── ANIMATED COUNTER — UX-03: real count-up via rAF ────────
 function AnimatedNumber({ value, prefix = '', suffix = '' }: { value: number | string; prefix?: string; suffix?: string }) {
-  const [display, setDisplay] = useState(value);
-  const prevRef = useRef(value);
+  const numVal = typeof value === 'number' ? value : parseInt(String(value)) || 0;
+  const isNumeric = typeof value === 'number';
+  const [display, setDisplay] = useState(numVal);
+  const prevRef = useRef(numVal);
+  const rafRef = useRef<number>(0);
 
   useEffect(() => {
-    if (prevRef.current !== value) {
-      prevRef.current = value;
-      setDisplay(value);
-    }
-  }, [value]);
+    if (!isNumeric) { setDisplay(value as any); return; }
+    const from = prevRef.current;
+    const to = numVal;
+    if (from === to) return;
+    prevRef.current = to;
+    const duration = 650;
+    const startTime = performance.now();
+    const tick = (now: number) => {
+      const t = Math.min((now - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
+      setDisplay(Math.round(from + (to - from) * eased));
+      if (t < 1) rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [numVal, isNumeric, value]);
 
-  return <span key={String(value)} style={{ animation: 'countUp 0.4s ease-out' }}>{prefix}{display}{suffix}</span>;
+  return <span>{prefix}{display}{suffix}</span>;
 }
 
 export default function Dashboard() {
@@ -67,6 +82,12 @@ export default function Dashboard() {
   const [userRole, setUserRole] = useState<Role | null>(null);
   const [userFullName, setUserFullName] = useState('');
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  // BUG-03: tanggal di header terupdate setiap menit
+  const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  // BUG-04: ticker untuk paksa re-render "Update terakhir" setiap 30 detik
+  const [, setTick] = useState(0);
+  // BUG-05: isWeekA_Morning dihitung saat render, bukan saat module dimuat
+  const isWeekA_Morning = getISOWeek(new Date()) % 2 !== 0;
 
   const [stats, setStats] = useState({
     totalClient: 0,
@@ -91,10 +112,24 @@ export default function Dashboard() {
   const [expandedTicket, setExpandedTicket] = useState<string | null>(null);
   const [searchTicket, setSearchTicket] = useState('');
 
-  const supabase = createBrowserClient(
+  // ── FITUR-01: Insiden Backbone Aktif ──────────────────────
+  const [backboneCount, setBackboneCount] = useState(0);
+  // ── FITUR-02: WO status breakdown ─────────────────────────
+  const [woBreakdown, setWoBreakdown] = useState<Record<string, number>>({});
+  // ── FITUR-04: Status Odoo API Key ─────────────────────────
+  const [odooKeyStatus, setOdooKeyStatus] = useState<'loading' | 'active' | 'missing'>('loading');
+  // ── FITUR-05: Timestamp last sync ─────────────────────────
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  // ── FITUR-06: Trend vs bulan lalu ─────────────────────────
+  const [prevMonthGrowth, setPrevMonthGrowth] = useState(0);
+  // ── UX-01/FITUR-07: theme-aware chart colors ───────────────
+  const [isDark, setIsDark] = useState(true);
+
+  // UX-05 fix: bungkus useMemo agar instance tidak dibuat ulang tiap render
+  const supabase = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL || '',
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-  );
+  ), []);
 
   // ── REALTIME SUBSCRIPTIONS ─────────────────────────────────
   const realtimeLogs = useRealtimeTable('Log_Aktivitas', initialRecentLogs, ['INSERT']);
@@ -121,8 +156,9 @@ export default function Dashboard() {
     setLastUpdated(new Date());
   }, [realtimeLogs.length, realtimeClients.length, realtimeWorkOrders.length]);
 
-  const morningSquad = TEAM_CONFIG.isWeekA_Morning ? TEAM_CONFIG.teamA : TEAM_CONFIG.teamB;
-  const afternoonSquad = TEAM_CONFIG.isWeekA_Morning ? TEAM_CONFIG.teamB : TEAM_CONFIG.teamA;
+  // BUG-05: gunakan isWeekA_Morning dari state komponen (bukan module-level)
+  const morningSquad = isWeekA_Morning ? TEAM_CONFIG.teamA : TEAM_CONFIG.teamB;
+  const afternoonSquad = isWeekA_Morning ? TEAM_CONFIG.teamB : TEAM_CONFIG.teamA;
 
   const getGreeting = () => {
     const h = new Date().getHours();
@@ -138,7 +174,8 @@ export default function Dashboard() {
       if (action === 'APPROVE') {
         await supabase.from('Ignored_Items').update({ STATUS: 'APPROVED' }).eq('id', id);
       } else {
-        await supabase.from('Ignored_Items').delete().eq('id', id);
+        // BUG-09 fix: hanya ubah STATUS → 'REJECTED', tidak hapus data permanen
+        await supabase.from('Ignored_Items').update({ STATUS: 'REJECTED' }).eq('id', id);
       }
       setPendingApprovals(prev => prev.filter(item => item.id !== id));
       toast.success(action === 'APPROVE' ? 'Request disetujui!' : 'Request ditolak.');
@@ -176,6 +213,7 @@ export default function Dashboard() {
         });
       }
       toast.success('Sync berhasil!', { id: toastId, description: 'Data Supabase berhasil disinkronkan ke Google Sheets.' });
+      setLastSyncTime(new Date()); // FITUR-05
     } catch {
       toast.error('Sinkronisasi gagal', { id: toastId, description: 'Terjadi kesalahan saat menghubungi Google Sheets.' });
     } finally {
@@ -215,7 +253,8 @@ export default function Dashboard() {
           const enrichedTickets = await Promise.all(inboxData.map(async (ticket) => {
             const { data: woDetails } = await supabase.from('Report Bulanan').select('id, "SUBJECT WO", STATUS, KETERANGAN').in('id', ticket.wo_ids);
             const allSolved = woDetails?.every(wo => wo.STATUS === 'SOLVED' || wo.STATUS === 'CLOSED');
-            if (allSolved && woDetails.length > 0 && ticket.status !== 'SOLVED') {
+            // BUG-01 fix: woDetails bisa null jika query gagal — gunakan optional chaining
+            if (allSolved && (woDetails?.length ?? 0) > 0 && ticket.status !== 'SOLVED') {
               await supabase.from('inbox_tugas').update({ status: 'SOLVED' }).eq('id', ticket.id);
             }
             return { ...ticket, details: woDetails || [] };
@@ -279,6 +318,26 @@ export default function Dashboard() {
         woPending: pendingCount || 0
       });
       setInitialRecentLogs(logs || []);
+
+      // ── FITUR-01: hitung insiden backbone aktif ────────────
+      const { count: bbCount } = await supabase
+        .from('Report Bulanan')
+        .select('id', { count: 'exact', head: true })
+        .ilike('SUBJECT WO', '%backbone%')
+        .in('STATUS', ['OPEN', 'PENDING', 'PROGRESS', 'ON PROGRESS']);
+      setBackboneCount(bbCount || 0);
+
+      // ── FITUR-02: WO status breakdown ─────────────────────
+      const { data: wosAll } = await supabase.from('Report Bulanan').select('STATUS');
+      if (wosAll) {
+        const bd: Record<string, number> = {};
+        wosAll.forEach(w => { const s = w.STATUS || 'UNKNOWN'; bd[s] = (bd[s] || 0) + 1; });
+        setWoBreakdown(bd);
+      }
+
+      // ── FITUR-06: trend vs bulan lalu ─────────────────────
+      const lastMonthIdx = new Date().getMonth() === 0 ? 11 : new Date().getMonth() - 1;
+      setPrevMonthGrowth(d[0][lastMonthIdx]);
     } catch (err) {
       console.error('Dashboard Error:', err);
     } finally {
@@ -288,9 +347,44 @@ export default function Dashboard() {
 
   useEffect(() => { fetchDashboardData(); }, []);
 
+  // BUG-02 fix: cek koneksi Supabase Realtime yang sesungguhnya
+  // isLive = true hanya saat channel benar-benar terhubung (status 'SUBSCRIBED')
   useEffect(() => {
-    const t = setTimeout(() => setIsLive(true), 1200);
-    return () => clearTimeout(t);
+    const channel = supabase
+      .channel('__connection_health__')
+      .subscribe((status) => {
+        setIsLive(status === 'SUBSCRIBED');
+      });
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  // BUG-03 fix: update tanggal di header setiap 60 detik
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentDate(new Date()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // BUG-04 fix: paksa re-render "Update terakhir" setiap 30 detik
+  useEffect(() => {
+    const timer = setInterval(() => setTick(t => t + 1), 30_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // UX-01/FITUR-07: deteksi tema dark/light secara reaktif lewat MutationObserver
+  useEffect(() => {
+    const check = () => setIsDark(!document.documentElement.classList.contains('light'));
+    check();
+    const obs = new MutationObserver(check);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => obs.disconnect();
+  }, []);
+
+  // FITUR-04: cek status Odoo API Key user yang sedang login
+  useEffect(() => {
+    fetch('/api/my-odoo-key')
+      .then(r => r.json())
+      .then(d => setOdooKeyStatus(d.hasKey ? 'active' : 'missing'))
+      .catch(() => setOdooKeyStatus('missing'));
   }, []);
 
   const handleDownloadInbox = () => {
@@ -334,9 +428,24 @@ export default function Dashboard() {
                 style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-muted)' }}
               >
                 <Clock size={10} />
-                {format(new Date(), 'EEEE, dd MMMM yyyy', { locale: indonesia })}
+                {/* BUG-03 fix: pakai currentDate (state) agar terupdate tiap menit */}
+                {format(currentDate, 'EEEE, dd MMMM yyyy', { locale: indonesia })}
               </div>
               <LivePill connected={isLive} />
+              {/* FITUR-04: badge status Odoo API Key */}
+              {odooKeyStatus !== 'loading' && (
+                <div
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                  style={odooKeyStatus === 'active'
+                    ? { background: 'rgba(16,185,129,0.10)', color: '#10b981', border: '1px solid rgba(16,185,129,0.25)' }
+                    : { background: 'rgba(248,113,113,0.10)', color: '#f87171', border: '1px solid rgba(248,113,113,0.25)' }
+                  }
+                  title={odooKeyStatus === 'active' ? 'Odoo API Key aktif' : 'Odoo belum dikonfigurasi — buka Profil'}
+                >
+                  <Zap size={9} />
+                  Odoo {odooKeyStatus === 'active' ? 'OK' : '!'}
+                </div>
+              )}
             </div>
             <h1
               className="text-[26px] font-black tracking-tight leading-tight"
@@ -352,15 +461,23 @@ export default function Dashboard() {
 
           <div className="flex items-center gap-2 flex-wrap">
             {hasAccess(userRole, PERMISSIONS.OVERVIEW_ACTION) && (
-              <button
-                onClick={handleSyncSheet}
-                disabled={isSyncing}
-                className="flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold text-xs transition-all disabled:opacity-50"
-                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-secondary)' }}
-              >
-                {isSyncing ? <RefreshCw size={13} className="animate-spin" style={{ color: '#10b981' }} /> : <Database size={13} style={{ color: '#10b981' }} />}
-                {isSyncing ? 'Syncing...' : 'Sync Sheet'}
-              </button>
+              <div className="flex flex-col items-end gap-0.5">
+                <button
+                  onClick={handleSyncSheet}
+                  disabled={isSyncing}
+                  className="flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold text-xs transition-all disabled:opacity-50"
+                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-secondary)' }}
+                >
+                  {isSyncing ? <RefreshCw size={13} className="animate-spin" style={{ color: '#10b981' }} /> : <Database size={13} style={{ color: '#10b981' }} />}
+                  {isSyncing ? 'Syncing...' : 'Sync Sheet'}
+                </button>
+                {/* FITUR-05: timestamp last sync */}
+                {lastSyncTime && (
+                  <span className="text-[9px] font-mono" style={{ color: 'var(--text-muted)' }}>
+                    Last: {format(lastSyncTime, 'HH:mm')}
+                  </span>
+                )}
+              </div>
             )}
             {hasAccess(userRole, PERMISSIONS.OVERVIEW_ACTION) && (
               <button disabled className="flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold text-xs opacity-40 cursor-not-allowed"
@@ -432,70 +549,115 @@ export default function Dashboard() {
         <AlertBanner />
 
         {/* ── STAT CARDS ─────────────────────────────────────── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-          <StatCard
-            title="Total Client"
-            value={<AnimatedNumber value={realtimeStats.totalClient} />}
-            sub="Database aktif"
-            icon={<Users size={18} />}
-            accentColor="#38bdf8"
-            trend={realtimeClients.length > stats.totalClient ? `+${realtimeClients.length - stats.totalClient} baru` : null}
-          />
-          <StatCard
-            title="WO Aktif"
-            value={<AnimatedNumber value={realtimeStats.woPending} />}
-            sub="Pending & Progress"
-            icon={<Activity size={18} />}
-            accentColor="#a78bfa"
-            trend={null}
-          />
-          <StatCard
-            title="Bulan Ini"
-            value={<AnimatedNumber value={realtimeStats.growthMonth} prefix="+" />}
-            sub="Pelanggan baru"
-            icon={<TrendingUp size={18} />}
-            accentColor="#10b981"
-            trend={null}
-          />
-          <StatCard
-            title="VLAN Tersedia"
-            value={<AnimatedNumber value={realtimeStats.totalVlanFree} />}
-            sub={`${vlanUsagePercent}% slot terpakai`}
-            icon={<Database size={18} />}
-            accentColor="#fbbf24"
-            trend={null}
-            progress={vlanUsagePercent}
-          />
-        </div>
+        {/* FITUR-06: hitung trend vs bulan lalu */}
+        {(() => {
+          const trendPct = prevMonthGrowth > 0
+            ? Math.round(((realtimeStats.growthMonth - prevMonthGrowth) / prevMonthGrowth) * 100)
+            : realtimeStats.growthMonth > 0 ? 100 : 0;
+          const trendStr = trendPct > 0
+            ? `+${trendPct}% vs bln lalu`
+            : trendPct < 0 ? `${trendPct}% vs bln lalu` : null;
 
-        {/* ── ROW 2: MINI STATS ───────────────────────────────── */}
-        <div className="grid grid-cols-3 gap-4 mb-5">
-          <MiniStatCard
-            label="Log Hari Ini"
-            value={<AnimatedNumber value={realtimeStats.logsToday} />}
-            icon={<Zap size={14} />}
-            color="#fbbf24"
-          />
-          <MiniStatCard
-            label="Berlangganan 2026"
-            value={<AnimatedNumber value={chartSummary.pasang} />}
-            icon={<ArrowUpRight size={14} />}
-            color="#10b981"
-          />
-          <MiniStatCard
-            label="Berhenti Berlangganan 2026"
-            value={<AnimatedNumber value={chartSummary.putus} />}
-            icon={<ArrowDownRight size={14} />}
-            color="#f87171"
-          />
-        </div>
+          return (
+            // FITUR-01: tambah stat card Insiden Backbone — grid 5 kolom di desktop
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-5">
+              <StatCard
+                title="Total Client"
+                value={<AnimatedNumber value={realtimeStats.totalClient} />}
+                sub="Database aktif"
+                icon={<Users size={18} />}
+                accentColor="#38bdf8"
+                trend={realtimeClients.length > stats.totalClient ? `+${realtimeClients.length - stats.totalClient} baru` : null}
+              />
+              <StatCard
+                title="WO Aktif"
+                value={<AnimatedNumber value={realtimeStats.woPending} />}
+                sub="Pending & Progress"
+                icon={<Activity size={18} />}
+                accentColor="#a78bfa"
+                trend={null}
+              />
+              <StatCard
+                title="Bulan Ini"
+                value={<AnimatedNumber value={realtimeStats.growthMonth} prefix="+" />}
+                sub="Pelanggan baru"
+                icon={<TrendingUp size={18} />}
+                accentColor="#10b981"
+                trend={trendStr}
+                trendDown={trendPct < 0}
+              />
+              <StatCard
+                title="VLAN Tersedia"
+                value={<AnimatedNumber value={realtimeStats.totalVlanFree} />}
+                sub={`${vlanUsagePercent}% slot terpakai`}
+                icon={<Database size={18} />}
+                accentColor="#fbbf24"
+                trend={null}
+                progress={vlanUsagePercent}
+              />
+              {/* FITUR-01: Insiden Backbone Aktif */}
+              <StatCard
+                title="Insiden Backbone"
+                value={<AnimatedNumber value={backboneCount} />}
+                sub="Tiket backbone aktif"
+                icon={<WifiOff size={18} />}
+                accentColor={backboneCount > 0 ? '#f87171' : '#10b981'}
+                trend={backboneCount > 0 ? `${backboneCount} perlu ditangani` : null}
+                trendDown={backboneCount > 0}
+              />
+            </div>
+          );
+        })()}
+
+        {/* ── FITUR-02: WO Status Breakdown ───────────────────── */}
+        {Object.keys(woBreakdown).length > 0 && (
+          <div className="mb-5 card p-4">
+            <h3 className="text-[11px] font-bold uppercase tracking-wider mb-3 flex items-center gap-2" style={{ color: 'var(--text-muted)' }}>
+              <Activity size={12} /> WO Status Breakdown
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { key: 'OPEN',        color: '#38bdf8' },
+                { key: 'ON PROGRESS', color: '#a78bfa' },
+                { key: 'PROGRESS',    color: '#a78bfa' },
+                { key: 'PENDING',     color: '#fbbf24' },
+                { key: 'SOLVED',      color: '#10b981' },
+                { key: 'CLOSED',      color: '#6b7280' },
+                { key: 'UNSOLVED',    color: '#f87171' },
+                { key: 'CANCEL',      color: '#ef4444' },
+              ].filter(s => woBreakdown[s.key] > 0).map(s => (
+                <div key={s.key}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl"
+                  style={{ background: `${s.color}14`, border: `1px solid ${s.color}30` }}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: s.color }} />
+                  <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: s.color }}>{s.key}</span>
+                  <span className="text-sm font-black" style={{ color: s.color }}>
+                    <AnimatedNumber value={woBreakdown[s.key]} />
+                  </span>
+                </div>
+              ))}
+              {/* status tak dikenal */}
+              {Object.entries(woBreakdown)
+                .filter(([k]) => !['OPEN','ON PROGRESS','PROGRESS','PENDING','SOLVED','CLOSED','UNSOLVED','CANCEL'].includes(k))
+                .map(([k, v]) => (
+                  <div key={k} className="flex items-center gap-2 px-3 py-1.5 rounded-xl"
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <span className="text-[10px] font-bold uppercase" style={{ color: 'var(--text-muted)' }}>{k}</span>
+                    <span className="text-sm font-black" style={{ color: 'var(--text-secondary)' }}>{v}</span>
+                  </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── MAIN GRID ───────────────────────────────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
           {/* ── CHART ──────────────────────────────────────────── */}
           <div className="card lg:col-span-2 flex flex-col overflow-hidden" style={{ padding: 0 }}>
-            <div className="px-5 pt-5 pb-0">
+            {/* Chart header */}
+            <div className="px-5 pt-5 pb-0 shrink-0">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
                 <div>
                   <h3 className="font-bold flex items-center gap-2 text-[14px]" style={{ color: 'var(--text-primary)' }}>
@@ -525,35 +687,66 @@ export default function Dashboard() {
                   >Kapasitas</button>
                 </div>
               </div>
-              <ReactApexChart
-                options={{
-                  chart: { toolbar: { show: false }, fontFamily: "'Inter', sans-serif", background: 'transparent', animations: { enabled: true, easing: 'easeinout', speed: 700 } },
-                  colors: chartTab === 'CLIENT' ? ['#10b981', '#f87171', '#fbbf24'] : ['#38bdf8', '#6b7280'],
-                  xaxis: {
-                    categories: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'],
-                    labels: { style: { fontSize: '11px', fontWeight: 500, colors: '#4a5568' } },
-                    axisBorder: { color: 'rgba(255,255,255,0.06)' },
-                    axisTicks: { color: 'rgba(255,255,255,0.06)' },
-                  },
-                  yaxis: { labels: { style: { fontSize: '11px', colors: '#4a5568' } } },
-                  grid: { borderColor: 'rgba(255,255,255,0.05)', strokeDashArray: 4 },
-                  plotOptions: { bar: { borderRadius: 6, columnWidth: '50%', borderRadiusApplication: 'end' } },
-                  legend: { fontSize: '12px', fontWeight: 600, offsetY: 4, labels: { colors: '#8892a4' } },
-                  dataLabels: { enabled: false },
-                  tooltip: {
-                    style: { fontFamily: "'Inter', sans-serif" },
-                    theme: 'dark',
-                  },
-                  fill: {
-                    type: 'gradient',
-                    gradient: { shade: 'dark', type: 'vertical', shadeIntensity: 0.3, opacityFrom: 1, opacityTo: 0.75 }
-                  },
-                }}
-                series={chartTab === 'CLIENT' ? chartData.client : chartData.capacity}
-                type="bar"
-                height={240}
-              />
             </div>
+
+            {/* Chart — UX-01/FITUR-07: theme-aware + UX-04: empty state */}
+            {(() => {
+              const currentSeries = chartTab === 'CLIENT' ? chartData.client : chartData.capacity;
+              const isEmpty = !currentSeries.length ||
+                currentSeries.every((s: any) => (s.data || []).every((v: number) => v === 0));
+
+              // UX-01/FITUR-07: warna label dan tooltip ikut tema
+              const textColor    = isDark ? '#64748b' : '#64748b';
+              const legendColor  = isDark ? '#94a3b8' : '#475569';
+              const gridColor    = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)';
+              const tooltipTheme = isDark ? 'dark' : 'light';
+              const fillShade    = isDark ? 'dark' : 'light';
+
+              return isEmpty ? (
+                /* UX-04: empty state chart */
+                <div className="flex-1 flex flex-col items-center justify-center gap-3 py-10">
+                  <BarChart3 size={36} style={{ color: 'var(--text-muted)', opacity: 0.35 }} />
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text-muted)' }}>Belum ada data untuk periode ini</p>
+                  <p className="text-[11px]" style={{ color: 'var(--text-muted)', opacity: 0.6 }}>Data akan muncul setelah ada transaksi di 2026</p>
+                </div>
+              ) : (
+                <div className="flex-1 min-h-0 px-2">
+                  <ReactApexChart
+                    options={{
+                      chart: {
+                        toolbar: { show: false },
+                        fontFamily: "'Inter', sans-serif",
+                        background: 'transparent',
+                        animations: { enabled: true, speed: 700 },
+                      },
+                      colors: chartTab === 'CLIENT' ? ['#10b981', '#f87171', '#fbbf24'] : ['#38bdf8', '#6b7280'],
+                      xaxis: {
+                        categories: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'],
+                        labels: { style: { fontSize: '11px', fontWeight: 500, colors: textColor } },
+                        axisBorder: { color: gridColor },
+                        axisTicks:  { color: gridColor },
+                      },
+                      yaxis: { labels: { style: { fontSize: '11px', colors: textColor } } },
+                      grid: { borderColor: gridColor, strokeDashArray: 4 },
+                      plotOptions: { bar: { borderRadius: 6, columnWidth: '50%', borderRadiusApplication: 'end' } },
+                      legend: { fontSize: '12px', fontWeight: 600, offsetY: 4, labels: { colors: legendColor } },
+                      dataLabels: { enabled: false },
+                      tooltip: {
+                        style: { fontFamily: "'Inter', sans-serif", fontSize: '12px' },
+                        theme: tooltipTheme,
+                      },
+                      fill: {
+                        type: 'gradient',
+                        gradient: { shade: fillShade, type: 'vertical', shadeIntensity: 0.25, opacityFrom: 1, opacityTo: 0.75 },
+                      },
+                    }}
+                    series={currentSeries}
+                    type="bar"
+                    height="100%"
+                  />
+                </div>
+              );
+            })()}
 
             {/* Chart Footer Summary */}
             <div className="mt-auto px-5 py-3.5" style={{ borderTop: '1px solid var(--border-light)', background: 'var(--bg-elevated)' }}>
@@ -742,7 +935,7 @@ export default function Dashboard() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" size={13} style={{ color: 'var(--text-muted)' }} />
                 <input
                   type="text"
-                  placeholder="Cari nomor tiket..."
+                  placeholder="Cari nomor tiket, PIC, atau nama WO..."
                   value={searchTicket}
                   onChange={e => setSearchTicket(e.target.value)}
                   className="w-full pl-8 pr-4 py-2 rounded-lg text-xs font-medium outline-none transition-all"
@@ -756,7 +949,17 @@ export default function Dashboard() {
             {/* List */}
             <div className="flex-1 overflow-y-auto p-4 space-y-2" style={{ background: 'var(--bg-base)' }}>
               {myInboxTickets
-                .filter(t => (t.id_tiket_custom || '').toLowerCase().includes(searchTicket.toLowerCase()))
+                // UX-02 fix: search juga berdasarkan PIC dan nama WO
+                .filter(t => {
+                  const q = searchTicket.toLowerCase().trim();
+                  if (!q) return true;
+                  const matchId  = (t.id_tiket_custom || '').toLowerCase().includes(q);
+                  const matchPic = (t.assigned_to || '').toLowerCase().includes(q);
+                  const matchWo  = (t.details || []).some((wo: any) =>
+                    (wo['SUBJECT WO'] || '').toLowerCase().includes(q)
+                  );
+                  return matchId || matchPic || matchWo;
+                })
                 .map(ticket => {
                   const isExpanded = expandedTicket === ticket.id;
                   return (
@@ -844,8 +1047,12 @@ export default function Dashboard() {
 }
 
 // ── STAT CARD ────────────────────────────────────────────────
-function StatCard({ title, value, sub, icon, accentColor, trend, progress }: any) {
+// FITUR-06: prop trendDown untuk warna merah saat tren turun
+function StatCard({ title, value, sub, icon, accentColor, trend, progress, trendDown }: any) {
   const color = accentColor || '#f0efe8';
+  const trendColor  = trendDown ? '#f87171' : '#34d399';
+  const trendBg     = trendDown ? 'rgba(248,113,113,0.12)' : 'rgba(16,185,129,0.12)';
+  const trendBorder = trendDown ? 'rgba(248,113,113,0.2)'  : 'rgba(16,185,129,0.2)';
   return (
     <div className="stat-card p-4 relative overflow-hidden group" style={{ borderRadius: 14 }}>
       {/* Top glow line */}
@@ -862,8 +1069,8 @@ function StatCard({ title, value, sub, icon, accentColor, trend, progress }: any
         </div>
         {trend && (
           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-0.5"
-            style={{ background: 'rgba(16,185,129,0.12)', color: '#34d399', border: '1px solid rgba(16,185,129,0.2)' }}>
-            <ArrowUpRight size={10} />{trend}
+            style={{ background: trendBg, color: trendColor, border: `1px solid ${trendBorder}` }}>
+            {trendDown ? <ArrowDownRight size={10} /> : <ArrowUpRight size={10} />}{trend}
           </span>
         )}
       </div>

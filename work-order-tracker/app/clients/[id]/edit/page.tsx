@@ -87,7 +87,7 @@ function EditClientContent() {
         const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single();
         actorName = profile?.full_name || 'User';
       }
-      await logActivity({ activity: 'Edit Client Corp', subject: formData['Nama Pelanggan'], actor: actorName });
+      await logActivity({ activity: 'CLIENT_EDIT', subject: formData['Nama Pelanggan'], actor: actorName });
       toast.success('Data Berhasil Diperbarui!', { description: 'Perubahan telah tersimpan di sistem.' });
       router.push('/clients');
       router.refresh();
@@ -102,7 +102,13 @@ function EditClientContent() {
       toast.error('Gagal hapus: ' + error.message);
       setSaving(false);
     } else {
-      await logActivity({ activity: 'Delete Client Corp', subject: formData['Nama Pelanggan'], actor: 'User' });
+      const { data: { user } } = await supabase.auth.getUser();
+      let deleteActor = 'System';
+      if (user) {
+        const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single();
+        deleteActor = profile?.full_name || 'User';
+      }
+      await logActivity({ activity: 'CLIENT_DELETE', subject: formData['Nama Pelanggan'], actor: deleteActor });
       toast.success('Client Berhasil Dihapus', { description: 'Data telah dihapus permanen dari database.' });
       router.push('/clients');
       router.refresh();

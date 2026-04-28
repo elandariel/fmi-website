@@ -116,7 +116,7 @@ ${data['Konfigurasi'] || '-'}
         const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single();
         actorName = profile?.full_name || user.email || 'User';
       }
-      await logActivity({ activity: 'Input Client Corp', subject: formData['Nama Pelanggan'], actor: actorName });
+      await logActivity({ activity: 'CLIENT_CREATE', subject: formData['Nama Pelanggan'], actor: actorName });
       downloadTxt(formData);
       toast.success('Client Berhasil Disimpan!', {
         description: 'Laporan TXT sedang diunduh & Notifikasi terkirim.',

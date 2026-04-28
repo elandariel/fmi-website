@@ -18,6 +18,7 @@ export type ActivityType =
   | 'TRACKER_EDIT_REQUEST'
   | 'TRACKER_EDIT_APPROVED'
   | 'TRACKER_EDIT_REJECTED'
+  | 'TRACKER_DIRECT_EDIT'
   // Client
   | 'CLIENT_CREATE'
   | 'CLIENT_EDIT'
@@ -77,6 +78,7 @@ export const ACTIVITY_META: Record<ActivityType, { module: ActivityModule; label
   TRACKER_EDIT_REQUEST:  { module: 'Weekly Report',   label: 'Request Edit Tracker',        category: 'request' },
   TRACKER_EDIT_APPROVED: { module: 'Weekly Report',   label: 'Approve Edit Tracker',        category: 'approve' },
   TRACKER_EDIT_REJECTED: { module: 'Weekly Report',   label: 'Tolak Edit Tracker',          category: 'reject'  },
+  TRACKER_DIRECT_EDIT:   { module: 'Weekly Report',   label: 'Edit Langsung Tracker',       category: 'edit'    },
   CLIENT_CREATE:         { module: 'Data Client',     label: 'Tambah Client',               category: 'create'  },
   CLIENT_EDIT:           { module: 'Data Client',     label: 'Edit Data Client',             category: 'edit'    },
   CLIENT_DELETE:         { module: 'Data Client',     label: 'Hapus Client',                category: 'delete'  },

@@ -1,5 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
 import https from "https";
+import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
+
+// ─── Service role ─────────────────────────────────────────────
+const sbAdmin = () =>
+  createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+// ─── Get credentials dari user session yang sedang login ──────
+async function getSessionCreds(): Promise<{ username: string; apiKey: string } | null> {
+  try {
+    const cookieStore = await cookies();
+    const supabase    = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { cookies: { getAll() { return cookieStore.getAll(); } } }
+    );
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user?.id || !user?.email) return null;
+
+    const { data } = await sbAdmin()
+      .from("user_odoo_keys")
+      .select("odoo_api_key, is_active")
+      .eq("user_id", user.id)
+      .eq("is_active", true)
+      .single();
+
+    if (data?.odoo_api_key) {
+      return { username: user.email, apiKey: data.odoo_api_key };
+    }
+  } catch { /* session tidak tersedia */ }
+  return null;
+}
 
 /**
  * Odoo 16 XML-RPC proxy — server-side only, credentials never exposed to client.
@@ -203,23 +239,24 @@ async function rpc(path: string, method: string, args: any[]): Promise<any> {
   return parseXmlResponse(text);
 }
 
-// Authenticate once → returns uid (int)
-async function getUid(): Promise<number> {
-  const db      = process.env.ODOO_DB!;
-  const user    = process.env.ODOO_USERNAME!;
-  const apiKey  = process.env.ODOO_API_KEY!;
-  const uid     = await rpc("/xmlrpc/2/common", "authenticate", [db, user, apiKey, {}]);
+// Authenticate → returns uid (int)
+// Jika username/apiKey tidak diberikan, pakai env default
+async function getUid(username?: string, apiKey?: string): Promise<number> {
+  const db   = process.env.ODOO_DB!;
+  const usr  = username ?? process.env.ODOO_USERNAME!;
+  const key  = apiKey   ?? process.env.ODOO_API_KEY!;
+  const uid  = await rpc("/xmlrpc/2/common", "authenticate", [db, usr, key, {}]);
   if (!uid || uid === false)
     throw new Error("Autentikasi Odoo gagal — periksa ODOO_USERNAME dan ODOO_API_KEY");
   return uid as number;
 }
 
 // Shorthand: call object endpoint
-async function call(model: string, method: string, args: any[], kwargs: any = {}): Promise<any> {
-  const db     = process.env.ODOO_DB!;
-  const apiKey = process.env.ODOO_API_KEY!;
-  const uid    = await getUid();
-  return rpc("/xmlrpc/2/object", "execute_kw", [db, uid, apiKey, model, method, args, kwargs]);
+async function call(model: string, method: string, args: any[], kwargs: any = {}, username?: string, apiKey?: string): Promise<any> {
+  const db  = process.env.ODOO_DB!;
+  const key = apiKey ?? process.env.ODOO_API_KEY!;
+  const uid = await getUid(username, apiKey);
+  return rpc("/xmlrpc/2/object", "execute_kw", [db, uid, key, model, method, args, kwargs]);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -370,6 +407,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // ── Ambil credentials: WAJIB dari session user ────────
+    // Tidak ada fallback ke env — user harus set API key sendiri
+    const sessionCreds = await getSessionCreds();
+    if (!sessionCreds) {
+      return NextResponse.json({
+        success:      false,
+        error:        "Odoo API Key belum dikonfigurasi",
+        needsApiKey:  true,
+        hint:         "Buka Profil → Integrasi Odoo → input API Key kamu dari portal.fibermedia.co.id",
+      }, { status: 403 });
+    }
+    const odooUsername = sessionCreds.username;
+    const odooApiKey   = sessionCreds.apiKey;
+
     const nocTeamId      = Number(process.env.ODOO_NOC_TEAM_ID);
     const escFieldTeamId = Number(process.env.ODOO_ESC_FIELD_TEAM_ID ?? "0");
     const descHtml       = (description?.trim() || subject.trim()).replace(/\n/g, "<br/>");
@@ -379,37 +430,30 @@ export async function POST(req: NextRequest) {
       name:        subject.trim(),
       description: descHtml,
       team_id:     nocTeamId,
-    }]);
+    }], {}, odooUsername, odooApiKey);
 
     // ── 2. Set escalation fields + trigger ESCALATE ────────
-    // Nomor tiket (HTxxxxxx) baru di-generate Odoo setelah
-    // tombol ESCALATE ditekan, jadi step ini harus SEBELUM read.
     if (escFieldTeamId) {
-      // Write field_team_id + escalate_description
       await call("helpdesk.ticket", "write", [[ticketId], {
         field_team_id:        escFieldTeamId,
         escalate_description: `<p>${descHtml}</p>`,
-      }]);
+      }], {}, odooUsername, odooApiKey);
 
-      // Try calling the escalate action method
-      // (common names in custom Odoo modules)
       const escalateMethods = ["action_escalate", "do_escalate", "escalate_ticket", "button_escalate"];
       for (const method of escalateMethods) {
         try {
-          await call("helpdesk.ticket", method, [[ticketId]]);
-          break; // success — stop trying
-        } catch {
-          // method doesn't exist, try next
-        }
+          await call("helpdesk.ticket", method, [[ticketId]], {}, odooUsername, odooApiKey);
+          break;
+        } catch { /* try next */ }
       }
     }
 
     // ── 3. Baca nomor tiket + create_date (SETELAH escalate) ─
-    // HTxxxxxx dan start time baru tersedia setelah escalate
     const [ticketData] = await call(
       "helpdesk.ticket", "read",
       [[ticketId]],
-      { fields: ["name", "number", "create_date", "team_id"] }
+      { fields: ["name", "number", "create_date", "team_id"] },
+      odooUsername, odooApiKey
     );
 
     // "number" field = HTxxxxxx (generated by Odoo at escalation)

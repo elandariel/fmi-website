@@ -68,20 +68,23 @@ function ClientDetailContent() {
         const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single();
         actorName = profile?.full_name || 'User';
       }
-      await logActivity({ activity: 'Delete Client Corp', subject: client?.['Nama Pelanggan'] || 'Unknown', actor: actorName });
+      await logActivity({ activity: 'CLIENT_DELETE', subject: client?.['Nama Pelanggan'] || 'Unknown', actor: actorName });
       toast.success('Client Berhasil Dihapus', { id: toastId, description: 'Data telah dihapus permanen dari database.' });
       router.push('/clients');
       router.refresh();
     }
   };
 
-  // Signal color helper
+  // Signal color helper — threshold SOP:
+  //   > -15.00 dBm  : High Power (terlalu bagus)
+  //   -15.00 ~ -24.50 : Batas Aman SOP
+  //   < -24.50 dBm  : Low Power (perlu perbaikan)
   const getSignalColor = (value: string) => {
     const val = parseFloat(value);
     if (isNaN(val)) return { text: 'text-slate-400', bg: 'bg-slate-100', label: '—' };
-    if (val < -27) return { text: 'text-rose-600', bg: 'bg-rose-50', label: 'Lemah' };
-    if (val < -24) return { text: 'text-amber-600', bg: 'bg-amber-50', label: 'Sedang' };
-    return { text: 'text-emerald-600', bg: 'bg-emerald-50', label: 'Baik' };
+    if (val > -15.00) return { text: 'text-amber-500', bg: 'bg-amber-50',   label: 'High Power'  };
+    if (val < -24.50) return { text: 'text-rose-600',  bg: 'bg-rose-50',    label: 'Low Power'   };
+    return                   { text: 'text-emerald-600', bg: 'bg-emerald-50', label: 'Aman SOP' };
   };
 
   const getStatusStyle = (status: string) => {

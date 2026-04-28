@@ -3,19 +3,43 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from "react";
 
 // ─────────────────────────────────────────────────────────────
-// DESIGN TOKENS (harus sama dengan parent)
+// DESIGN TOKENS — dual theme
 // ─────────────────────────────────────────────────────────────
-const C = {
+const DARK_C = {
   base:      "#0f172a",
   surface:   "#1e293b",
   elevated:  "#263447",
-  subtle:    "#334155",
   border:    "rgba(148,163,184,0.12)",
   text:      "#f8fafc",
   textSec:   "#94a3b8",
   textMuted: "#64748b",
   accent:    "#34d399",
+  popupBg:   "#1e293b",
+  popupText: "#f1f5f9",
+  popupSub:  "#94a3b8",
+  popupBdr:  "rgba(148,163,184,0.15)",
+  ticketNo:  "#93c5fd",
 };
+const LIGHT_C = {
+  base:      "#f8fafc",
+  surface:   "#ffffff",
+  elevated:  "#f1f5f9",
+  border:    "rgba(148,163,184,0.25)",
+  text:      "#0f172a",
+  textSec:   "#475569",
+  textMuted: "#94a3b8",
+  accent:    "#059669",
+  popupBg:   "#ffffff",
+  popupText: "#0f172a",
+  popupSub:  "#64748b",
+  popupBdr:  "#e2e8f0",
+  ticketNo:  "#1e40af",
+};
+
+// Tile URLs
+const TILE_DARK  = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+const TILE_LIGHT = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
+const TILE_ATTR  = '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://openstreetmap.org">OSM</a>';
 
 // ─────────────────────────────────────────────────────────────
 // HELPERS
@@ -78,16 +102,19 @@ interface GeoPoint {
 }
 
 interface Props {
-  reports: any[];
+  reports:   any[];
+  darkMode?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────
 // COMPONENT
 // ─────────────────────────────────────────────────────────────
-export default function BackboneHeatmap({ reports }: Props) {
+export default function BackboneHeatmap({ reports, darkMode = true }: Props) {
+  const C = darkMode ? DARK_C : LIGHT_C;
   const mapDivRef    = useRef<HTMLDivElement>(null);
   const mapRef       = useRef<any>(null);      // L.Map instance
   const layerGrpRef  = useRef<any>(null);      // L.LayerGroup for markers
+  const tileRef      = useRef<any>(null);      // current tile layer
   const [cache,      setCache]      = useState<Record<string, [number, number] | null>>(loadCache);
   const [progress,   setProgress]   = useState({ done: 0, total: 0, running: false });
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -274,20 +301,13 @@ export default function BackboneHeatmap({ reports }: Props) {
         scrollWheelZoom: true,
       });
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        maxZoom:     18,
-      }).addTo(map);
-
-      // Dark tile alternative (CartoDB dark)
-      L.tileLayer(
-        "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-        {
-          attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
-          subdomains: "abcd",
-          maxZoom: 19,
-        }
-      ).addTo(map);
+      const tile = L.tileLayer(darkMode ? TILE_DARK : TILE_LIGHT, {
+        attribution: TILE_ATTR,
+        subdomains:  "abcd",
+        maxZoom:     19,
+      });
+      tile.addTo(map);
+      tileRef.current = tile;
 
       const lg = L.layerGroup().addTo(map);
       mapRef.current   = map;
@@ -303,6 +323,24 @@ export default function BackboneHeatmap({ reports }: Props) {
       }
     };
   }, []);
+
+  // ── Swap tile layer saat darkMode berubah ────────────────
+  useEffect(() => {
+    if (!mapRef.current) return;
+    import("leaflet").then(Lmod => {
+      const L = Lmod.default ?? Lmod;
+      if (tileRef.current) {
+        mapRef.current.removeLayer(tileRef.current);
+      }
+      const tile = L.tileLayer(darkMode ? TILE_DARK : TILE_LIGHT, {
+        attribution: TILE_ATTR,
+        subdomains: "abcd",
+        maxZoom: 19,
+      });
+      tile.addTo(mapRef.current);
+      tileRef.current = tile;
+    });
+  }, [darkMode]);
 
   // ── Update markers when geoPoints change ──────────────────
   useEffect(() => {
@@ -350,24 +388,22 @@ export default function BackboneHeatmap({ reports }: Props) {
           UNSOLVED: "#f87171", "ON PROGRESS": "#60a5fa", OPEN: "#f5c842",
         };
 
-        const ticketRows = uniqueDetails.slice(0, 6).map((td, idx) => {
+        const ticketRows = uniqueDetails.slice(0, 6).map((td) => {
           const sc = STATUS_C[td.status.toUpperCase()] || "#94a3b8";
-          const namaStr = td.namaLinks.length > 0
-            ? td.namaLinks.join(", ")
-            : "—";
+          const namaStr = td.namaLinks.length > 0 ? td.namaLinks.join(", ") : "—";
           return `
-            <div style="padding:6px 0;border-bottom:1px solid #f1f5f9">
+            <div style="padding:6px 0;border-bottom:1px solid ${C.popupBdr}">
               <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-                <span style="font-family:monospace;font-weight:800;color:#1e40af;font-size:11px">${td.ticketNo}</span>
-                <span style="font-size:9px;padding:1px 6px;border-radius:4px;background:${sc}20;color:${sc};font-weight:700;border:1px solid ${sc}40">${td.status || "—"}</span>
+                <span style="font-family:monospace;font-weight:800;color:${C.ticketNo};font-size:11px">${td.ticketNo}</span>
+                <span style="font-size:9px;padding:1px 6px;border-radius:4px;background:${sc}25;color:${sc};font-weight:700;border:1px solid ${sc}50">${td.status || "—"}</span>
               </div>
               <div style="display:flex;align-items:flex-start;gap:4px;margin-top:3px">
-                <span style="font-size:9px;color:#94a3b8;flex-shrink:0;margin-top:1px">BB</span>
-                <span style="font-size:10px;color:#334155;font-family:sans-serif;line-height:1.4">${namaStr}</span>
+                <span style="font-size:9px;color:${C.popupSub};flex-shrink:0;margin-top:1px">BB</span>
+                <span style="font-size:10px;color:${C.popupText};font-family:sans-serif;line-height:1.4">${namaStr}</span>
               </div>
               ${td.problem ? `
               <div style="display:flex;align-items:flex-start;gap:4px;margin-top:2px">
-                <span style="font-size:9px;color:#94a3b8;flex-shrink:0;margin-top:1px">⚡</span>
+                <span style="font-size:9px;color:${C.popupSub};flex-shrink:0;margin-top:1px">⚡</span>
                 <span style="font-size:10px;color:#f59e0b;font-weight:600;font-family:sans-serif">${td.problem}</span>
               </div>` : ""}
             </div>
@@ -375,18 +411,18 @@ export default function BackboneHeatmap({ reports }: Props) {
         }).join("");
 
         const popupHtml = `
-          <div style="min-width:240px;max-width:300px;font-size:11px">
+          <div style="min-width:240px;max-width:300px;font-size:11px;background:${C.popupBg};color:${C.popupText}">
             <div style="font-size:14px;font-weight:900;color:${color};margin-bottom:2px">
               ${pt.count} Tiket
             </div>
-            <div style="color:#64748b;font-size:10px;margin-bottom:8px;font-family:sans-serif;font-style:italic;line-height:1.4">
+            <div style="color:${C.popupSub};font-size:10px;margin-bottom:8px;font-family:sans-serif;font-style:italic;line-height:1.4">
               📍 ${pt.rawAddr}
             </div>
-            <div style="border-top:2px solid ${color}30;padding-top:6px">
+            <div style="border-top:2px solid ${color}40;padding-top:6px">
               ${ticketRows}
             </div>
             ${uniqueDetails.length > 6 ? `
-            <div style="text-align:center;padding:4px 0;font-size:10px;color:#94a3b8;font-family:sans-serif">
+            <div style="text-align:center;padding:4px 0;font-size:10px;color:${C.popupSub};font-family:sans-serif">
               +${uniqueDetails.length - 6} tiket lainnya
             </div>` : ""}
           </div>

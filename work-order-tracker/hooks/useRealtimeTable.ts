@@ -9,7 +9,8 @@ type ChangeEvent = 'INSERT' | 'UPDATE' | 'DELETE' | '*';
 export function useRealtimeTable<T extends { id: string | number }>(
   tableName: string,
   initialData: T[],
-  events: ChangeEvent[] = ['*']
+  events: ChangeEvent[] = ['*'],
+  onStatusChange?: (status: string) => void   // LOG-BUG-01: optional connection callback
 ) {
   const [data, setData] = useState<T[]>(initialData);
 
@@ -47,7 +48,9 @@ export function useRealtimeTable<T extends { id: string | number }>(
           });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        onStatusChange?.(status);   // 'SUBSCRIBED' | 'TIMED_OUT' | 'CLOSED' | 'CHANNEL_ERROR'
+      });
 
     return () => {
       supabase.removeChannel(channel);

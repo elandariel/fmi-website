@@ -977,6 +977,7 @@ function buildPDFHTML(opts: {
           <td style="font-family:monospace;font-weight:700;font-size:9px;color:#0f172a">${f["NOMOR TICKET"] || "—"}</td>
           <td style="color:#475569;font-size:9px">${f["Hari dan Tanggal Report"] || "—"}</td>
           <td style="color:#475569;font-size:9px">${f["Jenis Problem"] || "—"}</td>
+          <td style="color:#334155;font-size:8.5px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${f["Problem"] || ""}">${f["Problem"] || "—"}</td>
           <td style="color:${f["Priority"]==="CRITICAL"?"#ef4444":f["Priority"]?"#f59e0b":"#94a3b8"};font-weight:700;font-size:9px">${f["Priority"] || "—"}</td>
           <td><span class="b" style="background:${stBg};color:${stColor}">${st}</span></td>
           <td><span class="b" style="background:${slaBg};color:${slaColor}">${slaText}</span></td>
@@ -995,7 +996,7 @@ function buildPDFHTML(opts: {
         <table style="margin-top:5px">
           <thead><tr>
             <th>Nomor Tiket</th><th>Tanggal</th><th>Jenis Problem</th>
-            <th>Priority</th><th>Status</th><th>SLA</th><th>MTTR</th>
+            <th>Problem</th><th>Priority</th><th>Status</th><th>SLA</th><th>MTTR</th>
           </tr></thead>
           <tbody>${ticketMiniRows}</tbody>
         </table>` : ""}
@@ -1024,15 +1025,32 @@ function buildPDFHTML(opts: {
   const kodeSection = (() => {
     const filtered = Object.entries(byKode).filter(([, v]) => v >= 3).sort(([, a], [, b]) => b - a);
     if (filtered.length === 0) return "";
-    const rows = filtered.map(([k, v], i) =>
-      `<tr><td style="color:#94a3b8;text-align:center;width:32px">${i + 1}</td>` +
-      `<td style="font-family:monospace;font-weight:700;color:#0f172a">${k}</td>` +
-      `<td style="text-align:right;font-weight:900;color:#10b981;width:64px">${v}</td></tr>`
-    ).join("");
+    // Bangun lookup kode → nama link dari tickets
+    const kodeToNama: Record<string, string> = {};
+    tickets.forEach(g => {
+      g.forEach((r: any) => {
+        const kd = r["Kode Backbone"];
+        if (kd && !kodeToNama[kd]) kodeToNama[kd] = r["Nama Link"] || "";
+      });
+    });
+    const rows = filtered.map(([k, v], i) => {
+      const nama = kodeToNama[k] || "";
+      return `<tr>
+        <td style="color:#94a3b8;text-align:center;width:32px">${i + 1}</td>
+        <td style="font-family:monospace;font-weight:700;color:#0f172a;width:72px">${k}</td>
+        <td style="color:#334155;font-size:9.5px">${nama}</td>
+        <td style="text-align:right;font-weight:900;color:#10b981;width:56px">${v}</td>
+      </tr>`;
+    }).join("");
     return `<div class="sec">
       <div class="sec-title">Top Kode Backbone (Frekuensi Insiden ≥ 3)</div>
       <div class="card"><table>
-        <thead><tr><th style="width:32px">#</th><th>Kode Backbone</th><th style="text-align:right;width:64px">Insiden</th></tr></thead>
+        <thead><tr>
+          <th style="width:32px">#</th>
+          <th style="width:72px">Kode</th>
+          <th>Nama Backbone</th>
+          <th style="text-align:right;width:56px">Insiden</th>
+        </tr></thead>
         <tbody>${rows}</tbody>
       </table></div>
     </div>`;
@@ -1533,11 +1551,23 @@ export default function ReportBackbone() {
     openedBy?: string,
   ) => {
     try {
-      await fetch("/api/odoo-status", {
-        method: "PATCH",
+      const res  = await fetch("/api/odoo-status", {
+        method:  "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ticketNumber, status, logNote, openedBy }),
+        body:    JSON.stringify({ ticketNumber, status, logNote, openedBy }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (data?.needsApiKey) {
+          toast.error("⚠️ Odoo API Key belum dikonfigurasi", {
+            description: "Buka Profil → Integrasi Odoo untuk input API Key kamu.",
+            duration: 7000,
+            action: { label: "Buka Profil", onClick: () => window.open("/profile", "_blank") },
+          });
+        } else {
+          console.warn("Odoo sync failed:", data?.error);
+        }
+      }
     } catch (e) {
       console.warn("Odoo sync failed:", e);
     }
@@ -2529,7 +2559,7 @@ export default function ReportBackbone() {
                 style={{ color: C.textSec, background: C.surface, border: `1px solid ${C.border}` }}>×</button>
             </div>
             <div className="flex-1 overflow-hidden flex flex-col" style={{ minHeight: 0 }}>
-              <BackboneHeatmap reports={reports} />
+              <BackboneHeatmap reports={reports} darkMode={darkMode} />
             </div>
           </div>
         </div>
@@ -2802,11 +2832,13 @@ export default function ReportBackbone() {
                 </div>
 
                 {sdTab === "creds" && (
-                  <div>
-                    <p className="text-[11px] mb-3" style={{ color: C.textSec }}>Kelola Odoo credentials per tim NOC</p>
-                    <div className="rounded-xl p-3 text-[11px]" style={{ background: C.base, border: `1px solid ${C.border}` }}>
-                      <p style={{ color: C.textMuted }}>Konfigurasi tersimpan di tabel <code>odoo_credentials</code> Supabase.</p>
-                      <p className="mt-1" style={{ color: C.textMuted }}>Gunakan ENV ODOO_URL, ODOO_DB, ODOO_USERNAME, ODOO_API_KEY di server.</p>
+                  <div className="space-y-3">
+                    <p className="text-[11px]" style={{ color: C.textSec }}>Status integrasi Odoo per user</p>
+                    <div className="rounded-xl p-3 text-[11px] space-y-2" style={{ background: C.base, border: `1px solid ${C.border}` }}>
+                      <p style={{ color: C.text }}>🔗 <strong>Sistem baru:</strong> setiap user input API Key Odoo sendiri.</p>
+                      <p style={{ color: C.textMuted }}>• User: <strong>Profil → Integrasi Odoo</strong></p>
+                      <p style={{ color: C.textMuted }}>• Admin: <strong>Team Management → Tab Integrasi Odoo</strong></p>
+                      <p style={{ color: C.textMuted }}>• Fallback: ENV <code>ODOO_USERNAME</code> + <code>ODOO_API_KEY</code></p>
                     </div>
                   </div>
                 )}
@@ -3239,6 +3271,12 @@ export default function ReportBackbone() {
                               setOdooResult({ ticketNumber: data.ticketNumber, ticketId: data.ticketId, odooUrl: data.odooUrl, subject: data.subject });
                               setNewReport(r => ({ ...r, "NOMOR TICKET": data.ticketNumber, "Subject Ticket / Email": data.subject, "Start Time": data.startTime }));
                               toast.success(`Tiket Odoo ${data.ticketNumber} berhasil dibuat!`);
+                            } else if (data.needsApiKey) {
+                              toast.error("⚠️ Odoo API Key belum dikonfigurasi", {
+                                description: "Buka Profil → Integrasi Odoo untuk input API Key kamu.",
+                                duration: 7000,
+                                action: { label: "Buka Profil", onClick: () => window.open("/profile", "_blank") },
+                              });
                             } else {
                               toast.error("Gagal buat tiket: " + data.error);
                             }

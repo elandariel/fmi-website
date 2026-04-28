@@ -1,0 +1,1163 @@
+================================================================================
+  ANALISIS DASHBOARD — NOC FMI BizLink
+  Tanggal   : 27 April 2026
+  File      : app/page.tsx
+================================================================================
+
+
+────────────────────────────────────────────────────────────────────────────────
+  BUG (10 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[BUG-01] TypeScript error — woDetails bisa null
+  File   : app/page.tsx, line 218
+  Masalah: woDetails.length akan crash jika query Supabase return null
+  Kode   : if (allSolved && woDetails.length > 0 && ...)
+  Fix    : Ganti dengan woDetails?.length > 0
+  Risiko : Runtime crash / halaman tidak load untuk user yang punya inbox tugas
+
+[BUG-02] Status "Live" selalu true setelah 1.2 detik — bukan cek koneksi nyata
+  File   : app/page.tsx, line 291-294
+  Masalah: setTimeout langsung set isLive = true tanpa verifikasi realtime
+           Jika koneksi Supabase Realtime gagal, UI tetap tampil "Live"
+  Kode   : setTimeout(() => setIsLive(true), 1200)
+  Fix    : Cek status koneksi dari hook useRealtimeTable
+
+[BUG-03] Tanggal di header tidak pernah diperbarui
+  File   : app/page.tsx, line ~337
+  Masalah: format(new Date(), ...) dihitung sekali saat render pertama
+           Kalau halaman dibuka sebelum tengah malam dan dibiarkan,
+           tanggal yang tampil akan salah keesokan harinya
+  Fix    : Gunakan useEffect + setInterval setiap menit
+
+[BUG-04] "Update terakhir: X menit lalu" tidak auto-refresh teks
+  File   : app/page.tsx, line 349
+  Masalah: formatDistanceToNow dihitung saat render saja
+           Setelah 1 jam, tulisan masih "beberapa detik lalu"
+           padahal data realtime terus masuk
+  Fix    : Tambah interval ticker tiap 30 detik untuk update teks
+
+[BUG-05] TEAM_CONFIG dievaluasi saat module load, bukan saat render
+  File   : app/page.tsx, line 23-27
+  Masalah: getISOWeek(new Date()) dihitung sekali saat bundle dijalankan
+           Jadwal tim bisa salah jika minggu berganti tanpa redeploy
+  Kode   : isWeekA_Morning: getISOWeek(new Date()) % 2 !== 0
+  Fix    : Pindahkan kalkulasi ke dalam komponen / useMemo
+
+[BUG-06] Dua URL Google Script berbeda — URL mana yang aktif?
+  File   : app/page.tsx, line 158 & .env.local
+  Masalah: URL di page.tsx di-hardcode berbeda dari APPS_SCRIPT_URL di .env.local
+           Sync bisa diam-diam gagal jika URL yang dipakai sudah expired
+  Fix    : Gunakan APPS_SCRIPT_URL dari env, hapus hardcode di page.tsx
+
+[BUG-07] Sync Sheet sequential — sangat lambat (12+ detik)
+  File   : app/page.tsx, line 168-177
+  Masalah: 6 target sync diproses satu per satu dengan await di loop
+           Total waktu: 6 target x ~2 detik = 12+ detik
+  Kode   : for (const target of syncTargets) { await fetch(...) }
+  Fix    : Ganti dengan Promise.all([...syncTargets.map(fetch)])
+
+[BUG-08] Tombol "Archive" mati selamanya tapi tetap ditampilkan
+  File   : app/page.tsx, line 366-370
+  Masalah: Tombol disabled permanen dengan opacity 40%
+           User yang berhak (OVERVIEW_ACTION) akan bingung fungsinya
+  Fix    : Hapus tombol atau implementasikan fungsinya
+
+[BUG-09] Reject approval HAPUS data permanen (tidak bisa recovery)
+  File   : app/page.tsx, line 141
+  Masalah: Klik "Reject" langsung delete record dari database
+           Admin salah klik = data hilang selamanya
+  Kode   : await supabase.from('Ignored_Items').delete().eq('id', id)
+  Fix    : Update STATUS = 'REJECTED' bukan delete
+  Risiko : DATA LOSS — prioritas tinggi untuk diperbaiki
+
+[BUG-10] Nama tabel chart hardcoded ke tahun 2026
+  File   : app/page.tsx, line 236-249
+  Masalah: Semua nama tabel ('Berlangganan 2026', dll.) hardcoded
+           Awal 2027 chart akan kosong semua
+  Kode   : const tables = ['Berlangganan 2026', 'Berhenti Berlangganan 2026', ...]
+  Fix    : const YEAR = new Date().getFullYear()
+           const tables = [`Berlangganan ${YEAR}`, ...]
+
+
+────────────────────────────────────────────────────────────────────────────────
+  UX ISSUES / KEKURANGAN (5 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[UX-01] Chart tooltip & warna label hardcoded dark — tidak ikut tema
+  File   : app/page.tsx, line 535-548
+  Masalah: tooltip: { theme: 'dark' } dan label colors: '#4a5568' hardcoded
+           Di light mode tampilan chart tidak sesuai tema
+  Fix    : Baca dari CSS variable / state darkMode
+
+[UX-02] Inbox search hanya berdasarkan nomor tiket
+  File   : app/page.tsx, line 760-761
+  Masalah: Filter .filter(t => t.id_tiket_custom.includes(searchTicket))
+           Tidak bisa cari berdasarkan nama PIC atau subject WO
+  Fix    : Tambahkan pencarian ke assigned_to dan wo subject
+
+[UX-03] AnimatedNumber tidak benar-benar count-up
+  File   : app/page.tsx, line 49-61
+  Masalah: Komponen hanya fade-in, angka langsung loncat ke nilai akhir
+           Nama "AnimatedNumber" menyesatkan
+  Fix    : Implementasi efek counting (incrementing dari prev ke value)
+           atau ganti nama menjadi FadeNumber
+
+[UX-04] Tidak ada empty state untuk chart
+  Masalah: Jika semua data kosong, chart hanya tampil batang-batang kosong
+           Tidak ada pesan atau ilustrasi "Belum ada data"
+  Fix    : Tambahkan kondisi empty state dengan teks informatif
+
+[UX-05] supabase client dibuat ulang tiap render
+  File   : app/page.tsx, line 94-97
+  Masalah: createBrowserClient dipanggil di dalam komponen tanpa memo
+           Membuat instance baru setiap re-render
+  Fix    : Wrap dengan useMemo atau pindahkan ke luar komponen
+
+
+────────────────────────────────────────────────────────────────────────────────
+  SARAN FITUR TAMBAHAN (10 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[FITUR-01] Stat card: Insiden Backbone Aktif                 [PRIORITAS: TINGGI]
+  Deskripsi: Tambahkan kartu yang menampilkan jumlah insiden backbone aktif
+             (terhubung ke tabel Report Backbone NOC)
+             Klik langsung ke halaman Backbone Report
+
+[FITUR-02] WO Status breakdown detail                        [PRIORITAS: TINGGI]
+  Deskripsi: Kartu "WO Aktif" saat ini hanya tampil total angka
+             Tampilkan mini breakdown: OPEN / ON PROGRESS / PENDING
+             dengan bar kecil atau warna berbeda per status
+
+[FITUR-03] Year selector untuk chart                         [PRIORITAS: SEDANG]
+  Deskripsi: Tombol switcher tahun di header chart (2025 / 2026 / 2027)
+             sehingga bisa melihat data historis per tahun
+
+[FITUR-04] Badge status Odoo API Key di dashboard            [PRIORITAS: SEDANG]
+  Deskripsi: Banner/badge kecil di pojok jika user belum setup Odoo API Key
+             Contoh: "⚠ API Key Odoo belum dikonfigurasi → Buka Profil"
+             Agar user tidak bingung kenapa tidak bisa buka tiket
+
+[FITUR-05] Timestamp last sync Google Sheets                 [PRIORITAS: SEDANG]
+  Deskripsi: Tampilkan kapan terakhir kali Sync Sheet dijalankan
+             Simpan timestamp di localStorage atau database
+             Contoh: "Sync terakhir: Hari ini 09:42"
+
+[FITUR-06] Trend persentase vs bulan lalu                    [PRIORITAS: SEDANG]
+  Deskripsi: Kartu "Bulan Ini" tampilkan perbandingan dengan bulan lalu
+             Contoh: "+12 pelanggan baru (+8% vs April)"
+             Warna merah/hijau sesuai arah perubahan
+
+[FITUR-07] Chart tooltip & theme mengikuti dark/light mode   [PRIORITAS: SEDANG]
+  Deskripsi: Warna chart (label, tooltip, grid) otomatis menyesuaikan
+             ketika user ganti tema dark/light
+
+[FITUR-08] Notifikasi onboarding Odoo API Key                [PRIORITAS: RENDAH]
+  Deskripsi: Alert banner satu kali (dismissable) bagi user yang belum
+             pernah setup Odoo API Key
+             Simpan status dismiss di localStorage
+
+[FITUR-09] Export ringkasan dashboard                        [PRIORITAS: RENDAH]
+  Deskripsi: Tombol "Export" untuk download ringkasan dashboard sebagai
+             PDF atau Excel, mencakup semua stat card + chart summary
+
+[FITUR-10] Auto-refresh tanggal dan "update terakhir"        [PRIORITAS: RENDAH]
+  Deskripsi: Tanggal di header dan teks "update terakhir X menit lalu"
+             diperbarui otomatis setiap 60 detik via useEffect + interval
+
+
+────────────────────────────────────────────────────────────────────────────────
+  RINGKASAN
+────────────────────────────────────────────────────────────────────────────────
+
+  Kategori             | Jumlah
+  ---------------------|-------
+  Bug (perlu fix)      |  10
+  UX Issue             |   5
+  Saran Fitur          |  10
+  TOTAL                |  25
+
+  Prioritas fix segera:
+    1. BUG-09 — Reject approval hapus data permanen (risiko data loss)
+    2. BUG-06 — Dua URL Google Script berbeda (sync mungkin diam-diam gagal)
+    3. BUG-10 — Hardcoded tahun 2026 (chart kosong mulai Januari 2027)
+    4. BUG-01 — woDetails bisa null (crash potensial)
+
+================================================================================
+  ANALISIS TAB WEEKLY REPORT AKTIVATOR — NOC FMI BizLink
+  Tanggal   : 27 April 2026
+  Route     : /tracker
+  File      : app/tracker/page.tsx + components/MonthlySummary.tsx
+================================================================================
+
+
+────────────────────────────────────────────────────────────────────────────────
+  BUG (11 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[TRACKER-BUG-01] TABLE_MAP hardcoded ke tahun 2026 — 3 titik sekaligus
+  File   : app/tracker/page.tsx, line 23-29
+           app/tracker/page.tsx, line 107-113 (fetchGlobalStats)
+           components/MonthlySummary.tsx, line 101-106
+  Masalah: Nama tabel ('Berlangganan 2026', dll.) hardcoded di tiga tempat
+           Awal 2027 seluruh data table, chart, dan monthly summary kosong
+  Kode   : { key: 'pasang', table: 'Berlangganan 2026' }
+  Fix    : const YEAR = new Date().getFullYear()
+           const TABLE_MAP = { 'Berlangganan': `Berlangganan ${YEAR}`, ... }
+           Terapkan di ketiganya secara konsisten
+
+[TRACKER-BUG-02] "Summary Growth 2026" dan "Tren Bulanan 2026" hardcoded
+  File   : app/tracker/page.tsx, line 572 & 630
+  Masalah: Judul modal Global Stats dan chart monthly trend hardcoded
+           Tidak ikut berubah saat tahun berganti
+  Fix    : Ganti dengan template literal menggunakan getFullYear()
+
+[TRACKER-BUG-03] Judul halaman "Weekly Report" — salah nama
+  File   : app/tracker/page.tsx, line 380
+  Masalah: <h1> menampilkan "Weekly Report" padahal halaman ini
+           memantau data bulanan dan tahunan (Monthly/Annual Tracker)
+           Menyesatkan user terutama yang baru
+  Fix    : Ganti menjadi "Monthly Report Aktivator" atau sesuai fungsinya
+
+[TRACKER-BUG-04] Tombol "Edit" untuk approver mengarah ke anchor yang tidak ada
+  File   : app/tracker/page.tsx, line 546
+  Masalah: <Link href={`#edit-${row.id}`}> — anchor tersebut tidak pernah ada
+           di DOM. Klik tidak melakukan apapun, tidak ada feedback ke user
+  Fix    : Ganti dengan onClick yang membuka modal edit langsung,
+           atau arahkan ke halaman edit tersendiri
+
+[TRACKER-BUG-05] Filter TANGGAL di MonthlySummary kemungkinan besar tidak match
+  File   : components/MonthlySummary.tsx, line 113-114
+  Masalah: Filter menggunakan .ilike('TANGGAL', '%April 2026%')
+           Jika kolom TANGGAL menyimpan format ISO (YYYY-MM-DD atau YYYY-MM),
+           query ini tidak akan pernah cocok → summary selalu 0
+  Fix    : Ganti filter dengan .gte/.lte rentang tanggal ISO:
+           .gte('TANGGAL', '2026-04-01').lt('TANGGAL', '2026-05-01')
+
+[TRACKER-BUG-06] Daftar tim hardcoded di MonthlySummary
+  File   : components/MonthlySummary.tsx, line 119
+  Masalah: const teams = ['Ilham', 'Shidiq', 'Andi', 'Anan']
+           Menambah atau mengurangi anggota tim membutuhkan deploy ulang
+           Nama tidak match jika case berbeda atau ada typo di kolom TEAM
+  Fix    : Ambil daftar unik TEAM dari salah satu tabel di Supabase
+           atau dari tabel profiles/config
+
+[TRACKER-BUG-07] PDF export menggunakan window.print() — mencetak seluruh halaman
+  File   : app/tracker/page.tsx, line 472
+  Masalah: Tombol "PDF" memanggil window.print() tanpa print stylesheet
+           Hasil cetak akan menyertakan navigasi, sidebar, tombol aksi, dll.
+           Bukan laporan yang bersih / professional
+  Fix    : Gunakan library seperti html2pdf.js atau react-to-print
+           dengan target ref ke elemen MonthlySummary saja
+
+[TRACKER-BUG-08] Quick Stats Strip tidak menampilkan Downgrade
+  File   : app/tracker/page.tsx, line 404-420
+  Masalah: Hanya menampilkan 5 kartu: Berlangganan, Putus, Berhenti Sementara,
+           Upgrade, Net Growth — Downgrade tidak ada padahal data ada
+           di globalStats.downgrade
+  Fix    : Tambahkan kartu Downgrade atau gabungkan Upgrade+Downgrade
+           dalam satu kartu dengan breakdown kecil
+
+[TRACKER-BUG-09] Supabase client dibuat ulang setiap render
+  File   : app/tracker/page.tsx, line 82-85
+           components/MonthlySummary.tsx, line 15-18
+  Masalah: createBrowserClient dipanggil tanpa useMemo
+           Membuat instance baru tiap re-render, boros memori & koneksi
+  Fix    : Wrap dengan useMemo atau ekstrak ke luar komponen
+
+[TRACKER-BUG-10] Retention Rate formula tidak akurat
+  File   : app/tracker/page.tsx, line 146
+  Masalah: (pasang - putus) / pasang * 100 menghitung net growth rate,
+           bukan retention rate yang sebenarnya.
+           Contoh: pasang=100, putus=100 → retention = 0% (salah)
+           Retention seharusnya berbasis pelanggan existing, bukan pasang baru
+  Fix    : Ganti label ke "Net Growth Rate" atau perbaiki formula
+           dengan data pelanggan existing dari periode sebelumnya
+
+[TRACKER-BUG-11] MonthlySummary donut chart tidak menyertakan Upgrade & Downgrade
+  File   : components/MonthlySummary.tsx, line 153-160
+  Masalah: Donut chart "Status Berlangganan" hanya 3 slice:
+           Berlangganan, Berhenti Sementara, Berhenti Berlangganan
+           Upgrade & Downgrade punya pie chart terpisah tapi tidak
+           terintegrasi dalam satu tampilan ringkasan
+  Fix    : Tambahkan Upgrade & Downgrade ke donut, atau buat satu chart
+           tunggal yang mencakup semua 5 kategori
+
+────────────────────────────────────────────────────────────────────────────────
+  UX ISSUES / KEKURANGAN (6 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[TRACKER-UX-01] Pencarian tidak mencakup field ISP
+  File   : app/tracker/page.tsx, line 237-242
+  Masalah: Filter hanya mencari di Subject, BTS, dan Team
+           User tidak bisa cari berdasarkan ISP (misal: "MyRepublic", "Biznet")
+  Fix    : Tambahkan (item.ISP || '').toLowerCase().includes(s) ke filter
+
+[TRACKER-UX-02] Tidak ada paginasi pada tabel data
+  File   : app/tracker/page.tsx, line 501-563
+  Masalah: Seluruh data dimuat sekaligus (.select('*')) tanpa limit/offset
+           Jika data ribuan baris, halaman akan lambat dan berat
+  Fix    : Tambahkan paginasi (misal 50 row per page) dengan
+           .range(offset, offset + limit - 1) dari Supabase
+
+[TRACKER-UX-03] Tidak ada empty state untuk chart
+  File   : app/tracker/page.tsx, line 444-458
+  Masalah: Jika data kosong atau belum load, area chart hanya blank
+           (kondisi chartTrend.series.length > 0 menyembunyikan chart
+           tapi tidak menampilkan pesan apapun)
+  Fix    : Tampilkan placeholder "Belum ada data untuk periode ini"
+           dengan ilustrasi atau ikon informatif
+
+[TRACKER-UX-04] Dropdown index options tidak ada retry jika gagal load
+  File   : app/tracker/page.tsx, line 256-268
+  Masalah: Jika query ke tabel Index gagal (jaringan/timeout),
+           dropdown ISP/BTS/Device menampilkan "Memuat data..." selamanya
+           User tidak bisa memilih dan tidak ada tombol coba lagi
+  Fix    : Tambahkan error state dan tombol retry di dalam select
+
+[TRACKER-UX-05] Chart tooltip di MonthlySummary hardcoded dark mode
+  File   : components/MonthlySummary.tsx, line 159, 173, 229
+  Masalah: tooltip: { theme: 'dark' } di semua 3 chart MonthlySummary
+           Di light mode tampilan tooltip tidak sesuai tema (sama seperti
+           UX-01 di Dashboard analysis)
+  Fix    : Baca dari state darkMode / CSS variable
+
+[TRACKER-UX-06] Global Stats modal tidak punya year selector
+  File   : app/tracker/page.tsx, line 566-712
+  Masalah: Modal Summary Growth selalu menampilkan data tahun aktif (2026)
+           Tidak bisa melihat data historis tahun sebelumnya
+           Juga terkait dengan BUG-01 (hardcoded table names)
+  Fix    : Tambahkan dropdown year selector, lalu gunakan tahun
+           yang dipilih untuk fetch tabel yang sesuai
+
+
+────────────────────────────────────────────────────────────────────────────────
+  SARAN FITUR TAMBAHAN (10 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[TRACKER-FITUR-01] Year selector untuk seluruh tab                [PRIORITAS: TINGGI]
+  Deskripsi: Switcher tahun di header (2025 / 2026 / 2027) yang mengubah
+             TABLE_MAP, fetchGlobalStats, dan MonthlySummary sekaligus
+             sehingga data historis bisa dilihat tanpa deploy ulang
+
+[TRACKER-FITUR-02] Paginasi atau virtual scroll pada tabel data   [PRIORITAS: TINGGI]
+  Deskripsi: Batasi fetch ke 50-100 baris per halaman menggunakan
+             .range() dari Supabase. Tambahkan tombol Prev/Next atau
+             infinite scroll untuk tabel dengan data banyak
+
+[TRACKER-FITUR-03] Filter berdasarkan rentang tanggal             [PRIORITAS: SEDANG]
+  Deskripsi: Tambahkan date range picker (dari - sampai) di atas tabel
+             untuk menyaring data berdasarkan periode TANGGAL
+             Berguna untuk laporan per minggu atau per bulan tertentu
+
+[TRACKER-FITUR-04] Sorting pada kolom tabel                       [PRIORITAS: SEDANG]
+  Deskripsi: Klik header kolom untuk sort ascending/descending
+             Kolom yang berguna untuk di-sort: Tanggal, ISP, BTS, Team
+
+[TRACKER-FITUR-05] Export semua kategori sekaligus ke Excel        [PRIORITAS: SEDANG]
+  Deskripsi: Saat ini Excel export hanya mengambil data bulan yang
+             dipilih di MonthlySummary. Tambahkan opsi export
+             "Semua Kategori" yang mengekspor 5 tab (sheet) sekaligus
+
+[TRACKER-FITUR-06] Bulk approve/reject untuk edit requests         [PRIORITAS: SEDANG]
+  Deskripsi: Checkbox di approval panel untuk memilih beberapa request
+             sekaligus dan approve/reject dengan satu klik
+             Berguna saat ada banyak request menumpuk
+
+[TRACKER-FITUR-07] Riwayat edit request (history)                 [PRIORITAS: SEDANG]
+  Deskripsi: Tab atau toggle di approval panel untuk melihat request
+             yang sudah APPROVED/REJECTED, dengan kolom reviewed_by
+             dan reviewed_at
+             Saat ini hanya request PENDING yang tampil
+
+[TRACKER-FITUR-08] Daftar tim dinamis dari database               [PRIORITAS: SEDANG]
+  Deskripsi: Ganti array hardcoded ['Ilham', 'Shidiq', 'Andi', 'Anan']
+             dengan fetch unik TEAM dari tabel atau dari profiles
+             Agar tidak perlu edit kode saat ada perubahan tim
+
+[TRACKER-FITUR-09] Filter dropdown per ISP / BTS / Team           [PRIORITAS: RENDAH]
+  Deskripsi: Tambahkan filter chip atau dropdown multi-select di atas
+             tabel untuk menyaring data per ISP, BTS, atau nama Tim
+             Melengkapi fitur search yang sudah ada
+
+[TRACKER-FITUR-10] PDF export berbasis komponen (print-friendly)  [PRIORITAS: RENDAH]
+  Deskripsi: Ganti window.print() dengan react-to-print atau html2pdf.js
+             yang hanya mencetak area MonthlySummary dengan layout
+             yang rapi, header laporan, dan tanpa elemen UI navigasi
+
+
+────────────────────────────────────────────────────────────────────────────────
+  RINGKASAN — WEEKLY REPORT AKTIVATOR (/tracker)
+────────────────────────────────────────────────────────────────────────────────
+
+  Kategori             | Jumlah
+  ---------------------|-------
+  Bug (perlu fix)      |  11
+  UX Issue             |   6
+  Saran Fitur          |  10
+  TOTAL (tab ini)      |  27
+
+  Prioritas fix segera:
+    1. TRACKER-BUG-01 — TABLE_MAP hardcoded 2026 di 3 tempat sekaligus
+    2. TRACKER-BUG-05 — Filter TANGGAL di MonthlySummary kemungkinan tidak match
+    3. TRACKER-BUG-04 — Tombol Edit approver mengarah ke anchor tidak ada
+    4. TRACKER-BUG-06 — Daftar tim hardcoded di MonthlySummary
+
+
+================================================================================
+  ANALISIS TAB MONTHLY REPORT AKTIVATOR — NOC FMI BizLink
+  Tanggal   : 27 April 2026
+  Route     : /work-orders
+  File      : app/work-orders/page.tsx
+================================================================================
+
+
+────────────────────────────────────────────────────────────────────────────────
+  BUG (4 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[WO-BUG-01] Filter "PROGRESS" tidak menangkap status "ON PROGRESS"
+  File   : app/work-orders/page.tsx, line 225 & 157
+  Masalah: Tombol filter hanya menyediakan nilai "PROGRESS" tapi
+           STATUS_CONFIG mendefinisikan "ON PROGRESS" sebagai status tersendiri.
+           Data dengan STATUS = "ON PROGRESS" tidak akan muncul saat
+           klik filter "PROGRESS"
+           activeCount (line 157) sudah benar (sum PROGRESS + ON PROGRESS)
+           tapi filter tombol tidak konsisten
+  Fix    : Ganti filter "PROGRESS" menjadi "ON PROGRESS" yang
+           match dengan nilai aktual di database, atau normalize saat fetch
+
+[WO-BUG-02] Supabase client dibuat ulang setiap render
+  File   : app/work-orders/page.tsx, line 49-52
+  Masalah: createBrowserClient dipanggil tanpa useMemo
+           Membuat instance baru tiap re-render — sama seperti isu
+           yang ditemukan di dashboard dan tracker
+  Fix    : Wrap dengan useMemo atau pindahkan ke luar komponen
+
+[WO-BUG-03] Seluruh tabel dimuat tanpa limit — potensi performa berat
+  File   : app/work-orders/page.tsx, line 65
+  Masalah: .select('*') tanpa .limit() atau .range()
+           Jika 'Report Bulanan' memiliki ribuan record,
+           halaman akan lambat setiap kali dibuka
+  Fix    : Tambahkan paginasi .range(offset, offset+limit-1)
+           atau setidaknya .limit(200) untuk tampilan awal
+
+[WO-BUG-04] TANGGAL ditampilkan as-is tanpa format konsisten
+  File   : app/work-orders/page.tsx, line 277
+  Masalah: wo.TANGGAL langsung ditampilkan tanpa format()
+           Jika data ISO (2026-04-27) bercampur dengan teks bebas,
+           tampilan tidak konsisten antar baris
+  Fix    : Wrap dengan try/catch format() seperti di halaman tracker
+
+
+────────────────────────────────────────────────────────────────────────────────
+  UX ISSUES / KEKURANGAN (5 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[WO-UX-01] Pencarian hanya Subject WO dan Team
+  File   : app/work-orders/page.tsx, line 143-146
+  Masalah: Filter tidak mencakup JENIS WO atau KETERANGAN
+           User tidak bisa cari berdasarkan jenis pekerjaan atau catatan
+  Fix    : Tambahkan (wo['JENIS WO'] || '').toLowerCase().includes(s)
+           dan (wo.KETERANGAN || '').toLowerCase().includes(s) ke filter
+
+[WO-UX-02] Stat strip tidak menampilkan Pending count
+  File   : app/work-orders/page.tsx, line 198-209
+  Masalah: Hanya ada 3 kartu: Total WO, Aktif, Solved
+           Pending adalah status penting (menunggu tindakan) tapi
+           tidak terlihat di quick stat
+  Fix    : Tambahkan kartu ke-4 "Pending" dengan nilai pendingCount
+
+[WO-UX-03] Tidak ada paginasi
+  Masalah: Semua WO ditampilkan sekaligus tanpa batas (terkait BUG-03)
+  Fix    : Implementasi paginasi sederhana (50 per halaman)
+
+[WO-UX-04] Tidak ada fitur export data
+  Masalah: Tidak ada tombol Export Excel/CSV untuk daftar WO
+           User tidak bisa download data untuk pelaporan eksternal
+  Fix    : Tambahkan tombol export menggunakan xlsx library
+           (sudah tersedia di proyek — dipakai di MonthlySummary)
+
+[WO-UX-05] Riwayat edit request tidak bisa dilihat
+  Masalah: Approval panel hanya menampilkan request PENDING
+           Request yang sudah APPROVED/REJECTED tidak bisa ditelusuri
+  Fix    : Tambahkan toggle "Lihat Riwayat" di approval panel
+
+
+────────────────────────────────────────────────────────────────────────────────
+  SARAN FITUR TAMBAHAN (8 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[WO-FITUR-01] Filter rentang tanggal                              [PRIORITAS: TINGGI]
+  Deskripsi: Date range picker untuk menyaring WO berdasarkan
+             periode TANGGAL — berguna untuk laporan bulanan
+
+[WO-FITUR-02] Sorting pada kolom tabel                            [PRIORITAS: SEDANG]
+  Deskripsi: Klik header kolom untuk sort ascending/descending
+             Paling berguna untuk kolom Tanggal dan Status
+
+[WO-FITUR-03] Export Excel/CSV daftar WO                          [PRIORITAS: SEDANG]
+  Deskripsi: Tombol export untuk mendownload filtered data WO
+             Filter aktif (status/search) tetap diterapkan ke export
+
+[WO-FITUR-04] Breakdown stat per JENIS WO                         [PRIORITAS: SEDANG]
+  Deskripsi: Section kecil yang menampilkan jumlah WO per jenis
+             pekerjaan sebagai kartu atau tabel ringkasan kecil
+
+[WO-FITUR-05] Update status inline dari daftar                    [PRIORITAS: SEDANG]
+  Deskripsi: Tombol dropdown status di kolom aksi untuk mengubah
+             status WO tanpa harus masuk ke halaman detail
+
+[WO-FITUR-06] Tautan langsung ke tiket Odoo dari baris WO         [PRIORITAS: SEDANG]
+  Deskripsi: Jika WO memiliki nomor tiket Odoo, tampilkan link
+             di kolom tabel agar bisa buka Odoo langsung dari list
+
+[WO-FITUR-07] Bulk status update untuk beberapa WO                [PRIORITAS: RENDAH]
+  Deskripsi: Checkbox per baris untuk memilih beberapa WO dan
+             mengubah status sekaligus (misal: mark semua SOLVED)
+
+[WO-FITUR-08] Real-time update saat WO baru masuk                 [PRIORITAS: RENDAH]
+  Deskripsi: Subscribe ke tabel 'Report Bulanan' via Supabase Realtime
+             agar daftar otomatis update tanpa klik tombol refresh
+
+
+────────────────────────────────────────────────────────────────────────────────
+  RINGKASAN — MONTHLY REPORT AKTIVATOR (/work-orders)
+────────────────────────────────────────────────────────────────────────────────
+
+  Kategori             | Jumlah
+  ---------------------|-------
+  Bug (perlu fix)      |   4
+  UX Issue             |   5
+  Saran Fitur          |   8
+  TOTAL (tab ini)      |  17
+
+  Prioritas fix segera:
+    1. WO-BUG-01 — Filter "PROGRESS" tidak match dengan "ON PROGRESS"
+    2. WO-BUG-03 — Seluruh tabel dimuat tanpa limit
+    3. WO-BUG-04 — TANGGAL ditampilkan tanpa format konsisten
+
+
+────────────────────────────────────────────────────────────────────────────────
+  GRAND TOTAL SELURUH ANALISIS
+────────────────────────────────────────────────────────────────────────────────
+
+  Tab                                       | Bug | UX  | Fitur | Total
+  ------------------------------------------|-----|-----|-------|------
+  Dashboard        (/ — page.tsx)           |  10 |   5 |    10 |    25
+  Weekly Report    (/tracker — page.tsx)    |  11 |   6 |    10 |    27
+  Monthly Report   (/work-orders — page.tsx)|   4 |   5 |     8 |    17
+  GRAND TOTAL                               |  25 |  16 |    28 |    69
+
+================================================================================
+  ANALISIS TAB VLAN DATABASE — NOC FMI BizLink
+  Tanggal   : 27 April 2026
+  Route     : /vlan
+  File      : app/vlan/page.tsx
+================================================================================
+
+────────────────────────────────────────────────────────────────────────────────
+  BUG (5 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[VLAN-BUG-01] Google Script URL hardcoded di kode — bukan dari .env
+  File   : app/vlan/page.tsx, line 52
+  Masalah: SCRIPT_URL di-hardcode langsung di handleSyncToSheets
+           Berbeda dengan APPS_SCRIPT_URL di .env.local
+           Tidak konsisten — ada 3 URL berbeda di 3 tempat berbeda di proyek
+  Fix    : Pindahkan ke .env.local, akses via NEXT_PUBLIC_APPS_SCRIPT_URL_VLAN
+           atau unifikasikan 1 script yang handle semua sheet
+
+[VLAN-BUG-02] mode: 'no-cors' — sync selalu "sukses" meski gagal
+  File   : app/vlan/page.tsx, line 63
+  Masalah: Dengan mode: 'no-cors', response body tidak bisa dibaca
+           Toast "Sync Terkirim!" muncul selalu walaupun data tidak sampai
+           User tidak bisa tahu apakah sync benar-benar berhasil
+  Fix    : Gunakan CORS proxy atau Google Apps Script yang return CORS headers
+           Atau tampilkan disclaimer "Cek Spreadsheet untuk konfirmasi"
+
+[VLAN-BUG-03] Edit tanpa `id` field bisa update VLAN yang salah
+  File   : app/vlan/page.tsx, line 151 & 192
+  Masalah: .match({ VLAN: editingVlan.VLAN }) digunakan jika tidak ada id
+           Jika ada duplikat nomor VLAN di tabel (error data), update akan
+           menimpa record yang salah
+  Fix    : Pastikan semua record punya id unik, selalu match by id
+
+[VLAN-BUG-04] calculateStats: pengecekan NAME case-sensitive
+  File   : app/vlan/page.tsx, line 108-112
+  Masalah: Cek name !== 'AVAILABLE' menggunakan .toUpperCase() tapi
+           .toUpperCase() sudah diaplikasikan, namun cek '' dan '-' tidak
+           Jika data memiliki nilai null atau undefined, bisa miscount
+  Fix    : Normalisasi dengan trim() dan handle null secara eksplisit
+
+[VLAN-BUG-05] Supabase client dibuat ulang setiap render
+  File   : app/vlan/page.tsx, line 34-37
+  Masalah: createBrowserClient tanpa useMemo — konsisten dengan isu
+           yang sama di seluruh proyek
+  Fix    : Wrap dengan useMemo atau pindahkan ke modul terpisah
+
+────────────────────────────────────────────────────────────────────────────────
+  UX ISSUES (4 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[VLAN-UX-01] Tidak ada filter berdasarkan status USED / FREE
+  Masalah: User harus scroll/search manual untuk melihat VLAN yang tersedia
+           Tidak ada tombol "Tampilkan hanya FREE" atau "Hanya USED"
+  Fix    : Tambahkan filter chip USED / FREE di atas tabel
+
+[VLAN-UX-02] Tidak ada persentase occupancy di stat card
+  Masalah: Stat card hanya menampilkan angka Total/Used/Free
+           Tidak ada visual persentase atau progress bar
+  Fix    : Tambahkan `${Math.round(used/total*100)}% Terpakai` di card
+
+[VLAN-UX-03] Pencarian tidak mencakup NE/FE Switch POP
+  Masalah: Search hanya mencari VLAN ID, NAME, SERVICE ID (line 123-127)
+           Tidak bisa cari berdasarkan switch/perangkat
+  Fix    : Tambahkan NE_SWITCH POP dan FE_SWITCH POP ke filter
+
+[VLAN-UX-04] Tidak ada konfirmasi sebelum sync ke Google Sheets
+  Masalah: Klik "Sync Sheets" langsung eksekusi tanpa konfirmasi
+           Sync mengirim seluruh data yang ada — potensi overwrite data Sheet
+  Fix    : Tampilkan modal konfirmasi "Sync {N} baris ke Sheet {nama}?"
+
+────────────────────────────────────────────────────────────────────────────────
+  SARAN FITUR (4 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[VLAN-FITUR-01] Donut chart occupancy per range VLAN           [PRIORITAS: SEDANG]
+[VLAN-FITUR-02] Export Excel per range VLAN                    [PRIORITAS: SEDANG]
+[VLAN-FITUR-03] Import batch VLAN dari CSV                     [PRIORITAS: RENDAH]
+[VLAN-FITUR-04] Highlight VLAN yang mendekati habis (>85%)     [PRIORITAS: RENDAH]
+
+  RINGKASAN: Bug 5 | UX 4 | Fitur 4 | Total 13
+
+================================================================================
+  ANALISIS TAB DATA CLIENT — NOC FMI BizLink
+  Tanggal   : 27 April 2026
+  Route     : /clients
+  File      : app/clients/page.tsx
+================================================================================
+
+────────────────────────────────────────────────────────────────────────────────
+  BUG (4 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[CLIENT-BUG-01] Tombol Edit tidak punya onClick handler
+  File   : app/clients/page.tsx, line 339-341
+  Masalah: <button> Edit hanya menampilkan ikon tanpa aksi apapun
+           Klik tombol tidak melakukan sesuatu — user bingung
+  Fix    : Tambahkan onClick yang navigate ke /clients/{id}/edit
+           atau buka modal edit inline
+
+[CLIENT-BUG-02] Tombol Delete tidak punya onClick handler
+  File   : app/clients/page.tsx, line 342-345
+  Masalah: Sama dengan BUG-01 — Trash2 icon tanpa fungsi
+  Fix    : Tambahkan konfirmasi dialog + supabase delete call
+
+[CLIENT-BUG-03] Search input tidak di-debounce
+  File   : app/clients/page.tsx, line 175
+  Masalah: useEffect([page, search]) trigger fetch setiap keystroke
+           Mengirim 1 request ke Supabase per karakter yang diketik
+           Boros API call, potensi rate limit
+  Fix    : Gunakan debounce 300ms sebelum trigger fetch
+
+[CLIENT-BUG-04] Supabase client tanpa useMemo
+  File   : app/clients/page.tsx, line 24-27
+  Fix    : Wrap dengan useMemo
+
+────────────────────────────────────────────────────────────────────────────────
+  UX ISSUES (3 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[CLIENT-UX-01] Tidak ada filter STATUS pelanggan
+  Masalah: Tidak bisa filter Active / Suspend / Dismantle / Isolir
+  Fix    : Tambahkan filter chip di bawah search bar
+
+[CLIENT-UX-02] Tidak ada column sorting
+  Masalah: Tidak bisa sort berdasarkan Kapasitas, Status, atau RX Level
+  Fix    : Tambahkan onClick di header kolom untuk toggle sort
+
+[CLIENT-UX-03] RX ONT/SFP — tidak ada tooltip penjelasan threshold
+  Masalah: SignalIndicator memberi warna merah/kuning tapi user baru
+           tidak tahu apa artinya nilai tersebut
+  Fix    : Tambahkan tooltip singkat "Normal > -24 dBm"
+
+────────────────────────────────────────────────────────────────────────────────
+  SARAN FITUR (3 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[CLIENT-FITUR-01] Filter multi-status (Active/Suspend/Dismantle)  [PRIORITAS: TINGGI]
+[CLIENT-FITUR-02] Implementasi fungsi Edit & Delete               [PRIORITAS: TINGGI]
+[CLIENT-FITUR-03] Sorting kolom (Kapasitas, Status, RX)           [PRIORITAS: SEDANG]
+
+  RINGKASAN: Bug 4 | UX 3 | Fitur 3 | Total 10
+
+================================================================================
+  ANALISIS TAB DATA INTERKONEKSI — NOC FMI BizLink
+  Tanggal   : 27 April 2026
+  Route     : /interkoneksi
+  File      : app/interkoneksi/page.tsx
+================================================================================
+
+────────────────────────────────────────────────────────────────────────────────
+  BUG (4 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[INTER-BUG-01] logActivity & getActorName dipanggil tapi tidak diimport
+  File   : app/interkoneksi/page.tsx, line 137-141 & 218-220
+  Masalah: handleImportCSV dan handleDelete memanggil getActorName(supabase)
+           dan logActivity({ ... }) tapi kedua fungsi tidak ada di import
+           list (hanya lucide icons dan supabase yang diimport)
+           Akan terjadi ReferenceError saat import/delete berhasil
+  Fix    : Tambahkan import { logActivity, getActorName } from '@/lib/logger'
+
+[INTER-BUG-02] CSV parser tidak menangani quoted fields dengan koma
+  File   : app/interkoneksi/page.tsx, line 121
+  Masalah: line.split(',') gagal untuk nilai seperti "Jakarta, Selatan"
+           karena akan dipotong jadi 2 kolom berbeda
+           Data yang mengandung koma akan rusak saat diimport
+  Fix    : Gunakan CSV parser yang proper (seperti PapaParse) atau
+           regex yang handle quoted strings
+
+[INTER-BUG-03] Tidak ada paginasi — semua data dimuat sekaligus
+  File   : app/interkoneksi/page.tsx, line 99-102
+  Masalah: .select('*') tanpa limit pada tabel yang bisa ratusan/ribuan record
+  Fix    : Tambahkan paginasi atau implementasi virtual scroll
+
+[INTER-BUG-04] Supabase client tanpa useMemo
+  File   : app/interkoneksi/page.tsx, line 83-86
+  Fix    : Wrap dengan useMemo atau pindahkan ke luar komponen
+
+────────────────────────────────────────────────────────────────────────────────
+  UX ISSUES (3 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[INTER-UX-01] Tidak ada filter Status (Active/Dismantle)
+  Masalah: Tidak bisa menyaring hanya koneksi yang aktif atau yang sudah
+           dibongkar — harus scroll semua data
+  Fix    : Tambahkan filter chip Active / Dismantle di search bar
+
+[INTER-UX-02] Action buttons hilang sampai di-hover (opacity-0)
+  File   : app/interkoneksi/page.tsx, line 431
+  Masalah: Tombol Edit dan Delete hanya muncul saat hover (opacity-0 group-hover:opacity-100)
+           Di mobile/touch device, hover tidak ada — tombol tidak pernah muncul
+  Fix    : Selalu tampilkan tombol aksi, atau gunakan tombol menu dropdown
+
+[INTER-UX-03] Delete menggunakan toast action — bisa terlewat
+  File   : app/interkoneksi/page.tsx, line 207
+  Masalah: Konfirmasi delete ada di toast dengan durasi 6 detik
+           Jika user tidak lihat / toast tertutup, tidak ada cara undo
+  Fix    : Gunakan modal konfirmasi yang lebih jelas seperti di VLAN page
+
+────────────────────────────────────────────────────────────────────────────────
+  SARAN FITUR (3 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[INTER-FITUR-01] Filter per Status/Location/ISP                [PRIORITAS: TINGGI]
+[INTER-FITUR-02] Export Excel (saat ini hanya CSV)             [PRIORITAS: SEDANG]
+[INTER-FITUR-03] Column sorting                                [PRIORITAS: SEDANG]
+
+  RINGKASAN: Bug 4 | UX 3 | Fitur 3 | Total 10
+
+================================================================================
+  ANALISIS TAB ACTIVITY LOG — NOC FMI BizLink
+  Tanggal   : 27 April 2026
+  Route     : /logs
+  File      : app/logs/page.tsx
+================================================================================
+
+────────────────────────────────────────────────────────────────────────────────
+  BUG (3 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[LOG-BUG-01] isLive selalu True setelah 1 detik — sama seperti BUG-02 Dashboard
+  File   : app/logs/page.tsx, line 152-155
+  Masalah: setTimeout(() => setIsLive(true), 1000) tanpa cek koneksi nyata
+           Menampilkan "Live" meski Supabase Realtime gagal terkoneksi
+  Fix    : Cek status dari useRealtimeTable hook yang sudah ada
+
+[LOG-BUG-02] categoryFilter tidak match nilai di database
+  File   : app/logs/page.tsx, line 126
+  Masalah: .eq('ACTIVITY', categoryFilter) menggunakan key dari CATEGORY_CONFIG
+           ('create', 'edit', 'delete') tapi field ACTIVITY di database
+           menyimpan nilai seperti 'VLAN_EDIT', 'WO_DISTRIBUTE', dll.
+           Filter category tidak akan pernah menampilkan hasil
+  Fix    : Sesuaikan dengan nilai ACTIVITY yang ada di database, atau
+           tambahkan kolom CATEGORY terpisah saat log dibuat
+
+[LOG-BUG-03] Pagination hanya tampilkan 7 halaman pertama
+  File   : app/logs/page.tsx, line 488
+  Masalah: Array.from({ length: Math.min(totalPages, 7) }) — jika ada 50 halaman,
+           user tidak bisa navigasi ke halaman 8+
+  Fix    : Implementasikan pagination yang dinamis (mis: << 1 2 ... 25 26 ... 50 >>)
+
+────────────────────────────────────────────────────────────────────────────────
+  UX ISSUES (3 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[LOG-UX-01] Tidak ada filter rentang tanggal
+  Masalah: Hanya bisa lihat "Hari Ini" dari stats strip, tidak bisa
+           melihat log periode spesifik (mis: minggu lalu / bulan ini)
+  Fix    : Tambahkan date range picker di filter panel
+
+[LOG-UX-02] Tidak ada export log ke CSV/Excel
+  Masalah: Audit trail tidak bisa didownload untuk pelaporan
+  Fix    : Tombol Export di header untuk download log berdasarkan filter aktif
+
+[LOG-UX-03] Tidak ada aksi delete log untuk pembersihan
+  Masalah: Log terus bertambah tanpa cara untuk clear log lama
+           Tidak ada opsi "Hapus log lebih dari X hari" untuk admin
+  Fix    : Tambahkan fitur clean-up log untuk SUPER_DEV/ADMIN
+
+────────────────────────────────────────────────────────────────────────────────
+  SARAN FITUR (3 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[LOG-FITUR-01] Date range filter                               [PRIORITAS: SEDANG]
+[LOG-FITUR-02] Export audit trail ke CSV/Excel                 [PRIORITAS: SEDANG]
+[LOG-FITUR-03] Admin: clean-up log lama (bulk delete by date)  [PRIORITAS: RENDAH]
+
+  RINGKASAN: Bug 3 | UX 3 | Fitur 3 | Total 9
+
+================================================================================
+  ANALISIS TAB TOOLS & UTILITIES — NOC FMI BizLink
+  Tanggal   : 27 April 2026
+  Route     : /tools
+  File      : app/tools/page.tsx
+================================================================================
+
+────────────────────────────────────────────────────────────────────────────────
+  BUG (4 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[TOOLS-BUG-01] WO Distributor: custom ticket ID bisa collision / duplikat
+  File   : app/tools/page.tsx, line 466-468
+  Masalah: count dari inbox_tugas dipakai untuk nomor urut tiket
+           Jika 2 user mendistribusikan bersamaan, keduanya mendapat count
+           yang sama → ID tiket duplikat
+  Fix    : Gunakan UUID atau counter di database level (sequence/auto-increment)
+
+[TOOLS-BUG-02] WO Distributor: getAbbr bisa menghasilkan kode yang sama
+  File   : app/tools/page.tsx, line 461
+  Masalah: name.toUpperCase().replace(/[AEIOU\s]/g, '').slice(0, 4) —
+           "Rizky" dan "Rizki" akan menghasilkan "RZKY" yang sama
+           Ticket ID PND/PRG-RZKY-00001 ambiguous, tidak bisa tahu siapa
+  Fix    : Gunakan inisial unik yang sudah diset di profil user,
+           atau cukup gunakan UUID pendek
+
+[TOOLS-BUG-03] Report Generator: preview tidak match output .txt
+  File   : app/tools/page.tsx, line 312 & 373-390
+  Masalah: Preview tidak menampilkan section "Record Power After Maintenance"
+           Output .txt menyertakannya tapi preview tidak
+           User tidak bisa memverifikasi konten sebelum download
+  Fix    : Sinkronkan template preview dengan template output file
+
+[TOOLS-BUG-04] Speed Test menggunakan iframe third-party
+  File   : app/tools/page.tsx, line 291
+  Masalah: src="https://openspeedtest.com/Get-widget.php" — dependent
+           pada availability layanan eksternal
+           Jika openspeedtest.com down, tool ini blank tanpa error message
+  Fix    : Tambahkan fallback message jika iframe gagal load,
+           atau gunakan alternatif self-hosted
+
+────────────────────────────────────────────────────────────────────────────────
+  UX ISSUES (3 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[TOOLS-UX-01] WO Distributor tidak ada konfirmasi sebelum distribute
+  Masalah: Klik "Distribusi X Tiket" langsung eksekusi tanpa konfirmasi
+           Distribusi salah tidak bisa di-undo secara mudah
+  Fix    : Modal konfirmasi "Distribusi {N} WO ke {teknisi}?"
+
+[TOOLS-UX-02] Report Generator tidak ada tombol Copy All
+  Masalah: Tidak ada tombol untuk copy seluruh konten preview ke clipboard
+           User harus Ctrl+A manual di area preview
+  Fix    : Tambahkan tombol "Copy All" di sebelah tombol Download
+
+[TOOLS-UX-03] Tidak ada riwayat distribusi WO
+  Masalah: Tidak bisa lihat distribusi WO yang pernah dilakukan,
+           siapa yang didistribusikan, kapan, dan oleh siapa
+  Fix    : Tambahkan tab riwayat yang membaca dari Log_Aktivitas
+           filter MODULE = 'WO Distributor'
+
+────────────────────────────────────────────────────────────────────────────────
+  SARAN FITUR (3 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[TOOLS-FITUR-01] Tambahkan tool: Ping / Traceroute via API     [PRIORITAS: SEDANG]
+[TOOLS-FITUR-02] Tambahkan tool: VLAN lookup cepat             [PRIORITAS: SEDANG]
+[TOOLS-FITUR-03] Riwayat distribusi WO di WO Distributor       [PRIORITAS: RENDAH]
+
+  RINGKASAN: Bug 4 | UX 3 | Fitur 3 | Total 10
+
+================================================================================
+  ANALISIS TAB BROADCAST MESSAGE — NOC FMI BizLink
+  Tanggal   : 27 April 2026
+  Route     : /broadcast
+  File      : app/broadcast/page.tsx
+================================================================================
+
+────────────────────────────────────────────────────────────────────────────────
+  BUG (4 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[BC-BUG-01] Delete broadcast tidak ada konfirmasi — langsung hapus permanen
+  File   : app/broadcast/page.tsx, line 107
+  Masalah: handleDelete langsung memanggil .delete().eq('id', id)
+           Satu klik pada tombol Trash2 langsung hapus permanen
+           Tidak ada modal konfirmasi / undo
+  Fix    : Tambahkan konfirmasi modal atau toast action seperti halaman lain
+
+[BC-BUG-02] fetchHistory memuat seluruh tabel tanpa limit
+  File   : app/broadcast/page.tsx, line 61
+  Masalah: .select('*') tanpa .limit() — jika broadcast ratusan, lambat
+  Fix    : Tambahkan .limit(50).order('created_at', desc) untuk riwayat terbaru
+
+[BC-BUG-03] Sender tidak menggunakan nama user yang login
+  File   : app/broadcast/page.tsx, line 55 & 189-191
+  Masalah: Default sender 'Admin', bisa diganti ke 'NOC' atau 'Bot'
+           Tidak mengambil nama user yang sedang login
+           Log menjadi tidak akurat siapa pengirimnya
+  Fix    : Fetch nama user dari session, set sebagai default sender
+
+[BC-BUG-04] Broadcast aktif tidak bisa dinonaktifkan / di-expire
+  Masalah: Setelah broadcast dikirim, akan terus tampil di GlobalBroadcast
+           untuk semua user selamanya sampai dihapus
+           Tidak ada tanggal expired atau tombol "Nonaktifkan"
+  Fix    : Tambahkan field expires_at atau is_active di tabel Broadcasts
+
+────────────────────────────────────────────────────────────────────────────────
+  UX ISSUES (3 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[BC-UX-01] Tidak ada pencarian / filter di riwayat broadcast
+  Masalah: Riwayat ditampilkan berurutan tanpa filter type atau pencarian
+  Fix    : Tambahkan filter chip URGENT / INFO / ASSIGNMENT
+
+[BC-UX-02] Tidak ada preview broadcast sebelum dikirim
+  Masalah: User tidak bisa melihat bagaimana broadcast akan terlihat
+           di dashboard sebelum dikirim
+  Fix    : Tambahkan live preview kecil yang menampilkan tampilan BroadcastTicker
+
+[BC-UX-03] Template tidak bisa diedit atau disimpan secara custom
+  Masalah: 3 template default tidak bisa dimodifikasi atau ditambah
+           Setiap user harus mengedit manual setiap saat
+  Fix    : Tambahkan fitur simpan template custom di localStorage/database
+
+────────────────────────────────────────────────────────────────────────────────
+  SARAN FITUR (3 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[BC-FITUR-01] Broadcast scheduled — kirim di waktu tertentu     [PRIORITAS: SEDANG]
+[BC-FITUR-02] Expires/auto-dismiss setelah X jam                [PRIORITAS: SEDANG]
+[BC-FITUR-03] Template custom yang bisa disimpan                [PRIORITAS: RENDAH]
+
+  RINGKASAN: Bug 4 | UX 3 | Fitur 3 | Total 10
+
+================================================================================
+  ANALISIS TAB TEAM MANAGEMENT — NOC FMI BizLink
+  Tanggal   : 27 April 2026
+  Route     : /manage-users
+  File      : app/manage-users/page.tsx
+================================================================================
+
+────────────────────────────────────────────────────────────────────────────────
+  BUG (3 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[TM-BUG-01] Delete user tidak ada konfirmasi modal yang kuat
+  Masalah: Berdasarkan pola umum di proyek ini, delete user kemungkinan
+           menggunakan toast action atau inline confirm yang mudah terlewat
+           Hapus user tidak bisa di-undo
+  Fix    : Gunakan modal konfirmasi dengan mengetik ulang nama/email user
+           (pattern safety untuk aksi destruktif)
+
+[TM-BUG-02] Create user: password dikirim plaintext via fetch body
+  Masalah: Password dikirim dalam JSON body ke /api/admin/manage-team
+           Walaupun aman di HTTPS, password disimpan sementara di
+           request object — tidak menggunakan Supabase Admin API langsung
+  Fix    : Pastikan API route tidak log password, dan tidak simpan plaintext
+           Gunakan Supabase Admin SDK di server side langsung
+
+[TM-BUG-03] Supabase client tanpa useMemo
+  File   : app/manage-users/page.tsx, line 38-41
+  Fix    : Wrap dengan useMemo
+
+────────────────────────────────────────────────────────────────────────────────
+  UX ISSUES (3 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[TM-UX-01] Tidak ada fitur reset password user
+  Masalah: Admin tidak bisa reset password user yang lupa password
+           Harus dilakukan manual di Supabase Dashboard
+  Fix    : Tambahkan tombol "Kirim Reset Password" yang trigger
+           supabase.auth.admin.generateLink({ type: 'recovery', email })
+
+[TM-UX-02] Tidak ada sorting atau filter daftar user
+  Masalah: Daftar tim tidak bisa disort berdasarkan role atau nama
+  Fix    : Tambahkan filter chip per role dan sort by nama
+
+[TM-UX-03] Create user: tidak ada validasi kekuatan password
+  Masalah: Form create user menerima password apapun tanpa minimal panjang
+  Fix    : Minimal 8 karakter, tampilkan indikator kekuatan password
+
+────────────────────────────────────────────────────────────────────────────────
+  SARAN FITUR (3 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[TM-FITUR-01] Reset password user dari admin panel             [PRIORITAS: TINGGI]
+[TM-FITUR-02] Bulk role update (checkbox multiple user)        [PRIORITAS: RENDAH]
+[TM-FITUR-03] Last activity per user (dari Log_Aktivitas)      [PRIORITAS: RENDAH]
+
+  RINGKASAN: Bug 3 | UX 3 | Fitur 3 | Total 9
+
+================================================================================
+  ANALISIS TAB PROFILE — NOC FMI BizLink
+  Tanggal   : 27 April 2026
+  Route     : /profile
+  File      : app/profile/page.tsx
+================================================================================
+
+────────────────────────────────────────────────────────────────────────────────
+  BUG (3 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[PROFILE-BUG-01] fetchOdooStatus dipanggil sebelum session user siap
+  File   : app/profile/page.tsx, line 65
+  Masalah: fetchOdooStatus() dan getProfile() dipanggil bersamaan di useEffect
+           getProfile() async dan butuh waktu untuk dapat user
+           fetchOdooStatus() mungkin dipanggil sebelum session siap
+           Bisa menyebabkan Odoo status tidak load atau error 401
+  Fix    : Panggil fetchOdooStatus() di dalam getProfile() setelah user diload
+
+[PROFILE-BUG-02] User bisa mengubah role sendiri
+  Masalah: Field role tampil sebagai select/input yang bisa diubah user biasa
+           User bisa promote dirinya sendiri ke ADMIN/SUPER_DEV
+           (Tergantung RLS, tapi harus dicek)
+  Fix    : Pastikan field role read-only untuk non-admin,
+           atau hapus dari form update profile user biasa
+
+[PROFILE-BUG-03] Supabase client tanpa useMemo
+  File   : app/profile/page.tsx, line 37-40
+  Fix    : Wrap dengan useMemo
+
+────────────────────────────────────────────────────────────────────────────────
+  UX ISSUES (3 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[PROFILE-UX-01] Tidak ada validasi minimum panjang password
+  Masalah: User bisa input password "123" tanpa warning
+  Fix    : Minimal 8 karakter + konfirmasi password match sebelum submit
+
+[PROFILE-UX-02] Tidak ada konfirmasi jika user mengganti email
+  Masalah: Ganti email langsung dieksekusi tanpa verifikasi email baru
+           Supabase seharusnya mengirim verification email — perlu diberitahu user
+  Fix    : Tampilkan info "Email verifikasi dikirim ke alamat baru"
+
+[PROFILE-UX-03] Tidak ada foto profil / avatar
+  Masalah: Profil hanya teks — tidak ada gambar atau avatar
+           Avatar di sidebar hanya huruf pertama nama
+  Fix    : Tambahkan upload foto profil (simpan di Supabase Storage)
+
+────────────────────────────────────────────────────────────────────────────────
+  SARAN FITUR (3 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[PROFILE-FITUR-01] Upload foto profil                          [PRIORITAS: SEDANG]
+[PROFILE-FITUR-02] Riwayat login / last seen                   [PRIORITAS: RENDAH]
+[PROFILE-FITUR-03] Notifikasi preferensi (email/browser push)  [PRIORITAS: RENDAH]
+
+  RINGKASAN: Bug 3 | UX 3 | Fitur 3 | Total 9
+
+================================================================================
+  ANALISIS HALAMAN LOGIN — NOC FMI BizLink
+  Tanggal   : 27 April 2026
+  Route     : /login
+  File      : app/login/page.tsx
+================================================================================
+
+────────────────────────────────────────────────────────────────────────────────
+  BUG (3 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[LOGIN-BUG-01] Copyright tahun 2026 hardcoded
+  File   : app/login/page.tsx, line 136
+  Masalah: &copy; 2026 Fiber Media Indonesia — sama dengan BUG-10 dashboard
+           Tahun 2027 footer akan salah
+  Fix    : new Date().getFullYear()
+
+[LOGIN-BUG-02] Tidak ada "Lupa Password" flow
+  Masalah: Jika user lupa password, tidak ada cara untuk reset sendiri
+           Harus minta admin reset manual di Supabase Dashboard
+  Fix    : Tambahkan link "Lupa Password?" yang kirim reset email via
+           supabase.auth.resetPasswordForEmail(email)
+
+[LOGIN-BUG-03] Gambar logo menggunakan <img> bukan Next.js <Image>
+  File   : app/login/page.tsx, line 64
+  Masalah: <img src="/FMI.png"> tidak mendapat optimasi Next.js
+           (resize, lazy load, WebP conversion)
+  Fix    : Ganti dengan <Image> dari 'next/image' dengan width/height
+
+────────────────────────────────────────────────────────────────────────────────
+  UX ISSUES (2 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[LOGIN-UX-01] Tidak ada rate limiting di sisi client
+  Masalah: User bisa spam klik "SIGN IN" tanpa throttle
+           Button disabled saat loading sudah OK, tapi tidak ada delay
+           setelah error untuk mencegah spam coba lagi
+  Fix    : Disabled tombol 3 detik setelah login gagal
+
+[LOGIN-UX-02] Pesan error generik untuk "Invalid login credentials"
+  Masalah: Menampilkan "Email atau Password salah" sudah baik,
+           tapi tidak membedakan email tidak terdaftar vs password salah
+  Fix    : (Ini sebenarnya security best practice — tidak perlu diubah,
+           just noted sebagai UX tradeoff)
+
+────────────────────────────────────────────────────────────────────────────────
+  SARAN FITUR (2 item)
+────────────────────────────────────────────────────────────────────────────────
+
+[LOGIN-FITUR-01] Forgot Password flow (email reset)            [PRIORITAS: TINGGI]
+[LOGIN-FITUR-02] Remember Me / session persist pilihan         [PRIORITAS: RENDAH]
+
+  RINGKASAN: Bug 3 | UX 2 | Fitur 2 | Total 7
+
+
+────────────────────────────────────────────────────────────────────────────────
+  GRAND TOTAL SELURUH ANALISIS (SEMUA TAB)
+────────────────────────────────────────────────────────────────────────────────
+
+  Tab                                         | Bug | UX  | Fitur | Total
+  --------------------------------------------|-----|-----|-------|------
+  Dashboard         (/ — page.tsx)            |  10 |   5 |    10 |    25
+  Weekly Report     (/tracker)                |  11 |   6 |    10 |    27
+  Monthly Report    (/work-orders)            |   4 |   5 |     8 |    17
+  VLAN Database     (/vlan)                   |   5 |   4 |     4 |    13
+  Data Client       (/clients)                |   4 |   3 |     3 |    10
+  Data Interkoneksi (/interkoneksi)           |   4 |   3 |     3 |    10
+  Activity Log      (/logs)                   |   3 |   3 |     3 |     9
+  Tools & Utilities (/tools)                  |   4 |   3 |     3 |    10
+  Broadcast Message (/broadcast)              |   4 |   3 |     3 |    10
+  Team Management   (/manage-users)           |   3 |   3 |     3 |     9
+  Profile           (/profile)                |   3 |   3 |     3 |     9
+  Login             (/login)                  |   3 |   2 |     2 |     7
+  --------------------------------------------|-----|-----|-------|------
+  GRAND TOTAL                                 |  58 |  43 |    55 |   156
+
+  TOP 5 PRIORITAS FIX SEGERA (LINTAS TAB):
+    1. INTER-BUG-01 — logActivity/getActorName tidak diimport (ReferenceError)
+    2. LOGIN-BUG-02 — Tidak ada Forgot Password flow
+    3. BUG-09 (Dashboard) — Reject approval hapus data permanen
+    4. CLIENT-BUG-01/02 — Tombol Edit & Delete tidak berfungsi
+    5. BC-BUG-01 — Delete broadcast tanpa konfirmasi (hapus permanen)
+
+  ISU LINTAS TAB (muncul di hampir semua file):
+    • createBrowserClient tanpa useMemo — ada di 9+ file
+    • Hardcoded copyright/tahun 2026 — ada di Login + beberapa tempat lain
+    • Delete tanpa konfirmasi modal yang kuat — Broadcast, Interkoneksi
+    • Chart tooltip hardcoded dark mode — Dashboard, Tracker, MonthlySummary
+
+================================================================================
+  End of Report
+================================================================================

@@ -103,7 +103,7 @@ export default function CreateWOPage() {
       }
 
       await logActivity({
-          activity: 'Input Work Order',
+          activity: 'WO_CREATE',
           subject: `${formData['JENIS WO']} - ${formData['SUBJECT WO']}`,
           actor: actorName
       });

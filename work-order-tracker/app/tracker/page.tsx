@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { createBrowserClient } from '@supabase/ssr';
 import Link from 'next/link';
@@ -9,7 +9,8 @@ import {
   Server, Plus, Calendar, FileEdit, Clock,
   Check, ShieldAlert, Send, ArrowUpRight, ArrowDownRight,
   MinusCircle, Activity, Users, BarChart2, RefreshCw,
-  ChevronUp, ChevronDown, Info
+  ChevronUp, ChevronDown, Info, History, ChevronLeft,
+  ChevronRight, Filter, ArrowUpDown
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { id as indonesia } from 'date-fns/locale';
@@ -62,27 +63,46 @@ export default function TrackerPage() {
   const [showApprovalPanel, setShowApprovalPanel] = useState(false);
 
   // Request edit modal
-  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [showRequestModal, setShowRequestModal]     = useState(false);
+  const [isDirectEdit, setIsDirectEdit]             = useState(false); // BUG-04: approver edit langsung
   const [selectedRowForEdit, setSelectedRowForEdit] = useState<any>(null);
-  const [requestAlasan, setRequestAlasan] = useState('');
-  const [proposedFields, setProposedFields] = useState({
-    subject: '',
-    ISP: '',
-    BTS: '',
-    DEVICE: '',
-  });
-  const [submitting, setSubmitting] = useState(false);
+  const [requestAlasan, setRequestAlasan]           = useState('');
+  const [proposedFields, setProposedFields] = useState({ subject: '', ISP: '', BTS: '', DEVICE: '' });
+  const [submitting, setSubmitting]                 = useState(false);
   const [indexOptions, setIndexOptions] = useState<{ bts: string[]; isp: string[]; device: string[] }>({
-    bts: [], isp: [], device: []
+    bts: [], isp: [], device: [],
   });
+  const [indexLoadError, setIndexLoadError] = useState(false); // UX-04: retry support
 
   const [chartTrend, setChartTrend] = useState<any>({ series: [], options: {} });
-  const [chartTeam, setChartTeam] = useState<any>({ series: [], options: {} });
+  const [chartTeam, setChartTeam]   = useState<any>({ series: [], options: {} });
 
-  const supabase = createBrowserClient(
+  // ── Pagination (UX-02 / FITUR-02) ─────────────────────────
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 20;
+
+  // ── Sorting (FITUR-04) ─────────────────────────────────────
+  const [sortField, setSortField] = useState<string>('TANGGAL');
+  const [sortDir,   setSortDir]   = useState<'asc' | 'desc'>('desc');
+
+  // ── Filter dropdowns (FITUR-09) ───────────────────────────
+  const [filterISP,  setFilterISP]  = useState('');
+  const [filterBTS,  setFilterBTS]  = useState('');
+  const [filterTeam, setFilterTeam] = useState('');
+
+  // ── Date range filter (FITUR-03) ──────────────────────────
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo,   setDateTo]   = useState('');
+
+  // ── History modal (FITUR-07) ──────────────────────────────
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [historyRequests,  setHistoryRequests]  = useState<any[]>([]);
+
+  // BUG-09 fix: supabase stabil, tidak dibuat ulang tiap render
+  const supabase = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL || '',
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-  );
+  ), []);
 
   const canInput = hasAccess(userRole, PERMISSIONS.TRACKER_INPUT);
   const isApprover = APPROVER_ROLES.includes(userRole || '');
@@ -142,8 +162,11 @@ export default function TrackerPage() {
         .slice(0, 5)
         .map(([name, count]) => ({ name, count }));
 
-      // Retention rate = (pasang - putus) / pasang * 100
-      const retentionRate = pasang > 0 ? Math.round(((pasang - putus) / pasang) * 100) : 0;
+      // BUG-10 fix: retention = 1 - churn rate, clamp ke [0, 100]
+      // Formula: berapa % pelanggan yang tidak berhenti dari total yang pernah pasang
+      const retentionRate = pasang > 0
+        ? Math.min(100, Math.max(0, Math.round(((pasang - putus) / pasang) * 100)))
+        : 0;
 
       setGlobalStats({
         pasang, putus, cuti, upgrade, downgrade,
@@ -169,8 +192,30 @@ export default function TrackerPage() {
     setEditRequests(data || []);
   }, []);
 
+  // FITUR-07: ambil history request (approved + rejected)
+  const fetchHistoryRequests = useCallback(async () => {
+    const { data } = await supabase
+      .from('WO_Edit_Requests')
+      .select('*')
+      .eq('request_type', 'TRACKER')
+      .in('status', ['APPROVED', 'REJECTED'])
+      .order('reviewed_at', { ascending: false })
+      .limit(50);
+    setHistoryRequests(data || []);
+  }, []);
+
+  // UX-04: fetch index options dengan support retry
+  const fetchIndexOptions = useCallback(async () => {
+    setIndexLoadError(false);
+    const { data, error } = await supabase.from('Index').select('BTS, ISP, DEVICE');
+    if (error || !data) { setIndexLoadError(true); return; }
+    const getUnique = (key: string) =>
+      [...new Set(data.map((item: any) => item[key]).filter(Boolean))] as string[];
+    setIndexOptions({ bts: getUnique('BTS'), isp: getUnique('ISP'), device: getUnique('DEVICE') });
+  }, []);
+
   useEffect(() => { fetchData(); }, [selectedCategory]);
-  useEffect(() => { fetchGlobalStats(); fetchEditRequests(); }, []);
+  useEffect(() => { fetchGlobalStats(); fetchEditRequests(); fetchIndexOptions(); }, []);
 
   // Realtime edit requests
   useEffect(() => {
@@ -181,24 +226,82 @@ export default function TrackerPage() {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
+  // ── Parser tanggal Indonesia ("Rabu, 27 April 2026" → ISO key + label pendek) ──
+  const BULAN_PARSE: Record<string, number> = {
+    Januari: 0, Februari: 1, Maret: 2, April: 3, Mei: 4, Juni: 5,
+    Juli: 6, Agustus: 7, September: 8, Oktober: 9, November: 10, Desember: 11,
+  };
+  const BULAN_SHORT = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+
+  const parseTanggal = (val: string): { key: string; label: string } | null => {
+    // Hilangkan prefix hari jika ada: "Rabu, 27 April 2026" → "27 April 2026"
+    const clean = val.replace(/^[A-Za-zÀ-ÿ]+,\s*/, '').trim();
+    const parts = clean.split(/\s+/);
+    if (parts.length < 3) return null;
+    const dd  = parseInt(parts[0], 10);
+    const mm  = BULAN_PARSE[parts[1]];
+    const yy  = parseInt(parts[2], 10);
+    if (isNaN(dd) || mm === undefined || isNaN(yy)) return null;
+    const key   = `${yy}-${String(mm + 1).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+    const label = `${dd} ${BULAN_SHORT[mm]}`;
+    return { key, label };
+  };
+
+  // ── Custom tooltip HTML (inline styles — kebal terhadap dark mode CSS body color) ──
+  const mkTooltipSingle = (label: string, dotColor: string, seriesName: string, val: number) =>
+    `<div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;
+                 box-shadow:0 4px 16px rgba(0,0,0,0.12);min-width:130px;font-family:inherit;">
+      <div style="color:#374151;font-size:11px;font-weight:700;margin-bottom:5px;
+                  padding-bottom:4px;border-bottom:1px solid #f1f5f9;">${label}</div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="width:8px;height:8px;border-radius:50%;background:${dotColor};
+                     display:inline-block;flex-shrink:0;"></span>
+        <span style="color:#374151;font-size:11px;">${seriesName}:&nbsp;
+          <strong style="color:#1e293b;">${val} WO</strong>
+        </span>
+      </div>
+    </div>`;
+
+  const mkTooltipMulti = (label: string, series: number[][], seriesIndex: number, dataPointIndex: number, colors: string[], names: string[]) => {
+    const rows = series.map((s, i) =>
+      `<div style="display:flex;align-items:center;gap:6px;margin-top:${i > 0 ? 4 : 0}px;">
+        <span style="width:8px;height:8px;border-radius:50%;background:${colors[i]};display:inline-block;flex-shrink:0;"></span>
+        <span style="color:#374151;font-size:11px;">${names[i]}:&nbsp;<strong style="color:#1e293b;">${s[dataPointIndex]} WO</strong></span>
+      </div>`
+    ).join('');
+    return `<div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;
+                        box-shadow:0 4px 16px rgba(0,0,0,0.12);min-width:140px;font-family:inherit;">
+      <div style="color:#374151;font-size:11px;font-weight:700;margin-bottom:5px;
+                  padding-bottom:4px;border-bottom:1px solid #f1f5f9;">${label}</div>
+      ${rows}
+    </div>`;
+  };
+
   const processCharts = (data: any[], category: string) => {
     const cfg = CATEGORY_CONFIG[category];
     const color = cfg?.color || '#2d7dd2';
 
-    const dateMap: Record<string, number> = {};
+    // ── Tren per-tanggal: parse format Indonesia → group by ISO key ──
+    const dateMap: Record<string, { count: number; label: string }> = {};
     data.forEach(row => {
       if (row.TANGGAL) {
-        const d = String(row.TANGGAL).substring(0, 7);
-        dateMap[d] = (dateMap[d] || 0) + 1;
+        const parsed = parseTanggal(String(row.TANGGAL));
+        if (parsed) {
+          if (!dateMap[parsed.key]) dateMap[parsed.key] = { count: 0, label: parsed.label };
+          dateMap[parsed.key].count++;
+        }
       }
     });
-    const sortedDates = Object.keys(dateMap).sort();
+    // Sort secara kronologis (ISO key sorts correctly)
+    const sortedKeys   = Object.keys(dateMap).sort();
+    const dateLabels   = sortedKeys.map(k => dateMap[k].label);   // "27 Apr"
+    const dateCounts   = sortedKeys.map(k => dateMap[k].count);
 
     setChartTrend({
-      series: [{ name: 'Jumlah', data: sortedDates.map(d => dateMap[d]) }],
+      series: [{ name: 'Jumlah WO', data: dateCounts }],
       options: {
         chart: { type: 'area', toolbar: { show: false }, fontFamily: "'Plus Jakarta Sans', sans-serif", background: 'transparent', animations: { enabled: true, speed: 500 } },
-        xaxis: { categories: sortedDates, labels: { style: { fontSize: '10px', colors: '#94a3b8' } } },
+        xaxis: { categories: dateLabels, labels: { style: { fontSize: '10px', colors: '#94a3b8' }, rotate: -30 } },
         yaxis: { labels: { style: { fontSize: '10px', colors: '#94a3b8' } } },
         colors: [color],
         stroke: { curve: 'smooth', width: 2 },
@@ -206,7 +309,16 @@ export default function TrackerPage() {
         grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
         title: { text: `Tren ${category}`, style: { color: '#334155', fontSize: '12px', fontWeight: '700' } },
         dataLabels: { enabled: false },
-        tooltip: { theme: 'light', y: { formatter: (v: number) => `${v} Data` } },
+        // Custom tooltip: inline styles → kebal dark mode
+        tooltip: {
+          custom: ({ series, seriesIndex, dataPointIndex, w }: any) =>
+            mkTooltipSingle(
+              w.globals.labels[dataPointIndex],
+              w.globals.colors[0],
+              'Jumlah WO',
+              series[seriesIndex][dataPointIndex]
+            )
+        },
       }
     });
 
@@ -215,7 +327,7 @@ export default function TrackerPage() {
     const sortedTeams = Object.keys(teamMap).sort((a,b) => teamMap[b]-teamMap[a]).slice(0,5);
 
     setChartTeam({
-      series: [{ name: 'Total', data: sortedTeams.map(t => teamMap[t]) }],
+      series: [{ name: 'Total WO', data: sortedTeams.map(t => teamMap[t]) }],
       options: {
         chart: { type: 'bar', toolbar: { show: false }, fontFamily: "'Plus Jakarta Sans', sans-serif", background: 'transparent' },
         xaxis: { categories: sortedTeams, labels: { style: { fontSize: '10px', colors: '#94a3b8' } } },
@@ -225,6 +337,16 @@ export default function TrackerPage() {
         title: { text: 'Top Performance Team', style: { color: '#334155', fontSize: '12px', fontWeight: '700' } },
         dataLabels: { enabled: true, style: { colors: ['#fff'], fontSize: '10px', fontWeight: '600' } },
         plotOptions: { bar: { borderRadius: 4, columnWidth: '50%' } },
+        // Custom tooltip: inline styles → kebal dark mode
+        tooltip: {
+          custom: ({ series, seriesIndex, dataPointIndex, w }: any) =>
+            mkTooltipSingle(
+              w.globals.labels[dataPointIndex],
+              w.globals.colors[0],
+              'Total WO',
+              series[seriesIndex][dataPointIndex]
+            )
+        },
       }
     });
   };
@@ -234,14 +356,62 @@ export default function TrackerPage() {
     row['SUBJECT BERHENTI SEMENTARA'] || row['SUBJECT UPGRADE'] ||
     row['SUBJECT DOWNGRADE'] || row['SUBJECT'] || row['NAMA PELANGGAN'] || '—';
 
-  const filteredData = dataList.filter(item => {
-    const s = search.toLowerCase();
-    return getSubject(item).toLowerCase().includes(s) ||
-      (item.BTS || '').toLowerCase().includes(s) ||
-      (item.TEAM || '').toLowerCase().includes(s);
-  });
+  // UX-01 + FITUR-03 + FITUR-04 + FITUR-09: filter + sort terpadu
+  const filteredData = useMemo(() => {
+    const s = search.toLowerCase().trim();
+    let result = dataList.filter(item => {
+      // UX-01 fix: search juga mencakup ISP
+      const matchSearch = !s ||
+        getSubject(item).toLowerCase().includes(s) ||
+        (item.BTS  || '').toLowerCase().includes(s) ||
+        (item.TEAM || '').toLowerCase().includes(s) ||
+        (item.ISP  || '').toLowerCase().includes(s);
 
-  const openRequestModal = async (row: any) => {
+      // FITUR-09: filter dropdown ISP / BTS / Team
+      const matchISP  = !filterISP  || (item.ISP  || '') === filterISP;
+      const matchBTS  = !filterBTS  || (item.BTS  || '') === filterBTS;
+      const matchTeam = !filterTeam || (item.TEAM || '') === filterTeam;
+
+      // FITUR-03: filter rentang tanggal
+      const matchDateFrom = !dateFrom || (item.TANGGAL && item.TANGGAL >= dateFrom);
+      const matchDateTo   = !dateTo   || (item.TANGGAL && item.TANGGAL <= dateTo);
+
+      return matchSearch && matchISP && matchBTS && matchTeam && matchDateFrom && matchDateTo;
+    });
+
+    // FITUR-04: sorting
+    result = [...result].sort((a, b) => {
+      const va = (a[sortField] ?? '') as string;
+      const vb = (b[sortField] ?? '') as string;
+      const cmp = String(va).localeCompare(String(vb), 'id', { numeric: true });
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+
+    return result;
+  }, [dataList, search, filterISP, filterBTS, filterTeam, dateFrom, dateTo, sortField, sortDir]);
+
+  // Pagination derived data
+  const totalPages   = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE));
+  const paginatedData = filteredData.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  // Reset to page 1 when filters change
+  const handleSearch = (v: string) => { setSearch(v); setCurrentPage(1); };
+
+  // FITUR-04: toggle sort
+  const toggleSort = (field: string) => {
+    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortField(field); setSortDir('asc'); }
+    setCurrentPage(1);
+  };
+
+  // Options untuk filter dropdown — unik dari data
+  const ispOptions  = useMemo(() => [...new Set(dataList.map(d => d.ISP).filter(Boolean))].sort(), [dataList]);
+  const btsOptions  = useMemo(() => [...new Set(dataList.map(d => d.BTS).filter(Boolean))].sort(), [dataList]);
+  const teamOptions = useMemo(() => [...new Set(dataList.map(d => d.TEAM).filter(Boolean))].sort(), [dataList]);
+
+  // BUG-04 fix: approver langsung edit (isDirectEdit=true), non-approver kirim request
+  const openRequestModal = async (row: any, directEdit = false) => {
+    setIsDirectEdit(directEdit);
     setSelectedRowForEdit(row);
     setProposedFields({
       subject: getSubject(row),
@@ -251,20 +421,8 @@ export default function TrackerPage() {
     });
     setRequestAlasan('');
     setShowRequestModal(true);
-
-    // Fetch options dari tabel Index kalau belum ada
-    if (indexOptions.bts.length === 0) {
-      const { data, error } = await supabase.from('Index').select('BTS, ISP, DEVICE');
-      if (!error && data) {
-        const getUnique = (key: string) =>
-          [...new Set(data.map((item: any) => item[key]).filter(Boolean))] as string[];
-        setIndexOptions({
-          bts: getUnique('BTS'),
-          isp: getUnique('ISP'),
-          device: getUnique('DEVICE'),
-        });
-      }
-    }
+    // Fetch index options jika belum ada (fetchIndexOptions sudah dipanggil di useEffect)
+    if (indexOptions.bts.length === 0) fetchIndexOptions();
   };
 
   const handleSubmitRequest = async () => {
@@ -337,6 +495,43 @@ export default function TrackerPage() {
     setSubmitting(false);
   };
 
+  // BUG-04 fix: approver langsung update tanpa buat WO_Edit_Requests
+  const handleDirectApply = async () => {
+    if (!selectedRowForEdit) return;
+    const tableName = TABLE_MAP[selectedCategory];
+    let subjectKey = 'SUBJECT BERLANGGANAN';
+    if (selectedCategory === 'Berhenti Sementara')     subjectKey = 'SUBJECT BERHENTI SEMENTARA';
+    else if (selectedCategory === 'Berhenti Berlangganan') subjectKey = 'SUBJECT BERHENTI BERLANGGANAN';
+    else if (selectedCategory === 'Upgrade')           subjectKey = 'SUBJECT UPGRADE';
+    else if (selectedCategory === 'Downgrade')         subjectKey = 'SUBJECT DOWNGRADE';
+
+    const updates: Record<string, string> = {};
+    const original = getSubject(selectedRowForEdit);
+    if (proposedFields.subject !== original)                      updates[subjectKey]  = proposedFields.subject;
+    if (proposedFields.ISP    !== (selectedRowForEdit.ISP    || '')) updates['ISP']    = proposedFields.ISP;
+    if (proposedFields.BTS    !== (selectedRowForEdit.BTS    || '')) updates['BTS']    = proposedFields.BTS;
+    if (proposedFields.DEVICE !== (selectedRowForEdit.DEVICE || '')) updates['DEVICE'] = proposedFields.DEVICE;
+
+    if (Object.keys(updates).length === 0) { toast.error('Tidak ada perubahan.'); return; }
+
+    setSubmitting(true);
+    const toastId = toast.loading('Menyimpan perubahan...');
+    const { error } = await supabase.from(tableName).update(updates).eq('id', selectedRowForEdit.id);
+    if (error) { toast.error('Gagal: ' + error.message, { id: toastId }); }
+    else {
+      toast.success('Data berhasil diperbarui!', { id: toastId });
+      setShowRequestModal(false);
+      fetchData();
+      await logActivity({
+        activity: 'TRACKER_DIRECT_EDIT',
+        subject: getSubject(selectedRowForEdit),
+        actor: userFullName,
+        detail: `Edit langsung oleh ${userRole} · Tabel: ${tableName}`,
+      });
+    }
+    setSubmitting(false);
+  };
+
   const handleApproveTracker = async (req: any) => {
     const toastId = toast.loading('Memproses...');
     const { error } = await supabase.from(req.target_table).update(req.proposed_changes).eq('id', req.target_id);
@@ -400,14 +595,17 @@ export default function TrackerPage() {
         </div>
       </div>
 
-      {/* ── QUICK STATS STRIP ───────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
+      {/* ── QUICK STATS STRIP — BUG-08: tambah Downgrade ────── */}
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-5">
         {[
-          { label: 'Berlangganan', value: globalStats.pasang, icon: <ArrowUpRight size={14}/>, color: '#10b981', bg: '#ecfdf5', border: '#a7f3d0' },
-          { label: 'Putus', value: globalStats.putus, icon: <ArrowDownRight size={14}/>, color: '#ef4444', bg: '#fff1f2', border: '#fecdd3' },
-          { label: 'Berhenti Sementara', value: globalStats.cuti, icon: <MinusCircle size={14}/>, color: '#f59e0b', bg: '#fffbeb', border: '#fde68a' },
-          { label: 'Upgrade', value: globalStats.upgrade, icon: <TrendingUp size={14}/>, color: '#2d7dd2', bg: '#eff6ff', border: '#bfdbfe' },
-          { label: 'Net Growth', value: globalStats.netGrowth >= 0 ? `+${globalStats.netGrowth}` : globalStats.netGrowth, icon: <Activity size={14}/>, color: globalStats.netGrowth >= 0 ? '#059669' : '#dc2626', bg: globalStats.netGrowth >= 0 ? '#ecfdf5' : '#fff1f2', border: globalStats.netGrowth >= 0 ? '#a7f3d0' : '#fecdd3' },
+          { label: 'Berlangganan',     value: globalStats.pasang,    icon: <ArrowUpRight size={14}/>,  color: '#10b981', bg: '#ecfdf5', border: '#a7f3d0' },
+          { label: 'Putus',            value: globalStats.putus,     icon: <ArrowDownRight size={14}/>,color: '#ef4444', bg: '#fff1f2', border: '#fecdd3' },
+          { label: 'Berhenti Smtr',    value: globalStats.cuti,      icon: <MinusCircle size={14}/>,   color: '#f59e0b', bg: '#fffbeb', border: '#fde68a' },
+          { label: 'Upgrade',          value: globalStats.upgrade,   icon: <TrendingUp size={14}/>,    color: '#2d7dd2', bg: '#eff6ff', border: '#bfdbfe' },
+          { label: 'Downgrade',        value: globalStats.downgrade, icon: <ChevronDown size={14}/>,   color: '#94a3b8', bg: '#f8fafc', border: '#e2e8f0' },
+          { label: 'Net Growth',       value: globalStats.netGrowth >= 0 ? `+${globalStats.netGrowth}` : globalStats.netGrowth,
+            icon: <Activity size={14}/>, color: globalStats.netGrowth >= 0 ? '#059669' : '#dc2626',
+            bg: globalStats.netGrowth >= 0 ? '#ecfdf5' : '#fff1f2', border: globalStats.netGrowth >= 0 ? '#a7f3d0' : '#fecdd3' },
         ].map(s => (
           <div key={s.label} className="rounded-xl border p-3 flex items-center gap-3" style={{ background: s.bg, borderColor: s.border }}>
             <div className="p-1.5 bg-white rounded-lg" style={{ color: s.color }}>{s.icon}</div>
@@ -439,19 +637,29 @@ export default function TrackerPage() {
         })}
       </div>
 
-      {/* ── CHARTS ─────────────────────────────────── */}
+      {/* ── CHARTS — UX-03: empty state ────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
           <div style={{ height: 220 }}>
-            {chartTrend.series.length > 0 && (
+            {chartTrend.series.length > 0 && chartTrend.series[0]?.data?.length > 0 ? (
               <ReactApexChart options={chartTrend.options} series={chartTrend.series} type="area" height="100%" />
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center gap-2 text-slate-300">
+                <BarChart2 size={32} />
+                <p className="text-xs font-semibold text-slate-400">Belum ada data tren</p>
+              </div>
             )}
           </div>
         </div>
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
           <div style={{ height: 220 }}>
-            {chartTeam.series.length > 0 && (
+            {chartTeam.series.length > 0 && chartTeam.series[0]?.data?.length > 0 ? (
               <ReactApexChart options={chartTeam.options} series={chartTeam.series} type="bar" height="100%" />
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center gap-2 text-slate-300">
+                <Users size={32} />
+                <p className="text-xs font-semibold text-slate-400">Belum ada data team</p>
+              </div>
             )}
           </div>
         </div>
@@ -469,7 +677,8 @@ export default function TrackerPage() {
               <button onClick={() => summaryRef.current?.handleExport()} className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 transition-colors border-r border-slate-100">
                 <Download size={12} /> Excel
               </button>
-              <button onClick={() => window.print()} className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors">
+              {/* BUG-07 fix: PDF hanya summary, bukan seluruh halaman */}
+              <button onClick={() => summaryRef.current?.handlePdfExport()} className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors">
                 <Download size={12} /> PDF
               </button>
             </div>
@@ -484,29 +693,97 @@ export default function TrackerPage() {
 
       {/* ── DATA TABLE ──────────────────────────────── */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-3">
+        {/* Header: judul + search */}
+        <div className="px-5 py-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start gap-3">
           <div className="flex items-center gap-2.5">
             <h3 className="font-bold text-slate-800 text-sm">List {selectedCategory}</h3>
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border"
               style={{ background: activeConf.bg, color: activeConf.color, borderColor: activeConf.border }}>
               {filteredData.length}
             </span>
+            {/* FITUR-07: tombol History */}
+            <button
+              onClick={() => { fetchHistoryRequests(); setShowHistoryModal(true); }}
+              className="flex items-center gap-1 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-[10px] font-semibold transition-colors"
+            >
+              <History size={11} /> Riwayat
+            </button>
           </div>
           <div className="relative w-full md:w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
-            <input type="text" placeholder="Cari Subject / BTS / Team..." value={search} onChange={(e) => setSearch(e.target.value)}
+            {/* UX-01 fix: placeholder mencerminkan ISP juga bisa dicari */}
+            <input type="text" placeholder="Cari Subject / BTS / Team / ISP..." value={search}
+              onChange={e => handleSearch(e.target.value)}
               className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all" />
           </div>
         </div>
+
+        {/* FITUR-03 + FITUR-09: Filter row */}
+        <div className="px-5 py-2.5 border-b border-slate-100 bg-slate-50/50 flex flex-wrap gap-2 items-center">
+          <Filter size={11} className="text-slate-400 shrink-0" />
+          {/* Date range */}
+          <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setCurrentPage(1); }}
+            className="px-2 py-1 border border-slate-200 rounded text-[10px] text-slate-600 bg-white outline-none focus:ring-1 focus:ring-blue-400" />
+          <span className="text-[10px] text-slate-400">s/d</span>
+          <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setCurrentPage(1); }}
+            className="px-2 py-1 border border-slate-200 rounded text-[10px] text-slate-600 bg-white outline-none focus:ring-1 focus:ring-blue-400" />
+          {/* ISP dropdown */}
+          <select value={filterISP} onChange={e => { setFilterISP(e.target.value); setCurrentPage(1); }}
+            className="px-2 py-1 border border-slate-200 rounded text-[10px] text-slate-600 bg-white outline-none focus:ring-1 focus:ring-blue-400">
+            <option value="">Semua ISP</option>
+            {ispOptions.map(v => <option key={v} value={v}>{v}</option>)}
+          </select>
+          {/* BTS dropdown */}
+          <select value={filterBTS} onChange={e => { setFilterBTS(e.target.value); setCurrentPage(1); }}
+            className="px-2 py-1 border border-slate-200 rounded text-[10px] text-slate-600 bg-white outline-none focus:ring-1 focus:ring-blue-400">
+            <option value="">Semua BTS</option>
+            {btsOptions.map(v => <option key={v} value={v}>{v}</option>)}
+          </select>
+          {/* Team dropdown */}
+          <select value={filterTeam} onChange={e => { setFilterTeam(e.target.value); setCurrentPage(1); }}
+            className="px-2 py-1 border border-slate-200 rounded text-[10px] text-slate-600 bg-white outline-none focus:ring-1 focus:ring-blue-400">
+            <option value="">Semua Team</option>
+            {teamOptions.map(v => <option key={v} value={v}>{v}</option>)}
+          </select>
+          {/* Reset filter */}
+          {(dateFrom || dateTo || filterISP || filterBTS || filterTeam || search) && (
+            <button onClick={() => {
+              setSearch(''); setDateFrom(''); setDateTo('');
+              setFilterISP(''); setFilterBTS(''); setFilterTeam('');
+              setCurrentPage(1);
+            }} className="px-2 py-1 text-[10px] font-semibold text-rose-600 hover:bg-rose-50 rounded transition-colors">
+              <X size={10} className="inline mr-0.5" />Reset
+            </button>
+          )}
+        </div>
+
+        {/* Table */}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50">
-                <th className="px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tanggal</th>
-                <th className="px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Subject Pelanggan</th>
-                <th className="px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">ISP</th>
-                <th className="px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Team</th>
-                <th className="px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">BTS</th>
+                {/* FITUR-04: sortable column headers */}
+                {[
+                  { label: 'Tanggal',           field: 'TANGGAL' },
+                  { label: 'Subject Pelanggan', field: null },
+                  { label: 'ISP',               field: 'ISP' },
+                  { label: 'Team',              field: 'TEAM' },
+                  { label: 'BTS',               field: 'BTS' },
+                ].map(col => (
+                  <th key={col.label}
+                    className={`px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider ${col.field ? 'cursor-pointer select-none hover:text-slate-600' : ''}`}
+                    onClick={() => col.field && toggleSort(col.field)}
+                  >
+                    <span className="flex items-center gap-1">
+                      {col.label}
+                      {col.field && (
+                        sortField === col.field
+                          ? (sortDir === 'asc' ? <ChevronUp size={10} /> : <ChevronDown size={10} />)
+                          : <ArrowUpDown size={9} className="opacity-30" />
+                      )}
+                    </span>
+                  </th>
+                ))}
                 <th className="px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">Aksi</th>
               </tr>
             </thead>
@@ -517,9 +794,9 @@ export default function TrackerPage() {
                     <td key={j} className="px-5 py-3.5"><div className="h-3 bg-slate-100 rounded animate-pulse" style={{ width: `${50+j*12}px` }} /></td>
                   ))}</tr>
                 ))
-              ) : filteredData.length > 0 ? (
-                filteredData.map((row, idx) => (
-                  <tr key={idx} className="hover:bg-blue-50/30 transition-colors group">
+              ) : paginatedData.length > 0 ? (
+                paginatedData.map((row, idx) => (
+                  <tr key={row.id ?? idx} className="hover:bg-blue-50/30 transition-colors group">
                     <td className="px-5 py-3 text-xs font-medium text-slate-600 font-mono">
                       {row.TANGGAL ? (() => { try { return format(new Date(row.TANGGAL), 'dd/MM/yyyy'); } catch { return row.TANGGAL; } })() : '—'}
                     </td>
@@ -542,12 +819,15 @@ export default function TrackerPage() {
                       </div>
                     </td>
                     <td className="px-5 py-3 text-center">
+                      {/* BUG-04 fix: approver buka modal edit langsung, bukan anchor mati */}
                       {isApprover ? (
-                        <Link href={`#edit-${row.id}`} className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 text-xs font-semibold">
+                        <button onClick={() => openRequestModal(row, true)}
+                          className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 text-xs font-semibold">
                           <FileEdit size={11} /> Edit
-                        </Link>
+                        </button>
                       ) : (
-                        <button onClick={() => openRequestModal(row)} className="inline-flex items-center gap-1 text-slate-500 hover:text-blue-600 text-xs font-semibold transition-colors opacity-0 group-hover:opacity-100">
+                        <button onClick={() => openRequestModal(row, false)}
+                          className="inline-flex items-center gap-1 text-slate-500 hover:text-blue-600 text-xs font-semibold transition-colors opacity-0 group-hover:opacity-100">
                           <FileEdit size={11} /> Request
                         </button>
                       )}
@@ -560,6 +840,37 @@ export default function TrackerPage() {
             </tbody>
           </table>
         </div>
+
+        {/* UX-02 / FITUR-02: Pagination footer */}
+        {totalPages > 1 && (
+          <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
+            <span className="text-[10px] text-slate-500 font-medium">
+              {((currentPage - 1) * PAGE_SIZE) + 1}–{Math.min(currentPage * PAGE_SIZE, filteredData.length)} dari {filteredData.length} data
+            </span>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
+                className="p-1.5 rounded hover:bg-slate-200 disabled:opacity-30 transition-colors text-slate-500">
+                <ChevronLeft size={13} />
+              </button>
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                const p = totalPages <= 5 ? i + 1 :
+                  currentPage <= 3 ? i + 1 :
+                  currentPage >= totalPages - 2 ? totalPages - 4 + i :
+                  currentPage - 2 + i;
+                return (
+                  <button key={p} onClick={() => setCurrentPage(p)}
+                    className={`w-7 h-7 rounded text-[11px] font-semibold transition-colors ${
+                      currentPage === p ? 'bg-blue-600 text-white' : 'hover:bg-slate-200 text-slate-600'
+                    }`}>{p}</button>
+                );
+              })}
+              <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
+                className="p-1.5 rounded hover:bg-slate-200 disabled:opacity-30 transition-colors text-slate-500">
+                <ChevronRight size={13} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── GLOBAL STATS MODAL ──────────────────────── */}
@@ -646,10 +957,19 @@ export default function TrackerPage() {
                     xaxis: { categories: MONTH_LABELS, labels: { style: { fontSize: '10px', colors: '#94a3b8' } } },
                     yaxis: { labels: { style: { fontSize: '10px', colors: '#94a3b8' } } },
                     grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
-                    plotOptions: { bar: { borderRadius: 3, columnWidth: '60%', grouped: true } },
+                    plotOptions: { bar: { borderRadius: 3, columnWidth: '60%' } },
                     dataLabels: { enabled: false },
                     legend: { show: false },
-                    tooltip: { theme: 'light' },
+                    // Custom tooltip: inline styles → kebal dark mode
+                    tooltip: {
+                      custom: ({ series, seriesIndex, dataPointIndex, w }: any) =>
+                        mkTooltipMulti(
+                          w.globals.labels[dataPointIndex],
+                          series, seriesIndex, dataPointIndex,
+                          w.globals.colors,
+                          w.globals.seriesNames
+                        )
+                    },
                   }}
                 />
               </div>
@@ -681,7 +1001,7 @@ export default function TrackerPage() {
                   </div>
                 </div>
 
-                {/* Distribusi per ISP / BTS chart */}
+                {/* UX-06 fix: Distribusi Pasang — angka saja, lebih bersih */}
                 <div className="bg-white rounded-xl border border-slate-200 p-4">
                   <div className="flex justify-between items-center mb-3">
                     <h4 className="font-bold text-slate-700 text-xs uppercase tracking-wider">Distribusi Pasang</h4>
@@ -690,20 +1010,31 @@ export default function TrackerPage() {
                       <button onClick={() => setModalChartMode('BTS')} className={`px-2.5 py-1 rounded-md text-[10px] font-semibold transition-all ${modalChartMode === 'BTS' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>BTS</button>
                     </div>
                   </div>
-                  <ReactApexChart
-                    type="bar"
-                    height={180}
-                    series={[{ name: 'Total', data: (modalChartMode === 'ISP' ? globalStats.byIsp : globalStats.byBts).map((i: any) => i.data) }]}
-                    options={{
-                      chart: { toolbar: { show: false }, fontFamily: "'Plus Jakarta Sans', sans-serif" },
-                      plotOptions: { bar: { horizontal: true, borderRadius: 3, barHeight: '60%' } },
-                      colors: [modalChartMode === 'ISP' ? '#2d7dd2' : '#7c3aed'],
-                      xaxis: { categories: (modalChartMode === 'ISP' ? globalStats.byIsp : globalStats.byBts).map((i: any) => i.name), labels: { style: { fontSize: '9px', colors: '#94a3b8' } } },
-                      grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
-                      dataLabels: { enabled: true, textAnchor: 'start', style: { colors: ['#fff'], fontWeight: '600', fontSize: '10px' }, offsetX: 0 },
-                      tooltip: { theme: 'light', y: { formatter: (v: number) => `${v} Pelanggan` } },
-                    }}
-                  />
+                  {/* Tampilkan sebagai list angka, bukan chart horizontal yg jelek */}
+                  {(() => {
+                    const items = (modalChartMode === 'ISP' ? globalStats.byIsp : globalStats.byBts) as { name: string; data: number }[];
+                    const maxVal = items[0]?.data || 1;
+                    const accent = modalChartMode === 'ISP' ? '#2d7dd2' : '#7c3aed';
+                    return items.length === 0 ? (
+                      <p className="text-center text-xs text-slate-400 py-6 italic">Belum ada data</p>
+                    ) : (
+                      <div className="space-y-1.5 overflow-y-auto" style={{ maxHeight: 200 }}>
+                        {items.map((item, i) => {
+                          const pct = Math.round((item.data / maxVal) * 100);
+                          return (
+                            <div key={item.name} className="flex items-center gap-2">
+                              <span className="text-[10px] font-mono text-slate-400 w-4 shrink-0">#{i+1}</span>
+                              <span className="text-[11px] font-semibold text-slate-700 truncate flex-1" style={{ minWidth: 0 }}>{item.name}</span>
+                              <div className="w-16 bg-slate-100 rounded-full h-1.5 shrink-0">
+                                <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: accent }} />
+                              </div>
+                              <span className="text-xs font-bold w-6 text-right shrink-0" style={{ color: accent }}>{item.data}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
@@ -768,35 +1099,97 @@ export default function TrackerPage() {
         </div>
       )}
 
+      {/* ── FITUR-07: HISTORY MODAL ─────────────────── */}
+      {showHistoryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-xl border border-slate-200 flex flex-col max-h-[85vh] overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="p-1.5 bg-slate-100 rounded-lg text-slate-600"><History size={14} /></div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800">Riwayat Edit Request</h3>
+                  <p className="text-[11px] text-slate-500">50 riwayat terbaru (Approved &amp; Rejected)</p>
+                </div>
+              </div>
+              <button onClick={() => setShowHistoryModal(false)} className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-500"><X size={15} /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              {historyRequests.length === 0 ? (
+                <div className="py-12 text-center">
+                  <History size={28} className="mx-auto mb-2 text-slate-300" />
+                  <p className="text-sm text-slate-400 italic">Belum ada riwayat</p>
+                </div>
+              ) : historyRequests.map(req => (
+                <div key={req.id} className="border border-slate-100 rounded-xl p-3.5 space-y-2">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-slate-800 truncate">{req.target_subject}</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">
+                        {req.requested_by} → {req.reviewed_by || '—'} · {req.target_table}
+                        {req.reviewed_at && ' · ' + format(new Date(req.reviewed_at), 'dd MMM yyyy HH:mm', { locale: indonesia })}
+                      </p>
+                    </div>
+                    <span className={`shrink-0 ml-2 text-[9px] font-bold px-2 py-0.5 rounded-full border ${
+                      req.status === 'APPROVED'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-rose-50 text-rose-600 border-rose-200'
+                    }`}>{req.status}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {Object.entries(req.proposed_changes || {}).map(([k, v]) => (
+                      <span key={k} className="text-[10px] px-2 py-0.5 bg-slate-100 rounded-md text-slate-600">
+                        <span className="font-bold">{k}:</span> {String(req.original_data?.[k] || '—')} → <span className="text-emerald-600 font-semibold">{String(v)}</span>
+                      </span>
+                    ))}
+                  </div>
+                  {req.alasan && (
+                    <p className="text-[10px] italic text-slate-500">Alasan: "{req.alasan}"</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── REQUEST EDIT MODAL ──────────────────────── */}
       {showRequestModal && selectedRowForEdit && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
           <div className="bg-white w-full max-w-md rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center">
+            {/* BUG-04: judul modal berbeda untuk approver (edit langsung) vs user biasa */}
+            <div className={`px-5 py-4 border-b flex justify-between items-center ${isDirectEdit ? 'border-emerald-100 bg-emerald-50' : 'border-slate-100'}`}>
               <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-blue-50 rounded-lg text-blue-600"><FileEdit size={13} /></div>
+                <div className={`p-1.5 rounded-lg ${isDirectEdit ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>
+                  <FileEdit size={13} />
+                </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-800">Request Edit</h3>
-                  <p className="text-[10px] text-slate-400">Perlu disetujui Admin/NOC</p>
+                  <h3 className="text-sm font-bold text-slate-800">
+                    {isDirectEdit ? 'Edit Langsung' : 'Request Edit'}
+                  </h3>
+                  <p className="text-[10px] text-slate-400">
+                    {isDirectEdit ? 'Perubahan langsung diterapkan' : 'Perlu disetujui Admin/NOC'}
+                  </p>
                 </div>
               </div>
               <button onClick={() => setShowRequestModal(false)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400"><X size={14} /></button>
             </div>
 
             <div className="p-5 space-y-4 max-h-[65vh] overflow-y-auto">
-              {/* Alasan */}
-              <div>
-                <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block mb-1.5">
-                  Alasan Edit <span className="text-rose-500">*</span>
-                </label>
-                <textarea
-                  value={requestAlasan}
-                  onChange={(e) => setRequestAlasan(e.target.value)}
-                  placeholder="Jelaskan alasan perubahan..."
-                  rows={2}
-                  className="w-full p-2.5 border border-slate-200 rounded-lg text-xs text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 resize-none transition-all"
-                />
-              </div>
+              {/* Alasan — hanya untuk non-approver */}
+              {!isDirectEdit && (
+                <div>
+                  <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block mb-1.5">
+                    Alasan Edit <span className="text-rose-500">*</span>
+                  </label>
+                  <textarea
+                    value={requestAlasan}
+                    onChange={(e) => setRequestAlasan(e.target.value)}
+                    placeholder="Jelaskan alasan perubahan..."
+                    rows={2}
+                    className="w-full p-2.5 border border-slate-200 rounded-lg text-xs text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 resize-none transition-all"
+                  />
+                </div>
+              )}
 
               {/* 4 fields yang bisa diedit */}
               <div className="space-y-3">
@@ -810,30 +1203,34 @@ export default function TrackerPage() {
                   onChange={(v) => setProposedFields(p => ({ ...p, subject: v }))}
                 />
 
-                {/* ISP */}
+                {/* UX-04 fix: pass retry props ke TrackerSelectField */}
                 <TrackerSelectField
                   label="ISP"
                   original={selectedRowForEdit.ISP || '—'}
                   value={proposedFields.ISP}
                   options={indexOptions.isp}
+                  hasError={indexLoadError}
+                  onRetry={fetchIndexOptions}
                   onChange={(v) => setProposedFields(p => ({ ...p, ISP: v }))}
                 />
 
-                {/* BTS */}
                 <TrackerSelectField
                   label="BTS"
                   original={selectedRowForEdit.BTS || '—'}
                   value={proposedFields.BTS}
                   options={indexOptions.bts}
+                  hasError={indexLoadError}
+                  onRetry={fetchIndexOptions}
                   onChange={(v) => setProposedFields(p => ({ ...p, BTS: v }))}
                 />
 
-                {/* DEVICE */}
                 <TrackerSelectField
                   label="Device"
                   original={selectedRowForEdit.DEVICE || '—'}
                   value={proposedFields.DEVICE}
                   options={indexOptions.device}
+                  hasError={indexLoadError}
+                  onRetry={fetchIndexOptions}
                   onChange={(v) => setProposedFields(p => ({ ...p, DEVICE: v }))}
                 />
               </div>
@@ -888,12 +1285,18 @@ export default function TrackerPage() {
             </div>
 
             <div className="px-5 pb-5 pt-3 border-t border-slate-100 flex gap-2">
+              {/* BUG-04 fix: tombol berbeda untuk approver (simpan langsung) vs user biasa (kirim request) */}
               <button
-                onClick={handleSubmitRequest}
+                onClick={isDirectEdit ? handleDirectApply : handleSubmitRequest}
                 disabled={submitting}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-lg text-xs font-bold transition-colors"
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-white rounded-lg text-xs font-bold transition-colors disabled:bg-slate-300 ${
+                  isDirectEdit ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-blue-600 hover:bg-blue-700'
+                }`}
               >
-                <Send size={12} /> {submitting ? 'Mengirim...' : 'Kirim Request'}
+                {isDirectEdit ? <Check size={12} /> : <Send size={12} />}
+                {submitting
+                  ? (isDirectEdit ? 'Menyimpan...' : 'Mengirim...')
+                  : (isDirectEdit ? 'Simpan Langsung' : 'Kirim Request')}
               </button>
               <button onClick={() => setShowRequestModal(false)} className="px-4 py-2.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-200 transition-colors">Batal</button>
             </div>
@@ -930,8 +1333,10 @@ function TrackerEditField({ label, original, value, onChange }: {
 }
 
 // ── TRACKER SELECT FIELD (dropdown dari Index) ───────────────
-function TrackerSelectField({ label, original, value, options, onChange }: {
-  label: string; original: string; value: string; options: string[]; onChange: (v: string) => void;
+// UX-04 fix: tambah hasError + onRetry untuk retry jika index gagal dimuat
+function TrackerSelectField({ label, original, value, options, hasError, onRetry, onChange }: {
+  label: string; original: string; value: string; options: string[];
+  hasError?: boolean; onRetry?: () => void; onChange: (v: string) => void;
 }) {
   const changed = value !== (original === '—' ? '' : original);
   return (
@@ -942,22 +1347,38 @@ function TrackerSelectField({ label, original, value, options, onChange }: {
           Saat ini: <span className="text-slate-600 font-semibold not-italic">{original}</span>
         </span>
       </div>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className={`w-full p-2 border rounded-lg text-xs text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer ${
-          changed ? 'border-blue-300 bg-blue-50' : 'border-slate-200 bg-slate-50'
-        }`}
-      >
-        <option value="">— Pilih {label} —</option>
-        {options.length === 0 ? (
-          <option disabled>Memuat data...</option>
-        ) : (
-          options.map((opt, i) => (
-            <option key={i} value={opt}>{opt}</option>
-          ))
-        )}
-      </select>
+      {/* UX-04: tampilkan retry button jika error & options kosong */}
+      {hasError && options.length === 0 ? (
+        <div className="flex items-center gap-2 p-2 border border-rose-200 bg-rose-50 rounded-lg">
+          <span className="text-[10px] text-rose-600 flex-1">Gagal memuat opsi {label}</span>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="flex items-center gap-1 px-2 py-0.5 bg-white border border-rose-200 text-rose-600 rounded text-[10px] font-semibold hover:bg-rose-100 transition-colors"
+            >
+              <RefreshCw size={9} /> Coba Lagi
+            </button>
+          )}
+        </div>
+      ) : (
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={`w-full p-2 border rounded-lg text-xs text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer ${
+            changed ? 'border-blue-300 bg-blue-50' : 'border-slate-200 bg-slate-50'
+          }`}
+        >
+          <option value="">— Pilih {label} —</option>
+          {options.length === 0 ? (
+            <option disabled>Memuat data...</option>
+          ) : (
+            options.map((opt, i) => (
+              <option key={i} value={opt}>{opt}</option>
+            ))
+          )}
+        </select>
+      )}
     </div>
   );
 }
