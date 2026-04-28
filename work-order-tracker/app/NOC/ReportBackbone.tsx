@@ -898,6 +898,7 @@ function buildPDFHTML(opts: {
   byJenis:    Record<string, number>;
   byPriority: Record<string, number>;
   byKode:     Record<string, number>;
+  byProblem:  Record<string, number>;
   slaOK:   number;
   slaNOK:  number;
   slaRate: number | null;
@@ -906,7 +907,7 @@ function buildPDFHTML(opts: {
   monthlyData: { month: string; count: number; solved: number }[];
 }): string {
   const { periodLabel, pdfType, total, solved, byStatus, byRegional, byJenis, byPriority,
-          byKode, slaOK, slaNOK, slaRate, avgMTTR, tickets, monthlyData } = opts;
+          byKode, byProblem, slaOK, slaNOK, slaRate, avgMTTR, tickets, monthlyData } = opts;
 
   const solveRate = total > 0 ? Math.round((solved / total) * 100) : 0;
 
@@ -1150,6 +1151,47 @@ tr:nth-child(even) td{background:#f8fafc}
     <div class="card"><div class="card-title">By Jenis Problem</div>${Object.keys(byJenis).length > 0 ? bar(byJenis) : '<p style="color:#94a3b8;font-size:10px">—</p>'}</div>
     <div class="card"><div class="card-title">By Priority</div>${Object.keys(byPriority).length > 0 ? bar(byPriority, {CRITICAL:"#f43f5e",HIGH:"#f59e0b",MEDIUM:"#3b82f6",LOW:"#10b981"}) : '<p style="color:#94a3b8;font-size:10px">—</p>'}</div>
   </div>
+
+  ${(() => {
+    const topProblems = Object.entries(byProblem)
+      .sort(([,a],[,b]) => b - a)
+      .slice(0, 12);
+    if (topProblems.length === 0) return "";
+    const maxVal = Math.max(...topProblems.map(([,v]) => v), 1);
+    const rows = topProblems.map(([prob, cnt], i) => {
+      const pct   = Math.round((cnt / maxVal) * 100);
+      const color = i < 3 ? "#f43f5e" : i < 6 ? "#f59e0b" : "#34d399";
+      const rank  = ["🥇","🥈","🥉"][i] || `${i+1}.`;
+      return `<tr style="border-bottom:1px solid #f1f5f9">
+        <td style="width:24px;font-size:11px;text-align:center;padding:5px 4px">${rank}</td>
+        <td style="font-size:9px;color:#334155;padding:5px 6px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${prob}">${prob}</td>
+        <td style="padding:5px 6px;width:120px">
+          <div style="background:#f1f5f9;border-radius:4px;height:14px;overflow:hidden;position:relative">
+            <div style="width:${pct}%;background:${color};height:100%;border-radius:4px;min-width:20px"></div>
+          </div>
+        </td>
+        <td style="font-size:10px;font-weight:800;color:#0f172a;text-align:right;padding:5px 6px;width:28px">${cnt}</td>
+      </tr>`;
+    }).join("");
+    return `<div class="sec">
+      <div class="sec-title">Summary Problem</div>
+      <div class="card" style="padding:12px 14px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <div class="card-title" style="margin:0">Top ${topProblems.length} Problem Terlapor</div>
+          <span style="font-size:9px;color:#94a3b8;margin-left:auto">${Object.keys(byProblem).length} unique problem</span>
+        </div>
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="border-bottom:2px solid #e2e8f0">
+            <th style="font-size:8px;color:#94a3b8;text-align:center;padding:0 4px 6px">#</th>
+            <th style="font-size:8px;color:#94a3b8;text-align:left;padding:0 6px 6px">Deskripsi Problem</th>
+            <th style="font-size:8px;color:#94a3b8;text-align:left;padding:0 6px 6px">Frekuensi</th>
+            <th style="font-size:8px;color:#94a3b8;text-align:right;padding:0 6px 6px">Jml</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+  })()}
 
   ${kodeSection}
 
@@ -1898,6 +1940,7 @@ export default function ReportBackbone() {
     const byJenis:    Record<string,number> = {};
     const byPriority: Record<string,number> = {};
     const byKode:     Record<string,number> = {};
+    const byProblem:  Record<string,number> = {};
     let slaOK = 0, slaNOK = 0, mttrSum = 0, mttrCount = 0;
 
     tickets.forEach(g => {
@@ -1907,6 +1950,10 @@ export default function ReportBackbone() {
       if (f["Regional"])     byRegional[f["Regional"]]     = (byRegional[f["Regional"]]     || 0) + 1;
       if (f["Jenis Problem"]) byJenis[f["Jenis Problem"]]  = (byJenis[f["Jenis Problem"]]   || 0) + 1;
       if (f["Priority"])     byPriority[f["Priority"]]     = (byPriority[f["Priority"]]     || 0) + 1;
+      if (f["Problem"]) {
+        const prob = String(f["Problem"]).trim();
+        if (prob) byProblem[prob] = (byProblem[prob] || 0) + 1;
+      }
 
       // Kode backbone per row
       g.forEach((r: any) => {
@@ -1969,7 +2016,7 @@ export default function ReportBackbone() {
       }
     }
 
-    const html = buildPDFHTML({ periodLabel, pdfType, total, solved, byStatus, byRegional, byJenis, byPriority, byKode, slaOK, slaNOK, slaRate, avgMTTR, tickets, monthlyData });
+    const html = buildPDFHTML({ periodLabel, pdfType, total, solved, byStatus, byRegional, byJenis, byPriority, byKode, byProblem, slaOK, slaNOK, slaRate, avgMTTR, tickets, monthlyData });
 
     const win = window.open("", "_blank");
     if (!win) { toast.error("Pop-up diblokir! Ijinkan pop-up untuk generate PDF."); return; }
