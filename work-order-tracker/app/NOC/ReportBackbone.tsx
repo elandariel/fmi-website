@@ -1130,7 +1130,24 @@ tr:nth-child(even) td{background:#f8fafc}
   <div class="two-col sec">
     <div class="card">
       <div class="card-title">By Status</div>
-      ${bar(byStatus, SC)}
+      ${(() => {
+        // Urutan tetap sesuai NOC Index + OPEN sebagai fallback
+        // "ONPROGRES" di DB sudah dinormalisasi → "ON PROGRESS" oleh normalizeStatus()
+        const STATUS_ORDER = ["SOLVED","ON PROGRESS","PENDING","UNSOLVED","CANCEL","OPEN"];
+        const statusTotal  = STATUS_ORDER.reduce((s, k) => s + (byStatus[k] || 0), 0);
+        return STATUS_ORDER.map((label, i) => {
+          const cnt  = byStatus[label] || 0;
+          const pct  = statusTotal > 0 ? ((cnt / statusTotal) * 100).toFixed(1) : "0.0";
+          const rank = ["🥇","🥈","🥉"][i] ?? `${i + 1}.`;
+          const col  = SC[label] || "#94a3b8";
+          return `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #f1f5f9;opacity:${cnt === 0 ? "0.4" : "1"}">
+            <span style="font-size:10px;width:20px;text-align:center;flex-shrink:0">${rank}</span>
+            <span style="flex:1;font-size:9.5px;color:#1e293b;font-weight:600">${label}</span>
+            <span style="font-size:8.5px;color:#94a3b8;flex-shrink:0">${pct}%</span>
+            <span style="font-size:10px;font-weight:900;color:#fff;background:${col};border-radius:5px;padding:1px 6px;flex-shrink:0;min-width:22px;text-align:center">${cnt}</span>
+          </div>`;
+        }).join("");
+      })()}
     </div>
     <div class="card">
       <div class="card-title">SLA Overview</div>
@@ -1146,51 +1163,142 @@ tr:nth-child(even) td{background:#f8fafc}
 
   ${monthSection}
 
+  ${/* ── LAYOUT: [Jenis Problem | Summary Problem | Priority] + [Regional full-width] ── */
+  (() => {
+    // ── Predefined master lists (sesuai NOC Index table) ──
+    const JENIS_ORDER    = ["CRC","DOWN","UNMONITOR","HIGH POWER","LOW POWER","OVERHEAT"];
+    const PRIORITY_ORDER = ["CRITICAL","MAJOR","MINOR"];
+    const PROBLEM_ORDER  = ["FO CUT","BENDING","ELECTRICAL","DEVICE","PATCHCORE","SFP","TEMPERATURE","ATTENUATOR","BARELL OTB","SIGNAL DROP"];
+    const REGIONAL_ORDER = ["Bogor","Depok","Kab Bekasi","Kota Bekasi","Karawang","Jakarta Selatan","Jakarta Utara","Jakarta Barat","Jakarta Timur","Purwakarta","Tangerang","Cirebon"];
+
+    // ── Merge predefined list with actual data (fill 0 for missing, append extras) ──
+    const mergeWithPredefined = (
+      predefined: string[],
+      actual: Record<string, number>,
+    ): [string, number][] => {
+      // Case-insensitive lookup helper
+      const findActual = (key: string): number => {
+        const upper = key.toUpperCase();
+        for (const [k, v] of Object.entries(actual)) {
+          if (k.toUpperCase() === upper) return v;
+        }
+        return 0;
+      };
+      const result: [string, number][] = predefined.map(k => [k, findActual(k)]);
+      // Append any extras in actual not covered by predefined
+      const predUpper = predefined.map(p => p.toUpperCase());
+      for (const [k, v] of Object.entries(actual)) {
+        if (!predUpper.includes(k.toUpperCase())) result.push([k, v]);
+      }
+      return result;
+    };
+
+    // ── Shared: compact ranked list — 0-count items dimmed at bottom ──
+    const compactList = (
+      entries: [string, number][],
+      colorFn: (i: number, key: string) => string,
+    ) => {
+      const nonZero = entries.filter(([,v]) => v > 0).sort(([,a],[,b]) => b - a);
+      const zeros   = entries.filter(([,v]) => v === 0);
+      const sorted  = [...nonZero, ...zeros];
+      const listTotal = nonZero.reduce((s,[,v]) => s + v, 0);
+      return sorted.map(([label, cnt], i) => {
+        const isZero = cnt === 0;
+        const rank   = !isZero ? (["🥇","🥈","🥉"][i] ?? `${i + 1}.`) : "—";
+        const pct    = listTotal > 0 && cnt > 0 ? ((cnt / listTotal) * 100).toFixed(1) : "0.0";
+        return `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #f1f5f9;opacity:${isZero ? "0.4" : "1"}">
+          <span style="font-size:10px;width:20px;text-align:center;flex-shrink:0">${rank}</span>
+          <span style="flex:1;font-size:9.5px;color:#1e293b;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${label}">${label}</span>
+          <span style="font-size:8.5px;color:#94a3b8;flex-shrink:0">${pct}%</span>
+          <span style="font-size:10px;font-weight:900;color:#fff;background:${colorFn(i, label)};border-radius:5px;padding:1px 6px;flex-shrink:0;min-width:22px;text-align:center">${cnt}</span>
+        </div>`;
+      }).join("");
+    };
+
+    // Color functions per card
+    const jenisColor = (_i: number, key: string): string => {
+      const k = key.toUpperCase();
+      if (k === "DOWN")       return "#f43f5e";
+      if (k === "CRC")        return "#f59e0b";
+      if (k === "UNMONITOR")  return "#64748b";
+      if (k === "LOW POWER")  return "#3b82f6";
+      if (k === "HIGH POWER") return "#f97316";
+      if (k === "OVERHEAT")   return "#ec4899";
+      return "#34d399";
+    };
+    const priorityColor = (_i: number, key: string): string => {
+      const k = key.toUpperCase();
+      if (k === "CRITICAL") return "#f43f5e";
+      if (k === "MAJOR")    return "#f97316";
+      return "#10b981"; // MINOR
+    };
+    const problemColor = (_i: number, key: string): string => {
+      const PROBLEM_ORDER_UPPER = PROBLEM_ORDER.map(p => p.toUpperCase());
+      const idx = PROBLEM_ORDER_UPPER.indexOf(key.toUpperCase());
+      if (idx < 0) return "#94a3b8";
+      return idx < 3 ? "#f43f5e" : idx < 6 ? "#f59e0b" : "#34d399";
+    };
+
+    // ── Build merged entry lists ──
+    const jenisEntries    = mergeWithPredefined(JENIS_ORDER,    byJenis);
+    const priorityEntries = mergeWithPredefined(PRIORITY_ORDER, byPriority);
+    const problemEntries  = mergeWithPredefined(PROBLEM_ORDER,  byProblem);
+
+    const jenisRows    = compactList(jenisEntries,    jenisColor);
+    const priorityRows = compactList(priorityEntries, priorityColor);
+    const problemRows  = compactList(problemEntries,  problemColor);
+
+    // Count how many problem types actually have data
+    const problemWithData = problemEntries.filter(([,v]) => v > 0).length;
+
+    // ── Bottom: Regional full-width (bar chart + predefined list) ──
+    const regionalEntries = mergeWithPredefined(REGIONAL_ORDER, byRegional);
+    const nonZeroRegional = regionalEntries.filter(([,v]) => v > 0).sort(([,a],[,b]) => b - a);
+    const zeroRegional    = regionalEntries.filter(([,v]) => v === 0);
+    const sortedRegional  = [...nonZeroRegional, ...zeroRegional];
+    const regionalRows = (() => {
+      const max = Math.max(...sortedRegional.map(([,v]) => v), 1);
+      return sortedRegional.map(([k, v]) => {
+        const barPct = v > 0 ? Math.round((v / max) * 100) : 0;
+        const rPct   = total > 0 && v > 0 ? ((v / total) * 100).toFixed(1) : "0.0";
+        const opacity = v === 0 ? "0.4" : "1";
+        return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:5px;opacity:${opacity}">
+          <div style="width:110px;font-size:10px;color:#475569;font-weight:600;flex-shrink:0;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${k}</div>
+          <div style="flex:1;background:#f1f5f9;border-radius:4px;height:16px;overflow:hidden">
+            <div style="width:${barPct > 0 ? barPct : 2}%;background:${v > 0 ? "#34d399" : "#cbd5e1"};height:100%;border-radius:4px;min-width:${v > 0 ? "24px" : "0"};display:flex;align-items:center;padding-left:${v > 0 ? "6px" : "0"}">
+              ${v > 0 ? `<span style="font-size:9px;color:white;font-weight:700">${v}</span>` : ""}
+            </div>
+          </div>
+          <div style="font-size:9px;color:#94a3b8;width:38px;flex-shrink:0;text-align:right">${v > 0 ? rPct + "%" : "0"}</div>
+        </div>`;
+      }).join("");
+    })();
+
+    return `
   <div class="three-col sec">
-    <div class="card"><div class="card-title">By Regional</div>${Object.keys(byRegional).length > 0 ? bar(byRegional) : '<p style="color:#94a3b8;font-size:10px">—</p>'}</div>
-    <div class="card"><div class="card-title">By Jenis Problem</div>${Object.keys(byJenis).length > 0 ? bar(byJenis) : '<p style="color:#94a3b8;font-size:10px">—</p>'}</div>
-    <div class="card"><div class="card-title">By Priority</div>${Object.keys(byPriority).length > 0 ? bar(byPriority, {CRITICAL:"#f43f5e",HIGH:"#f59e0b",MEDIUM:"#3b82f6",LOW:"#10b981"}) : '<p style="color:#94a3b8;font-size:10px">—</p>'}</div>
+    <div class="card">
+      <div class="card-title">By Jenis Problem</div>
+      ${jenisRows}
+    </div>
+    <div class="card">
+      <div style="display:flex;align-items:center;margin-bottom:8px">
+        <div class="card-title" style="margin:0">Summary Problem</div>
+        <span style="font-size:8px;color:#94a3b8;margin-left:auto">${problemWithData} active</span>
+      </div>
+      ${problemRows}
+    </div>
+    <div class="card">
+      <div class="card-title">By Priority</div>
+      ${priorityRows}
+    </div>
   </div>
 
-  ${(() => {
-    const topProblems = Object.entries(byProblem)
-      .sort(([,a],[,b]) => b - a)
-      .slice(0, 12);
-    if (topProblems.length === 0) return "";
-    const maxVal = Math.max(...topProblems.map(([,v]) => v), 1);
-    const rows = topProblems.map(([prob, cnt], i) => {
-      const pct   = Math.round((cnt / maxVal) * 100);
-      const color = i < 3 ? "#f43f5e" : i < 6 ? "#f59e0b" : "#34d399";
-      const rank  = ["🥇","🥈","🥉"][i] || `${i+1}.`;
-      return `<tr style="border-bottom:1px solid #f1f5f9">
-        <td style="width:24px;font-size:11px;text-align:center;padding:5px 4px">${rank}</td>
-        <td style="font-size:9px;color:#334155;padding:5px 6px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${prob}">${prob}</td>
-        <td style="padding:5px 6px;width:120px">
-          <div style="background:#f1f5f9;border-radius:4px;height:14px;overflow:hidden;position:relative">
-            <div style="width:${pct}%;background:${color};height:100%;border-radius:4px;min-width:20px"></div>
-          </div>
-        </td>
-        <td style="font-size:10px;font-weight:800;color:#0f172a;text-align:right;padding:5px 6px;width:28px">${cnt}</td>
-      </tr>`;
-    }).join("");
-    return `<div class="sec">
-      <div class="sec-title">Summary Problem</div>
-      <div class="card" style="padding:12px 14px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-          <div class="card-title" style="margin:0">Top ${topProblems.length} Problem Terlapor</div>
-          <span style="font-size:9px;color:#94a3b8;margin-left:auto">${Object.keys(byProblem).length} unique problem</span>
-        </div>
-        <table style="width:100%;border-collapse:collapse">
-          <thead><tr style="border-bottom:2px solid #e2e8f0">
-            <th style="font-size:8px;color:#94a3b8;text-align:center;padding:0 4px 6px">#</th>
-            <th style="font-size:8px;color:#94a3b8;text-align:left;padding:0 6px 6px">Deskripsi Problem</th>
-            <th style="font-size:8px;color:#94a3b8;text-align:left;padding:0 6px 6px">Frekuensi</th>
-            <th style="font-size:8px;color:#94a3b8;text-align:right;padding:0 6px 6px">Jml</th>
-          </tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>
-    </div>`;
+  <div class="sec">
+    <div class="sec-title">By Regional</div>
+    <div class="card" style="padding:12px 16px">
+      ${regionalRows}
+    </div>
+  </div>`;
   })()}
 
   ${kodeSection}
@@ -1328,6 +1436,10 @@ export default function ReportBackbone() {
   const [search,              setSearch]              = useState("");
   const [statusFilter,        setStatusFilter]        = useState("ALL");
   const [regionalFilter,      setRegionalFilter]      = useState("ALL");
+
+  // ── Pagination (table view) ──
+  const TABLE_PAGE_SIZE = 20;
+  const [tablePage,           setTablePage]           = useState(1);
   const [draggingTicket,      setDraggingTicket]      = useState<string | null>(null);
   const [dragOverCol,         setDragOverCol]         = useState<string | null>(null);
 
@@ -2048,8 +2160,8 @@ export default function ReportBackbone() {
 
   const allGroups = useMemo(() => Object.entries(groupedReports), [groupedReports]);
 
-  const filteredGroups = useMemo(() =>
-    allGroups.filter(([ticketNo, group]) => {
+  const filteredGroups = useMemo(() => {
+    const result = allGroups.filter(([ticketNo, group]) => {
       if (search) {
         const q = search.toLowerCase();
         const hit = ticketNo.toLowerCase().includes(q)
@@ -2062,8 +2174,18 @@ export default function ReportBackbone() {
       if (statusFilter !== "ALL" && getTicketStatus(group) !== statusFilter) return false;
       if (regionalFilter !== "ALL" && (group[0]["Regional"] || "") !== regionalFilter) return false;
       return true;
-    }),
-  [allGroups, search, statusFilter, regionalFilter]);
+    });
+    // Reset ke halaman 1 setiap kali filter berubah
+    setTablePage(1);
+    return result;
+  }, [allGroups, search, statusFilter, regionalFilter]);
+
+  // Pagination derived values
+  const tableTotalPages = Math.max(1, Math.ceil(filteredGroups.length / TABLE_PAGE_SIZE));
+  const pagedGroups     = filteredGroups.slice(
+    (tablePage - 1) * TABLE_PAGE_SIZE,
+    tablePage * TABLE_PAGE_SIZE
+  );
 
   const groups      = useMemo(() => Object.values(groupedReports), [groupedReports]);
   const totalOpen   = groups.filter(g => isActive(g)).length;
@@ -2404,7 +2526,7 @@ export default function ReportBackbone() {
                   </td></tr>
                 )}
 
-                {!fetching && filteredGroups.map(([ticketNo, group]) => {
+                {!fetching && pagedGroups.map(([ticketNo, group]) => {
                   const first  = group[0];
                   const active = isActive(group);
                   const status = getTicketStatus(group);
@@ -2482,6 +2604,77 @@ export default function ReportBackbone() {
                 })}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* ══ TABLE PAGINATION ══ */}
+      {view === "table" && !fetching && filteredGroups.length > TABLE_PAGE_SIZE && (
+        <div className="flex items-center justify-between mt-3 px-1">
+          {/* Info */}
+          <p className="text-[11px]" style={{ color: C.textMuted }}>
+            Menampilkan{" "}
+            <span style={{ color: C.textSec, fontWeight: 700 }}>
+              {(tablePage - 1) * TABLE_PAGE_SIZE + 1}–{Math.min(tablePage * TABLE_PAGE_SIZE, filteredGroups.length)}
+            </span>{" "}
+            dari{" "}
+            <span style={{ color: C.textSec, fontWeight: 700 }}>{filteredGroups.length}</span>{" "}
+            tiket
+          </p>
+
+          {/* Page controls */}
+          <div className="flex items-center gap-1">
+            {/* Prev */}
+            <button
+              disabled={tablePage === 1}
+              onClick={() => setTablePage(p => Math.max(1, p - 1))}
+              className="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              style={{ background: C.elevated, color: C.textSec, border: `1px solid ${C.border}` }}
+            >
+              ‹ Prev
+            </button>
+
+            {/* Page numbers — sliding window */}
+            {(() => {
+              const pages: (number | "…")[] = [];
+              if (tableTotalPages <= 7) {
+                for (let i = 1; i <= tableTotalPages; i++) pages.push(i);
+              } else {
+                pages.push(1);
+                if (tablePage > 3) pages.push("…");
+                for (let i = Math.max(2, tablePage - 1); i <= Math.min(tableTotalPages - 1, tablePage + 1); i++) pages.push(i);
+                if (tablePage < tableTotalPages - 2) pages.push("…");
+                pages.push(tableTotalPages);
+              }
+              return pages.map((p, idx) =>
+                p === "…" ? (
+                  <span key={`ellipsis-${idx}`} className="px-2 text-[11px]" style={{ color: C.textMuted }}>···</span>
+                ) : (
+                  <button
+                    key={p}
+                    onClick={() => setTablePage(p as number)}
+                    className="w-8 h-8 rounded-lg text-[11px] font-bold transition-all"
+                    style={{
+                      background: tablePage === p ? C.accent : C.elevated,
+                      color:      tablePage === p ? "#fff"    : C.textSec,
+                      border:     `1px solid ${tablePage === p ? C.accent : C.border}`,
+                    }}
+                  >
+                    {p}
+                  </button>
+                )
+              );
+            })()}
+
+            {/* Next */}
+            <button
+              disabled={tablePage === tableTotalPages}
+              onClick={() => setTablePage(p => Math.min(tableTotalPages, p + 1))}
+              className="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              style={{ background: C.elevated, color: C.textSec, border: `1px solid ${C.border}` }}
+            >
+              Next ›
+            </button>
           </div>
         </div>
       )}

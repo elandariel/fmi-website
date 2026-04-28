@@ -1,27 +1,62 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
-import { User, Lock, Save, Loader2, Shield, UserCheck, Link2, Eye, EyeOff, CheckCircle2, XCircle, RefreshCw, Trash2 } from 'lucide-react';
+import {
+  User, Lock, Save, Loader2, Shield, UserCheck,
+  Link2, Eye, EyeOff, CheckCircle2, XCircle,
+  RefreshCw, Trash2, Camera, AlertCircle,
+} from 'lucide-react';
 import { Role } from '@/lib/permissions';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { logActivity } from '@/lib/logger';
 
+// ─────────────────────────────────────────────
+// ROLE CONFIG
+// ─────────────────────────────────────────────
+const ROLE_COLORS: Record<string, string> = {
+  SUPER_DEV: 'bg-rose-50 text-rose-600 border-rose-200',
+  ADMIN:     'bg-amber-50 text-amber-600 border-amber-200',
+  NOC:       'bg-blue-50 text-blue-600 border-blue-200',
+  AKTIVATOR: 'bg-violet-50 text-violet-600 border-violet-200',
+  CS:        'bg-slate-50 text-slate-600 border-slate-200',
+};
+
+const AVATAR_BUCKET = 'avatars';
+
+// ─────────────────────────────────────────────
+// COMPONENT
+// ─────────────────────────────────────────────
 export default function ProfilePage() {
-  const [loading, setLoading] = useState(true);
+  // PROFILE-BUG-03: supabase in useMemo
+  const supabase = useMemo(() => createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL    || '',
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  ), []);
+
+  const router = useRouter();
+
+  const [loading, setLoading]   = useState(true);
   const [updating, setUpdating] = useState(false);
-  const [user, setUser] = useState<any>(null);
-  const [myRole, setMyRole] = useState<Role | ''>('');
+  const [user, setUser]         = useState<any>(null);
+  const [myRole, setMyRole]     = useState<Role | ''>('');
 
-  const [fullName, setFullName] = useState('');
+  const [fullName, setFullName]         = useState('');
   const [selectedRole, setSelectedRole] = useState<Role | ''>('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail]               = useState('');
 
-  const [password, setPassword] = useState('');
+  const [password, setPassword]               = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPw, setShowPw]                   = useState(false);
+  const [showConfirmPw, setShowConfirmPw]     = useState(false);
 
-  // ── Odoo integration state ─────────────────────────────────
+  // PROFILE-UX-03: avatar state
+  const [avatarUrl, setAvatarUrl]         = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Odoo integration state
   const [odooApiKey, setOdooApiKey]   = useState('');
   const [showOdooKey, setShowOdooKey] = useState(false);
   const [odooLoading, setOdooLoading] = useState(false);
@@ -32,12 +67,16 @@ export default function ProfilePage() {
     is_active: boolean;
   } | null>(null);
 
-  const router = useRouter();
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-  );
+  // ────────────────────────────────
+  // PROFILE-BUG-01: fetchOdooStatus called AFTER user session is confirmed
+  // ────────────────────────────────
+  async function fetchOdooStatus() {
+    try {
+      const res  = await fetch('/api/my-odoo-key');
+      const data = await res.json();
+      if (data.success) setOdooStatus(data);
+    } catch { /* ignore */ }
+  }
 
   useEffect(() => {
     async function getProfile() {
@@ -57,22 +96,74 @@ export default function ProfilePage() {
           setFullName(profile.full_name || '');
           setMyRole(profile.role as Role);
           setSelectedRole(profile.role as Role);
+          setAvatarUrl(profile.avatar_url || null);
         }
+
+        // PROFILE-BUG-01: now called AFTER user session is confirmed
+        fetchOdooStatus();
       }
       setLoading(false);
     }
     getProfile();
-    fetchOdooStatus();
-  }, []);
+  }, [supabase]);
 
-  async function fetchOdooStatus() {
+  // ────────────────────────────────
+  // PROFILE-UX-03: Avatar upload
+  // ────────────────────────────────
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    // Basic validation
+    if (!file.type.startsWith('image/')) {
+      toast.error('Hanya file gambar yang diperbolehkan');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Ukuran foto maksimal 2 MB');
+      return;
+    }
+
+    setAvatarUploading(true);
+    const toastId = toast.loading('Mengunggah foto profil...');
+
     try {
-      const res  = await fetch('/api/my-odoo-key');
-      const data = await res.json();
-      if (data.success) setOdooStatus(data);
-    } catch { /* ignore */ }
-  }
+      // Upload to Supabase Storage (upsert = overwrite if exists)
+      const filePath = `${user.id}/avatar.${file.name.split('.').pop()}`;
+      const { error: uploadError } = await supabase.storage
+        .from(AVATAR_BUCKET)
+        .upload(filePath, file, { upsert: true, contentType: file.type });
 
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from(AVATAR_BUCKET)
+        .getPublicUrl(filePath);
+      const publicUrl = urlData.publicUrl + `?t=${Date.now()}`; // cache-bust
+
+      // Update profile with avatar_url
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+
+      setAvatarUrl(publicUrl);
+      toast.success('Foto profil diperbarui!', { id: toastId });
+    } catch (err: any) {
+      toast.error('Gagal mengunggah foto', { id: toastId, description: err.message });
+    } finally {
+      setAvatarUploading(false);
+      // reset file input so same file can be re-selected
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  // ────────────────────────────────
+  // Odoo handlers
+  // ────────────────────────────────
   async function handleSaveOdooKey(e: React.FormEvent) {
     e.preventDefault();
     if (!odooApiKey.trim()) return;
@@ -106,49 +197,47 @@ export default function ProfilePage() {
         onClick: async () => {
           const res  = await fetch('/api/my-odoo-key', { method: 'DELETE' });
           const data = await res.json();
-          if (res.ok) {
-            toast.success(data.message);
-            setOdooStatus(null);
-          } else {
-            toast.error(data.error);
-          }
+          if (res.ok) { toast.success(data.message); setOdooStatus(null); }
+          else toast.error(data.error);
         },
       },
-      cancel: { label: 'Batal', onClick: () => {} },
+      cancel:   { label: 'Batal', onClick: () => {} },
       duration: 6000,
     });
   }
 
+  // ────────────────────────────────
+  // Profile update — PROFILE-BUG-02: role protected server-side
+  // ────────────────────────────────
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setUpdating(true);
-
     const updates = {
       id: user.id,
       full_name: fullName,
-      // Jika bukan Super Dev, paksa gunakan role asli (myRole) agar tidak bisa hack via Inspect Element
-      role: myRole === 'SUPER_DEV' ? selectedRole : myRole, 
+      // PROFILE-BUG-02: only SUPER_DEV can change role; others always save their own myRole
+      role: myRole === 'SUPER_DEV' ? selectedRole : myRole,
       updated_at: new Date(),
     };
-
     const { error } = await supabase.from('profiles').upsert(updates);
-
     if (error) {
       toast.error('Gagal update profile', { description: error.message });
     } else {
       toast.success('Profile berhasil diperbarui!');
       await logActivity({
         activity: 'PROFILE_UPDATE',
-        subject: fullName,
-        actor: fullName,
-        detail: myRole === 'SUPER_DEV' ? `Role: ${selectedRole}` : undefined,
+        subject:  fullName,
+        actor:    fullName,
+        detail:   myRole === 'SUPER_DEV' ? `Role: ${selectedRole}` : undefined,
       });
-      // router.refresh() agar sidebar nama terupdate tanpa full reload
       router.refresh();
     }
     setUpdating(false);
   };
 
+  // ────────────────────────────────
+  // Password update
+  // ────────────────────────────────
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirmPassword) {
@@ -159,18 +248,16 @@ export default function ProfilePage() {
       toast.error('Password minimal 6 karakter!');
       return;
     }
-
     setUpdating(true);
     const { error } = await supabase.auth.updateUser({ password });
-
     if (error) {
       toast.error('Gagal ganti password', { description: error.message });
     } else {
       toast.success('Password berhasil diganti!');
       await logActivity({
         activity: 'PASSWORD_CHANGE',
-        subject: fullName || email || 'User',
-        actor: fullName || email || 'User',
+        subject:  fullName || email || 'User',
+        actor:    fullName || email || 'User',
       });
       setPassword('');
       setConfirmPassword('');
@@ -178,86 +265,167 @@ export default function ProfilePage() {
     setUpdating(false);
   };
 
-  if (loading) return <div className="p-10 text-center text-slate-500 animate-pulse">Menghubungkan ke server...</div>;
+  if (loading) return (
+    <div className="p-10 text-center text-slate-500 animate-pulse">Menghubungkan ke server...</div>
+  );
 
+  // ────────────────────────────────
+  // Avatar helpers
+  // ────────────────────────────────
+  const initials = fullName
+    ? fullName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+    : email.charAt(0).toUpperCase();
+
+  const roleColorClass = ROLE_COLORS[myRole as string] || ROLE_COLORS.CS;
+
+  // ──────────────────────────────────────────────
+  // RENDER
+  // ──────────────────────────────────────────────
   return (
     <div className="p-6 bg-slate-50 min-h-screen font-sans">
-      
-      <div className="flex items-center gap-4 mb-8">
-        <div className="w-14 h-14 bg-gradient-to-tr from-blue-700 to-blue-500 rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-xl shadow-blue-500/20 rotate-3">
-          <span className="-rotate-3">{email.charAt(0).toUpperCase()}</span>
+
+      {/* ── PROFILE HEADER — PROFILE-UX-03 ── */}
+      <div className="flex items-center gap-5 mb-8">
+        {/* Avatar */}
+        <div className="relative group shrink-0">
+          <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-white shadow-lg shadow-blue-100 bg-gradient-to-tr from-blue-700 to-blue-500 flex items-center justify-center">
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt="Avatar"
+                className="w-full h-full object-cover"
+                onError={() => setAvatarUrl(null)}
+              />
+            ) : (
+              <span className="text-2xl font-black text-white select-none">{initials}</span>
+            )}
+          </div>
+
+          {/* Upload overlay */}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={avatarUploading}
+            className="absolute inset-0 rounded-2xl bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+            title="Ganti foto profil"
+          >
+            {avatarUploading
+              ? <Loader2 size={20} className="text-white animate-spin" />
+              : <Camera size={20} className="text-white" />}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleAvatarChange}
+          />
+
+          {/* Upload hint tooltip */}
+          <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+            <Camera size={12} className="text-white" />
+          </div>
         </div>
+
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Pengaturan Akun</h1>
-          <p className="text-sm text-slate-500">Kelola identitas dan keamanan akses Anda.</p>
+          <div className="flex items-center gap-2 mb-1">
+            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">
+              {fullName || 'Pengaturan Akun'}
+            </h1>
+            {/* PROFILE-BUG-02: role shown as locked badge for all users */}
+            <span className={`text-[10px] font-black px-2 py-1 rounded-md border ${roleColorClass}`}>
+              {myRole}
+            </span>
+          </div>
+          <p className="text-sm text-slate-400">{email}</p>
+          <p className="text-[11px] text-slate-400 mt-0.5 italic">
+            Hover foto untuk mengganti. Maks. 2 MB.
+          </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-        
-        {/* KIRI: EDIT PROFILE */}
+
+        {/* ── KIRI: INFORMASI PRIBADI ── */}
         <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 h-fit">
           <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-100">
             <div className="flex items-center gap-2">
-                <User className="text-blue-600" size={20} />
-                <h2 className="font-bold text-slate-800">Informasi Pribadi</h2>
+              <User className="text-blue-600" size={20} />
+              <h2 className="font-bold text-slate-800">Informasi Pribadi</h2>
             </div>
-            <span className={`text-[10px] font-black px-2 py-1 rounded-md border ${myRole === 'SUPER_DEV' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
-                {myRole}
-            </span>
           </div>
 
           <form onSubmit={handleUpdateProfile} className="space-y-5">
+            {/* Email (read-only) */}
             <div>
               <label className="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">Email Terdaftar</label>
-              <input type="text" value={email} disabled className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-400 cursor-not-allowed font-medium text-sm" />
+              <input
+                type="text"
+                value={email}
+                disabled
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-400 cursor-not-allowed font-medium text-sm"
+              />
             </div>
 
+            {/* Full name */}
             <div>
               <label className="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">Nama Lengkap</label>
-              <input 
-                type="text" 
-                value={fullName} 
+              <input
+                type="text"
+                value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 className="w-full p-3 border border-slate-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-sm"
                 placeholder="Nama Anda"
               />
             </div>
 
+            {/* PROFILE-BUG-02: role — editable only for SUPER_DEV, locked badge for others */}
             <div>
               <label className="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">Jabatan / Role</label>
-              <div className="relative">
-                <select 
-                  value={selectedRole} 
-                  disabled={myRole !== 'SUPER_DEV'} 
-                  onChange={(e) => setSelectedRole(e.target.value as Role)}
-                  className={`w-full p-3 border border-slate-200 rounded-xl text-slate-800 outline-none transition-all text-sm appearance-none ${myRole !== 'SUPER_DEV' ? 'bg-slate-50 cursor-not-allowed text-slate-500' : 'focus:ring-2 focus:ring-blue-500 cursor-pointer hover:border-slate-300'}`}
-                >
-                  <option value="SUPER_DEV">SUPER_DEV</option>
-                  <option value="NOC">NOC</option>
-                  <option value="AKTIVATOR">AKTIVATOR</option>
-                  <option value="ADMIN">ADMIN</option>
-                  <option value="CS">CS</option>
-                </select>
-                <div className="absolute right-3 top-3.5 pointer-events-none text-slate-400">
+              {myRole === 'SUPER_DEV' ? (
+                <div className="relative">
+                  <select
+                    value={selectedRole}
+                    onChange={(e) => setSelectedRole(e.target.value as Role)}
+                    className="w-full p-3 border border-slate-200 rounded-xl text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer hover:border-slate-300 transition-all text-sm appearance-none"
+                  >
+                    <option value="SUPER_DEV">SUPER_DEV</option>
+                    <option value="NOC">NOC</option>
+                    <option value="AKTIVATOR">AKTIVATOR</option>
+                    <option value="ADMIN">ADMIN</option>
+                    <option value="CS">CS</option>
+                  </select>
+                  <div className="absolute right-3 top-3.5 pointer-events-none text-slate-400">
                     <UserCheck size={16} />
+                  </div>
                 </div>
-              </div>
-              {myRole !== 'SUPER_DEV' && (
-                <p className="mt-2 text-[10px] text-amber-600 font-medium italic">* Hanya Super Dev yang dapat mengubah Jabatan.</p>
+              ) : (
+                /* Non-SUPER_DEV: completely locked, no editable select */
+                <div className="flex items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                  <span className={`text-[11px] font-black px-2.5 py-1 rounded-full border ${roleColorClass}`}>
+                    {myRole}
+                  </span>
+                  <div className="flex items-center gap-1 text-[11px] text-slate-400 italic ml-1">
+                    <AlertCircle size={11} />
+                    Hanya Super Dev yang dapat mengubah jabatan
+                  </div>
+                </div>
               )}
             </div>
 
             <div className="pt-4">
-              <button type="submit" disabled={updating} className="w-full md:w-auto flex items-center justify-center gap-2 bg-slate-900 hover:bg-black text-white px-8 py-3 rounded-xl font-bold transition-all shadow-lg disabled:bg-slate-300">
-                {updating ? <Loader2 className="animate-spin" size={18}/> : <Save size={18}/>}
+              <button
+                type="submit"
+                disabled={updating}
+                className="w-full md:w-auto flex items-center justify-center gap-2 bg-slate-900 hover:bg-black text-white px-8 py-3 rounded-xl font-bold transition-all shadow-lg disabled:bg-slate-300"
+              >
+                {updating ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
                 Simpan Perubahan
               </button>
             </div>
           </form>
         </div>
 
-        {/* KANAN: GANTI PASSWORD */}
+        {/* ── KANAN: KEAMANAN AKUN ── */}
         <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 h-fit">
           <div className="flex items-center gap-2 mb-8 pb-4 border-b border-slate-100">
             <Shield className="text-emerald-600" size={20} />
@@ -269,54 +437,80 @@ export default function ProfilePage() {
               <strong>Tips Keamanan:</strong> Gunakan minimal 6 karakter dengan kombinasi huruf besar, kecil, dan angka untuk melindungi akses sistem NOC.
             </div>
 
+            {/* New password */}
             <div>
               <label className="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">Password Baru</label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3.5 text-slate-300" size={16} />
-                <input 
-                  type="password" 
-                  value={password} 
+                <input
+                  type={showPw ? 'text' : 'password'}
+                  value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-sm"
+                  className="w-full pl-10 pr-10 py-3 border border-slate-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-sm"
                   placeholder="••••••••"
+                  autoComplete="new-password"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPw(!showPw)}
+                  className="absolute right-3 top-3.5 text-slate-400 hover:text-slate-600"
+                >
+                  {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
             </div>
 
+            {/* Confirm password */}
             <div>
               <label className="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">Ulangi Password</label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3.5 text-slate-300" size={16} />
-                <input 
-                  type="password" 
-                  value={confirmPassword} 
+                <input
+                  type={showConfirmPw ? 'text' : 'password'}
+                  value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-sm"
+                  className={`w-full pl-10 pr-10 py-3 border rounded-xl text-slate-800 focus:ring-2 outline-none transition-all text-sm ${
+                    confirmPassword && password !== confirmPassword
+                      ? 'border-rose-300 focus:ring-rose-400'
+                      : 'border-slate-200 focus:ring-emerald-500'
+                  }`}
                   placeholder="••••••••"
+                  autoComplete="new-password"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPw(!showConfirmPw)}
+                  className="absolute right-3 top-3.5 text-slate-400 hover:text-slate-600"
+                >
+                  {showConfirmPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
+              {confirmPassword && password !== confirmPassword && (
+                <p className="text-[10px] text-rose-500 font-bold mt-1">Password tidak cocok</p>
+              )}
             </div>
 
             <div className="pt-4">
-              <button type="submit" disabled={updating || !password} className="w-full md:w-auto flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-lg shadow-emerald-200 disabled:bg-slate-200 disabled:shadow-none">
-                {updating ? <Loader2 className="animate-spin" size={18}/> : <Shield size={18}/>}
+              <button
+                type="submit"
+                disabled={updating || !password}
+                className="w-full md:w-auto flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-lg shadow-emerald-200 disabled:bg-slate-200 disabled:shadow-none"
+              >
+                {updating ? <Loader2 className="animate-spin" size={18} /> : <Shield size={18} />}
                 Ganti Password
               </button>
             </div>
           </form>
         </div>
-
       </div>
 
-      {/* ── INTEGRASI ODOO ─────────────────────────────────── */}
+      {/* ── INTEGRASI ODOO ── */}
       <div className="mt-8 bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
-        {/* Header */}
         <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
           <div className="flex items-center gap-2">
             <Link2 className="text-violet-600" size={20} />
             <h2 className="font-bold text-slate-800">Integrasi Odoo Helpdesk</h2>
           </div>
-          {/* Status badge */}
           {odooStatus === null ? (
             <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-400 border border-slate-200">
               ⚪ Memuat...
@@ -333,9 +527,7 @@ export default function ProfilePage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Kiri: form input */}
           <form onSubmit={handleSaveOdooKey} className="space-y-5">
-            {/* Email (read-only) */}
             <div>
               <label className="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">
                 Email Odoo (Otomatis dari Akun Login)
@@ -354,7 +546,6 @@ export default function ProfilePage() {
               <p className="mt-1.5 text-[11px] text-slate-400">Email ini dipakai sebagai username saat autentikasi ke Odoo.</p>
             </div>
 
-            {/* API Key input */}
             <div>
               <label className="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">
                 {odooStatus?.hasKey ? 'Ganti Odoo API Key' : 'Odoo API Key'}
@@ -378,14 +569,12 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Verified at info */}
             {odooStatus?.verified_at && (
               <p className="text-[11px] text-slate-400">
                 Terakhir diverifikasi: {new Date(odooStatus.verified_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
               </p>
             )}
 
-            {/* Buttons */}
             <div className="flex flex-wrap gap-3 pt-2">
               <button
                 type="submit"
@@ -416,7 +605,6 @@ export default function ProfilePage() {
             </div>
           </form>
 
-          {/* Kanan: panduan */}
           <div className="space-y-4">
             <div className="bg-violet-50 border border-violet-100 rounded-xl p-5">
               <p className="text-[11px] font-black text-violet-700 uppercase tracking-widest mb-3">
@@ -438,7 +626,6 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
-
     </div>
   );
 }

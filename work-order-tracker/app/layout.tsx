@@ -11,7 +11,7 @@ import { hasAccess, PERMISSIONS, Role } from '@/lib/permissions';
 import {
   LayoutDashboard, Users, Activity, LineChart, Server,
   History, Menu, LogOut, ClipboardList, Wrench, Megaphone,
-  ShieldCheck, ShieldAlert, X, ChevronRight, Network
+  ShieldCheck, ShieldAlert, X, ChevronRight, Network, Sliders
 } from 'lucide-react';
 
 import GlobalBroadcast from '@/components/GlobalBroadcast';
@@ -120,7 +120,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   const router   = useRouter();
   const pathname = usePathname();
-  const isLoginPage = pathname === '/login';
+  const isLoginPage = pathname === '/login' || pathname === '/reset-password';
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -172,6 +172,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     if (loading || isLoginPage) return true;
     if (pathname.startsWith('/broadcast'))    return hasAccess(userProfile.role, PERMISSIONS.BROADCAST_ACCESS);
     if (pathname.startsWith('/manage-users')) return hasAccess(userProfile.role, PERMISSIONS.MANAGE_USERS);
+    if (pathname.startsWith('/manage-roles')) return userProfile.role === 'SUPER_DEV';
     return true;
   };
 
@@ -334,6 +335,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   icon={<ShieldCheck size={16} style={{ color: '#fbbf24' }} />}
                   label="Team Management"
                   show={hasAccess(userProfile.role, PERMISSIONS.MANAGE_USERS)}
+                />
+                <SidebarItem
+                  collapsed={collapsed}
+                  onClick={closeSidebarOnMobile}
+                  href="/manage-roles"
+                  icon={<Sliders size={16} style={{ color: '#c084fc' }} />}
+                  label="Role Management"
+                  show={userProfile.role === 'SUPER_DEV'}
                 />
               </nav>
 

@@ -98,3 +98,29 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 }
+
+// --- 3. RESET PASSWORD (Admin force-reset) ---
+export async function PATCH(request: Request) {
+  try {
+    const body = await request.json();
+    const { userId, newPassword } = body;
+
+    if (!userId || !newPassword) {
+      return NextResponse.json({ error: 'userId dan newPassword wajib diisi' }, { status: 400 });
+    }
+    if (newPassword.length < 8) {
+      return NextResponse.json({ error: 'Password minimal 8 karakter' }, { status: 400 });
+    }
+
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+      password: newPassword,
+    });
+
+    if (error) throw error;
+
+    return NextResponse.json({ message: 'Password berhasil direset' });
+  } catch (error: any) {
+    console.error('Reset Password Error:', error);
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+}
