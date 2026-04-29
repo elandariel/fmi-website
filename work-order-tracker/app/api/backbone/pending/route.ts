@@ -62,7 +62,6 @@ export async function POST(request: Request) {
         .insert([{
           'KODE BACKBONE': kode,
           'NAMA BACKBONE': item.nama,
-          pending_approval: false,
         }]);
 
       if (insertErr) throw new Error('Gagal insert ke Index NOC: ' + insertErr.message);
