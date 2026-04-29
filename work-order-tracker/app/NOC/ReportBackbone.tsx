@@ -2052,7 +2052,7 @@ export default function ReportBackbone() {
       )];
 
       txt += `\n===================================\n`;
-      txt += `${idx + 1}. ${subject}\n\n`;
+      txt += `${idx + 1}. ${ticketNo} - ${subject}\n\n`;
       txt += `Problem\t\t: ${problem}\n`;
       txt += `Impact\t\t:\n`;
       links.forEach(l => { txt += `- ${l}\n`; });
