@@ -1423,6 +1423,25 @@ export default function ReportBackbone() {
   const [newBBNama,       setNewBBNama]       = useState("");
   const [addBBLoading,    setAddBBLoading]    = useState(false);
 
+  // ── Current user role + permissions (for backbone.approve_kode gate) ──
+  const [currentUserRole,      setCurrentUserRole]      = useState<string | null>(null);
+  const [currentUserOverrides, setCurrentUserOverrides] = useState<Record<string,boolean> | null>(null);
+  const [currentRolePerms,     setCurrentRolePerms]     = useState<Record<string,boolean> | null>(null);
+
+  // ── Pending items dari backbone_pending table ──
+  const [pendingItems, setPendingItems] = useState<any[]>([]);
+
+  // Computed: can this user directly approve backbone index additions?
+  const canApproveKode = React.useMemo(() => {
+    if (!currentUserRole) return false;
+    if (currentUserRole === "SUPER_DEV") return true;
+    if (currentUserOverrides && "backbone.approve_kode" in currentUserOverrides)
+      return Boolean(currentUserOverrides["backbone.approve_kode"]);
+    if (currentRolePerms && "backbone.approve_kode" in currentRolePerms)
+      return Boolean(currentRolePerms["backbone.approve_kode"]);
+    return ["ADMIN"].includes(currentUserRole);
+  }, [currentUserRole, currentUserOverrides, currentRolePerms]);
+
 
 // ── Data state ──
   const [fetching,            setFetching]            = useState(true);
@@ -1472,7 +1491,43 @@ export default function ReportBackbone() {
   const [solveAction,         setSolveAction]         = useState<SolveAction>("SOLVED");
   const [linkNearFar,         setLinkNearFar]         = useState<Record<number, { nearEnd: string; farEnd: string }>>({});
 
+  // Fetch pending requests dari backbone_pending (via API — bypass RLS)
+  const fetchPending = React.useCallback(async () => {
+    if (!canApproveKode) return;
+    try {
+      const res  = await fetch("/api/backbone/pending");
+      const data = await res.json();
+      setPendingItems(data.items ?? []);
+    } catch { /* silent */ }
+  }, [canApproveKode]);
+
   useEffect(() => { fetchData(); fetchIndex(); }, []);
+  useEffect(() => { fetchPending(); }, [fetchPending]);
+
+  // ── Fetch current user role + overrides (for permission check) ──
+  useEffect(() => {
+    async function loadUserPerms() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role, permission_overrides")
+        .eq("id", user.id)
+        .single();
+      if (!profile) return;
+      setCurrentUserRole(profile.role);
+      setCurrentUserOverrides(profile.permission_overrides ?? null);
+      if (profile.role && profile.role !== "SUPER_DEV") {
+        const { data: roleRow } = await supabase
+          .from("roles")
+          .select("permissions")
+          .eq("name", profile.role)
+          .single();
+        if (roleRow?.permissions) setCurrentRolePerms(roleRow.permissions);
+      }
+    }
+    loadUserPerms();
+  }, []);
 
   // ── Bell: inactivity watcher (cek tiap 60 detik) ──
   const reportsRef = React.useRef<any[]>([]);
@@ -1587,7 +1642,7 @@ export default function ReportBackbone() {
     return m;
   }, [indexData]);
 
-  // Options for combobox: kode list (with nama as sub)
+  // Options for combobox: semua kode dari Index NOC (tidak ada pending di sini)
   const kodeOptions = React.useMemo(() =>
     indexData
       .filter((d: any) => d["KODE BACKBONE"])
@@ -1921,7 +1976,10 @@ export default function ReportBackbone() {
       if (solveAction === "CANCEL")   payload["Problem & Action"] = solveFormData["Cancel Reason"];
       if (solveAction === "UNSOLVED") payload["Problem & Action"] = solveFormData["Cancel Reason"];
       if ((solveAction === "ON PROGRESS" || solveAction === "PENDING") && timelineInput.trim()) {
-        payload["Problem & Action"] = `> ${timelineInput.trim()}`;
+        // ── Append ke timeline yang sudah ada, bukan overwrite ──
+        const existing = (selectedTicketGroup[0]["Problem & Action"] || "").trim();
+        const newLine  = `> ${timelineInput.trim()}`;
+        payload["Problem & Action"] = existing ? `${existing}\n${newLine}` : newLine;
       }
       const { error } = await supabase.from("Report Backbone").update(payload).eq("NOMOR TICKET", ticketNo);
       if (error) toast.error("Gagal update: " + error.message);
@@ -1983,7 +2041,8 @@ export default function ReportBackbone() {
       const subject  = (f["Subject Ticket / Email"] || "").toUpperCase();
       const tglRep   = (f["Hari dan Tanggal Report"] || "").toUpperCase();
       const problem  = f["Problem"] || f["Jenis Problem"] || "—";
-      const timeline = (f["Problem & Action"] || "").trim();
+      // Ambil timeline dari row yang punya Problem & Action (biasanya row pertama)
+      const timeline = (group.find((r: any) => r["Problem & Action"])?.["Problem & Action"] || "").trim();
 
       // Impact: Nama Link jika ada, fallback ke Kode Backbone; sertakan kapasitas jika ada
       const links = [...new Set(
@@ -2417,6 +2476,21 @@ export default function ReportBackbone() {
             <RefreshCw size={13} className={fetching ? "animate-spin" : ""} />
           </button>
 
+          {/* Pending Approval Badge — hanya muncul untuk approver kalau ada pending */}
+          {canApproveKode && pendingItems.length > 0 && (
+            <button
+              onClick={() => { setNewBBKode(""); setNewBBNama(""); setShowAddBBModal(true); }}
+              className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-[12px] transition-all active:scale-95"
+              style={{ background: "rgba(245,158,11,0.15)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.4)" }}
+              title="Ada request kode backbone menunggu persetujuan kamu">
+              ⏳ <span className="hidden sm:inline">Acc Kode</span>
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[9px] font-black animate-bounce"
+                    style={{ background: "#f59e0b", color: "#111" }}>
+                {pendingItems.length}
+              </span>
+            </button>
+          )}
+
           {/* New Incident */}
           <button onClick={() => { setNewReport(r => ({ ...r, "Hari dan Tanggal Report": localDateISO(), "Start Time": nowDisplayFormat() })); setOdooResult(null); setOdooSubject(""); setOdooDescription(""); setShowInputModal(true); }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-[12px] transition-all active:scale-95"
@@ -2849,7 +2923,7 @@ export default function ReportBackbone() {
           ? newBBKode.trim().padStart(5, "0")
           : nextNum;
 
-        // 5 entri terakhir untuk referensi
+        // 5 entri terakhir untuk referensi (exclude pending)
         const lastFive = [...indexData]
           .filter(d => d["KODE BACKBONE"])
           .sort((a, b) => {
@@ -2869,24 +2943,118 @@ export default function ReportBackbone() {
               if (!newBBNama.trim()) return;
               setAddBBLoading(true);
               try {
-                const { error } = await supabase.from("Index NOC").insert([{
-                  "KODE BACKBONE": codeToUse,
-                  "NAMA BACKBONE": newBBNama.trim().toUpperCase(),
-                }]);
-                if (error) {
-                  toast.error("Gagal simpan: " + error.message);
+                const namaUpper = newBBNama.trim().toUpperCase();
+                if (canApproveKode) {
+                  // ── Punya hak: langsung simpan ke index ──
+                  const { error } = await supabase.from("Index NOC").insert([{
+                    "KODE BACKBONE": codeToUse,
+                    "NAMA BACKBONE": namaUpper,
+                    "pending_approval": false,
+                  }]);
+                  if (error) {
+                    toast.error("Gagal simpan: " + error.message);
+                  } else {
+                    toast.success(`${codeToUse} — "${namaUpper}" ditambahkan ke index!`);
+                    fetchIndex();
+                    setShowAddBBModal(false);
+                    setNewBBKode("");
+                    setNewBBNama("");
+                  }
                 } else {
-                  toast.success(`${codeToUse} — "${newBBNama.trim().toUpperCase()}" ditambahkan ke index!`);
-                  fetchIndex();
-                  setShowAddBBModal(false);
-                  setNewBBKode("");
-                  setNewBBNama("");
+                  // ── Tidak punya hak: kirim ke backbone_pending via API ──
+                  const { data: { user } } = await supabase.auth.getUser();
+                  const requestedBy = user?.email ?? currentUserRole ?? "unknown";
+                  try {
+                    const res    = await fetch("/api/backbone/notify-telegram", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ kode: codeToUse, nama: namaUpper, requestedBy }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok || data.error) {
+                      toast.error("Gagal kirim request: " + data.error);
+                    } else if (data.sent === 0) {
+                      const errDetail = data.errors
+                        ? Object.values(data.errors).join(", ")
+                        : "tidak ada admin Telegram terdaftar";
+                      toast.warning(`Request disimpan, tapi notif Telegram gagal: ${errDetail}`);
+                      setShowAddBBModal(false);
+                      setNewBBKode(""); setNewBBNama("");
+                    } else {
+                      toast.success(`Request ${codeToUse} dikirim! Admin dinotifikasi via Telegram (${data.sent}/${data.total}).`);
+                      setShowAddBBModal(false);
+                      setNewBBKode(""); setNewBBNama("");
+                    }
+                  } catch (err: any) {
+                    toast.error("Error: " + err.message);
+                  }
                 }
               } finally {
                 setAddBBLoading(false);
               }
             }}>
               <div className="p-6 space-y-5">
+
+                {/* ── Pending Approval (hanya untuk approver) ── */}
+                {canApproveKode && pendingItems.length > 0 && (
+                  <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(245,158,11,0.4)" }}>
+                    <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: "rgba(245,158,11,0.1)" }}>
+                      <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: "#f59e0b" }}>
+                        ⏳ Menunggu Persetujuan ({pendingItems.length})
+                      </span>
+                    </div>
+                    <div className="divide-y" style={{ borderColor: "rgba(245,158,11,0.2)" }}>
+                      {pendingItems.map((item: any, i: number) => {
+                        const kode = item.kode || "—";
+                        const nama = item.nama || "—";
+                        const req  = item.requested_by || "—";
+                        return (
+                          <div key={i} className="flex items-center gap-3 px-4 py-2.5">
+                            <span className="font-mono text-[11px] font-black flex-shrink-0"
+                                  style={{ color: "#f59e0b" }}>{kode}</span>
+                            <span className="flex-1 text-[10px] truncate" style={{ color: C.text }}>{nama}</span>
+                            <span className="text-[9px] flex-shrink-0" style={{ color: C.textMuted }}>by {req}</span>
+                            <div className="flex gap-1.5 flex-shrink-0">
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  const res  = await fetch("/api/backbone/pending", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ action: "approve", id: item.id }),
+                                  });
+                                  const data = await res.json();
+                                  if (!data.success) toast.error("Gagal approve: " + data.error);
+                                  else { toast.success(data.message); fetchIndex(); fetchPending(); }
+                                }}
+                                className="px-2.5 py-1 rounded text-[9px] font-bold"
+                                style={{ background: "rgba(16,185,129,0.15)", color: "#10b981", border: "1px solid rgba(16,185,129,0.3)" }}>
+                                ✓ Setuju
+                              </button>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  if (!confirm(`Tolak request "${kode} — ${nama}"?`)) return;
+                                  const res  = await fetch("/api/backbone/pending", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ action: "reject", id: item.id }),
+                                  });
+                                  const data = await res.json();
+                                  if (!data.success) toast.error("Gagal tolak: " + data.error);
+                                  else { toast.success(`${kode} ditolak.`); fetchPending(); }
+                                }}
+                                className="px-2.5 py-1 rounded text-[9px] font-bold"
+                                style={{ background: "rgba(244,63,94,0.15)", color: "#f43f5e", border: "1px solid rgba(244,63,94,0.3)" }}>
+                                ✗ Tolak
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* ── Referensi 5 entri terakhir ── */}
                 <div className="rounded-xl p-3 space-y-1.5"
@@ -2984,19 +3152,33 @@ export default function ReportBackbone() {
               </div>
 
               <ModalFooter>
-                <span className="text-[10px] font-mono" style={{ color: C.textMuted }}>
-                  {newBBNama.trim()
-                    ? `${codeToUse} — ${newBBNama.trim().toUpperCase()}`
-                    : "Isi nama link terlebih dahulu"}
-                </span>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[10px] font-mono" style={{ color: C.textMuted }}>
+                    {newBBNama.trim()
+                      ? `${codeToUse} — ${newBBNama.trim().toUpperCase()}`
+                      : "Isi nama link terlebih dahulu"}
+                  </span>
+                  {!canApproveKode && (
+                    <span className="text-[9px] font-semibold" style={{ color: "#f59e0b" }}>
+                      ⚠ Request akan menunggu persetujuan ADMIN
+                    </span>
+                  )}
+                </div>
                 <div className="flex gap-3">
                   <button type="button" onClick={() => { setShowAddBBModal(false); setNewBBKode(""); setNewBBNama(""); }}
                     className="px-5 py-2 text-sm font-semibold rounded-lg"
                     style={{ color: C.textSec }}>Batal</button>
                   <button type="submit" disabled={!newBBNama.trim() || addBBLoading}
                     className="px-6 py-2 rounded-lg font-bold text-sm disabled:opacity-40"
-                    style={{ background: C.accent, color: darkMode ? "#111110" : "#f6f7ed" }}>
-                    {addBBLoading ? "Menyimpan..." : "Simpan ke Index"}
+                    style={{
+                      background: canApproveKode ? C.accent : "#f59e0b",
+                      color: "#111110"
+                    }}>
+                    {addBBLoading
+                      ? "Menyimpan..."
+                      : canApproveKode
+                        ? "Simpan ke Index"
+                        : "Kirim Request"}
                   </button>
                 </div>
               </ModalFooter>
@@ -3594,6 +3776,21 @@ export default function ReportBackbone() {
                 <div className="flex items-center justify-between mb-2">
                   <SectionLabel num="2" text={`Kode Backbone${linkRows.filter(l => l.kodeBackbone.trim()).length > 1 ? ` (${linkRows.filter(l => l.kodeBackbone.trim()).length} link)` : ""}`} />
                   <div className="flex gap-2">
+                    {/* Badge pending approval — hanya muncul kalau ada pending & user bisa approve */}
+                    {canApproveKode && pendingItems.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => { setNewBBKode(""); setNewBBNama(""); setShowAddBBModal(true); }}
+                        className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-bold animate-pulse"
+                        style={{ background: "rgba(245,158,11,0.15)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.5)" }}
+                        title="Ada request kode backbone yang menunggu persetujuan">
+                        ⏳ Pending
+                        <span className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[9px] font-black"
+                              style={{ background: "#f59e0b", color: "#111" }}>
+                          {pendingItems.length}
+                        </span>
+                      </button>
+                    )}
                     {/* Tambah kode backbone baru ke index */}
                     <button
                       type="button"

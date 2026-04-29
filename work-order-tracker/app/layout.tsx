@@ -7,7 +7,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import Header from '@/components/Header';
-import { hasAccess, PERMISSIONS, Role } from '@/lib/permissions';
+import { hasAccess, PERMISSIONS, Role, can, PermissionKey } from '@/lib/permissions';
 import {
   LayoutDashboard, Users, Activity, LineChart, Server,
   History, Menu, LogOut, ClipboardList, Wrench, Megaphone,
@@ -115,7 +115,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const [sidebarOpen, setSidebarOpen]   = useState(false);
   const [collapsed, setCollapsed]       = useState(false);
   const [theme, setTheme]               = useState<'dark' | 'light'>('dark');
-  const [userProfile, setUserProfile]   = useState<{ name: string; role: Role | null }>({ name: 'Loading...', role: null });
+  const [userProfile, setUserProfile]   = useState<{
+    name: string;
+    role: Role | null;
+    overrides: Record<string, boolean> | null;
+    rolePerms: Record<string, boolean> | null;
+  }>({ name: 'Loading...', role: null, overrides: null, rolePerms: null });
   const [loading, setLoading]           = useState(true);
 
   const router   = useRouter();
@@ -144,20 +149,33 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Load user
+  // Load user (including permission_overrides + role perms from DB)
   useEffect(() => {
     async function loadUser() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('full_name, role')
+          .select('full_name, role, permission_overrides')
           .eq('id', user.id)
           .single();
         if (profile) {
+          const role = profile.role as Role;
+          // Fetch role-level permissions from roles table
+          let rolePerms: Record<string, boolean> | null = null;
+          if (role && role !== 'SUPER_DEV') {
+            const { data: roleRow } = await supabase
+              .from('roles')
+              .select('permissions')
+              .eq('name', role)
+              .single();
+            if (roleRow?.permissions) rolePerms = roleRow.permissions;
+          }
           setUserProfile({
             name: profile.full_name || user.email?.split('@')[0] || 'User',
-            role: profile.role as Role
+            role,
+            overrides: profile.permission_overrides ?? null,
+            rolePerms,
           });
         }
       } else if (!isLoginPage) {
@@ -168,10 +186,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     loadUser();
   }, [pathname, isLoginPage, router]);
 
+  // Helper — checks permission with overrides + role perms from DB
+  const userCan = (key: PermissionKey) =>
+    can(key, userProfile.role, userProfile.overrides ?? undefined, userProfile.rolePerms ?? undefined);
+
   const canAccessPage = () => {
     if (loading || isLoginPage) return true;
-    if (pathname.startsWith('/broadcast'))    return hasAccess(userProfile.role, PERMISSIONS.BROADCAST_ACCESS);
-    if (pathname.startsWith('/manage-users')) return hasAccess(userProfile.role, PERMISSIONS.MANAGE_USERS);
+    if (pathname.startsWith('/broadcast'))    return userCan('broadcast.menu');
+    if (pathname.startsWith('/manage-users')) return userCan('team.menu');
     if (pathname.startsWith('/manage-roles')) return userProfile.role === 'SUPER_DEV';
     return true;
   };
@@ -326,7 +348,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   href="/broadcast"
                   icon={<Megaphone size={16} />}
                   label="Broadcast Message"
-                  show={hasAccess(userProfile.role, PERMISSIONS.BROADCAST_ACCESS)}
+                  show={userCan('broadcast.menu')}
                 />
                 <SidebarItem
                   collapsed={collapsed}
@@ -334,7 +356,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   href="/manage-users"
                   icon={<ShieldCheck size={16} style={{ color: '#fbbf24' }} />}
                   label="Team Management"
-                  show={hasAccess(userProfile.role, PERMISSIONS.MANAGE_USERS)}
+                  show={userCan('team.menu')}
                 />
                 <SidebarItem
                   collapsed={collapsed}
