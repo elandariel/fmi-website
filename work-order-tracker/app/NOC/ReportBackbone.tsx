@@ -2945,7 +2945,6 @@ export default function ReportBackbone() {
                   const { error } = await supabase.from("Index NOC").insert([{
                     "KODE BACKBONE": codeToUse,
                     "NAMA BACKBONE": namaUpper,
-                    "pending_approval": false,
                   }]);
                   if (error) {
                     toast.error("Gagal simpan: " + error.message);
