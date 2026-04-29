@@ -2037,9 +2037,7 @@ export default function ReportBackbone() {
     activeTickets.forEach(([ticketNo, group], idx) => {
       const f        = group[0];
       const status   = getTicketStatus(group);
-      const priority = f["Priority"] ? ` ${f["Priority"].toUpperCase()}` : "";
-      const subject  = (f["Subject Ticket / Email"] || "").toUpperCase();
-      const tglRep   = (f["Hari dan Tanggal Report"] || "").toUpperCase();
+      const subject  = (f["Subject Ticket / Email"] || "").trim();
       const problem  = f["Problem"] || f["Jenis Problem"] || "—";
       // Ambil timeline dari row yang punya Problem & Action (biasanya row pertama)
       const timeline = (group.find((r: any) => r["Problem & Action"])?.["Problem & Action"] || "").trim();
@@ -2054,9 +2052,7 @@ export default function ReportBackbone() {
       )];
 
       txt += `\n===================================\n`;
-      txt += `${idx + 1}. ${ticketNo}${priority} | BACKBONE | ${subject}`;
-      if (tglRep) txt += ` [${tglRep}]`;
-      txt += `\n\n`;
+      txt += `${idx + 1}. ${subject}\n\n`;
       txt += `Problem\t\t: ${problem}\n`;
       txt += `Impact\t\t:\n`;
       links.forEach(l => { txt += `- ${l}\n`; });
