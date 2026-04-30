@@ -320,12 +320,18 @@ export default function Dashboard() {
       setInitialRecentLogs(logs || []);
 
       // ── FITUR-01: hitung insiden backbone aktif ────────────
-      const { count: bbCount } = await supabase
-        .from('Report Bulanan')
-        .select('id', { count: 'exact', head: true })
-        .ilike('SUBJECT WO', '%backbone%')
-        .in('STATUS', ['OPEN', 'PENDING', 'PROGRESS', 'ON PROGRESS']);
-      setBackboneCount(bbCount || 0);
+      const { data: bbRows } = await supabase
+        .from('Report Backbone')
+        .select('"NOMOR TICKET", "Status Case"');
+      if (bbRows) {
+        const activeStatuses = ['OPEN', 'ON PROGRESS', 'PENDING'];
+        const activeTickets = new Set(
+          bbRows
+            .filter(r => activeStatuses.includes(r['Status Case'] || ''))
+            .map(r => r['NOMOR TICKET'])
+        );
+        setBackboneCount(activeTickets.size);
+      }
 
       // ── FITUR-02: WO status breakdown ─────────────────────
       const { data: wosAll } = await supabase.from('Report Bulanan').select('STATUS');
