@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect, Suspense } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Save, ArrowLeft, Loader2, UserPlus, FileText, Network, Settings } from 'lucide-react';
+import { Save, ArrowLeft, Loader2, UserPlus, FileText, Network } from 'lucide-react';
 import { logActivity } from '@/lib/logger';
 import { toast } from 'sonner';
 
@@ -24,18 +24,18 @@ function CreateClientContent() {
   );
 
   const [formData, setFormData] = useState({
-    'ID Pelanggan': '',
+    'ID Pelanggan':   '',
     'Nama Pelanggan': '',
-    'ALAMAT': '',
-    'VMAN / VLAN': '',
-    'Near End': '',
-    'Far End': '',
-    'STATUS': 'Active',
-    'Kapasitas': '',
-    'RX ONT/SFP': '',
-    'SN ONT': '',
-    'Data Teknis': '',
-    'Konfigurasi': ''
+    'ALAMAT':         '',
+    'VMAN / VLAN':    '',
+    'Near End':       '',
+    'Far End':        '',
+    'STATUS':         'Active',
+    'Kapasitas':      '',
+    'RX ONT/SFP':     '',
+    'SN ONT':         '',
+    'Data Teknis':    '',
+    'Konfigurasi':    '',
   });
 
   useEffect(() => {
@@ -66,10 +66,10 @@ Data Pelanggan          : Sudah Ditambahkan
 Daftar Vlan             : Sudah Ditambahkan
 MRTG                    : Sudah Ditambahkan
 
-Data Teknis : 
+Data Teknis :
 ${data['Data Teknis'] || '-'}
 
-Konfigurasi : 
+Konfigurasi :
 ${data['Konfigurasi'] || '-'}
 `;
     const blob = new Blob([content], { type: 'text/plain' });
@@ -93,15 +93,18 @@ ${data['Konfigurasi'] || '-'}
     }
 
     const dbPayload = {
-      'ID Pelanggan': formData['ID Pelanggan'],
+      'ID Pelanggan':   formData['ID Pelanggan'],
       'Nama Pelanggan': formData['Nama Pelanggan'],
-      'ALAMAT': formData['ALAMAT'],
-      'VMAN / VLAN': formData['VMAN / VLAN'],
-      'Near End': formData['Near End'],
-      'Far End': formData['Far End'],
-      'STATUS': formData['STATUS'],
-      'Kapasitas': formData['Kapasitas'],
-      'RX ONT/SFP': formData['RX ONT/SFP'],
+      'ALAMAT':         formData['ALAMAT'],
+      'VMAN / VLAN':    formData['VMAN / VLAN'],
+      'Near End':       formData['Near End'],
+      'Far End':        formData['Far End'],
+      'STATUS':         formData['STATUS'],
+      'Kapasitas':      formData['Kapasitas'],
+      'RX ONT/SFP':     formData['RX ONT/SFP'],
+      'SN ONT':         formData['SN ONT'],
+      'Data Teknis':    formData['Data Teknis'],
+      'Konfigurasi':    formData['Konfigurasi'],
     };
 
     const { error } = await supabase.from('Data Client Corporate').insert([dbPayload]);
@@ -128,24 +131,27 @@ ${data['Konfigurasi'] || '-'}
   };
 
   return (
-    <div className="w-full max-w-3xl" style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>
+    <div className="w-full max-w-3xl">
 
       {/* ── HEADER ── */}
       <div className="flex items-center gap-3 mb-6">
         <button
           onClick={() => router.back()}
-          className="p-2 hover:bg-white hover:shadow-sm border border-transparent hover:border-slate-200 rounded-lg transition-all text-slate-500"
+          className="p-2 rounded-lg transition-all"
+          style={{ color: 'var(--text-muted)' }}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-elevated)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
         >
           <ArrowLeft size={18} />
         </button>
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <div className="p-1.5 bg-blue-50 rounded-lg text-blue-600">
+          <h1 className="text-xl font-bold tracking-tight flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <div className="p-1.5 rounded-lg" style={{ background: 'rgba(59,130,246,0.15)', color: '#3b82f6' }}>
               <UserPlus size={17} />
             </div>
             Input Client Baru
           </h1>
-          <p className="text-xs text-slate-400 mt-0.5 ml-0.5">Pastikan ID Pelanggan unik dan belum terdaftar.</p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Pastikan ID Pelanggan unik dan belum terdaftar.</p>
         </div>
       </div>
 
@@ -154,22 +160,26 @@ ${data['Konfigurasi'] || '-'}
         {/* ── GROUP 1: IDENTITAS ── */}
         <FormSection icon={<UserPlus size={14} />} title="Identitas Pelanggan">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField label="ID Pelanggan" required>
+            <FormField label="ID Pelanggan *">
               <input
                 name="ID Pelanggan"
                 value={formData['ID Pelanggan']}
                 onChange={handleChange}
                 placeholder="Contoh: 10024"
-                className="input font-mono"
+                required
+                className="w-full px-3 py-2 rounded-lg text-sm font-mono"
+                style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)', color: 'var(--text-primary)' }}
               />
             </FormField>
-            <FormField label="Nama Pelanggan" required>
+            <FormField label="Nama Pelanggan *">
               <input
                 name="Nama Pelanggan"
                 value={formData['Nama Pelanggan']}
                 onChange={handleChange}
                 placeholder="Nama PT / Perusahaan"
-                className="input"
+                required
+                className="w-full px-3 py-2 rounded-lg text-sm"
+                style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)', color: 'var(--text-primary)' }}
               />
             </FormField>
           </div>
@@ -180,7 +190,8 @@ ${data['Konfigurasi'] || '-'}
               value={formData['ALAMAT']}
               onChange={handleChange}
               placeholder="Alamat lengkap lokasi instalasi..."
-              className="input resize-none"
+              className="w-full px-3 py-2 rounded-lg text-sm resize-none"
+              style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)', color: 'var(--text-primary)' }}
             />
           </FormField>
         </FormSection>
@@ -194,7 +205,8 @@ ${data['Konfigurasi'] || '-'}
                 value={formData['VMAN / VLAN']}
                 onChange={handleChange}
                 placeholder="ex: 100"
-                className="input font-mono text-blue-600"
+                className="w-full px-3 py-2 rounded-lg text-sm font-mono"
+                style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)', color: '#3b82f6' }}
               />
             </FormField>
             <FormField label="Kapasitas">
@@ -203,7 +215,8 @@ ${data['Konfigurasi'] || '-'}
                 value={formData['Kapasitas']}
                 onChange={handleChange}
                 placeholder="100 Mbps"
-                className="input"
+                className="w-full px-3 py-2 rounded-lg text-sm"
+                style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)', color: 'var(--text-primary)' }}
               />
             </FormField>
             <FormField label="Sinyal RX (dBm)">
@@ -212,7 +225,8 @@ ${data['Konfigurasi'] || '-'}
                 value={formData['RX ONT/SFP']}
                 onChange={handleChange}
                 placeholder="-20.5"
-                className="input font-mono"
+                className="w-full px-3 py-2 rounded-lg text-sm font-mono"
+                style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)', color: 'var(--text-primary)' }}
               />
             </FormField>
             <FormField label="SN ONT">
@@ -221,7 +235,8 @@ ${data['Konfigurasi'] || '-'}
                 value={formData['SN ONT']}
                 onChange={handleChange}
                 placeholder="ZTEGC8..."
-                className="input font-mono"
+                className="w-full px-3 py-2 rounded-lg text-sm font-mono"
+                style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)', color: 'var(--text-primary)' }}
               />
             </FormField>
           </div>
@@ -231,7 +246,8 @@ ${data['Konfigurasi'] || '-'}
                 name="Near End"
                 value={formData['Near End']}
                 onChange={handleChange}
-                className="input"
+                className="w-full px-3 py-2 rounded-lg text-sm"
+                style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)', color: 'var(--text-primary)' }}
               />
             </FormField>
             <FormField label="Far End (CPE)">
@@ -239,7 +255,8 @@ ${data['Konfigurasi'] || '-'}
                 name="Far End"
                 value={formData['Far End']}
                 onChange={handleChange}
-                className="input"
+                className="w-full px-3 py-2 rounded-lg text-sm"
+                style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)', color: 'var(--text-primary)' }}
               />
             </FormField>
           </div>
@@ -248,36 +265,39 @@ ${data['Konfigurasi'] || '-'}
               name="STATUS"
               value={formData['STATUS']}
               onChange={handleChange}
-              className="input bg-white"
+              className="w-full px-3 py-2 rounded-lg text-sm"
+              style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)', color: 'var(--text-primary)' }}
             >
               <option value="Active">Active</option>
-              <option value="Suspend">Suspend</option>
-              <option value="Isolir">Isolir</option>
+              <option value="Deactive">Berhenti Sementara</option>
+              <option value="Berhenti Berlangganan">Berhenti Berlangganan</option>
               <option value="Dismantle">Dismantle</option>
             </select>
           </FormField>
         </FormSection>
 
         {/* ── GROUP 3: INFO TAMBAHAN ── */}
-        <FormSection icon={<FileText size={14} />} title="Informasi Tambahan (Report TXT)" accent>
+        <FormSection icon={<FileText size={14} />} title="📄 Informasi Tambahan (Report TXT)">
           <FormField label="Data Teknis (Detail)">
             <textarea
               name="Data Teknis"
-              rows={3}
+              rows={5}
               placeholder="Isi detail teknis lainnya di sini..."
               value={formData['Data Teknis']}
               onChange={handleChange}
-              className="input font-mono text-xs resize-none"
+              className="w-full px-3 py-2 rounded-lg text-sm font-mono resize-y"
+              style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)', color: 'var(--text-primary)' }}
             />
           </FormField>
           <FormField label="Konfigurasi">
             <textarea
               name="Konfigurasi"
-              rows={3}
+              rows={6}
               placeholder="Paste konfigurasi router/switch di sini..."
               value={formData['Konfigurasi']}
               onChange={handleChange}
-              className="input font-mono text-xs resize-none"
+              className="w-full px-3 py-2 rounded-lg text-sm font-mono resize-y"
+              style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)', color: 'var(--text-primary)' }}
             />
           </FormField>
         </FormSection>
@@ -286,7 +306,8 @@ ${data['Konfigurasi'] || '-'}
         <button
           type="submit"
           disabled={saving}
-          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white py-2.5 rounded-lg font-semibold text-sm transition-colors flex justify-center items-center gap-2 shadow-sm"
+          className="w-full py-2.5 rounded-lg font-semibold text-sm transition-colors flex justify-center items-center gap-2"
+          style={{ background: saving ? 'var(--bg-elevated)' : '#3b82f6', color: saving ? 'var(--text-muted)' : '#fff' }}
         >
           {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
           {saving ? 'Menyimpan Data...' : 'Simpan & Download Report'}
@@ -300,10 +321,10 @@ ${data['Konfigurasi'] || '-'}
 // ─────────────────────────────────────────────
 // HELPER COMPONENTS
 // ─────────────────────────────────────────────
-function FormSection({ icon, title, children, accent }: { icon: React.ReactNode; title: string; children: React.ReactNode; accent?: boolean }) {
+function FormSection({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
   return (
-    <div className={`rounded-xl border p-5 space-y-4 ${accent ? 'bg-blue-50/50 border-blue-100' : 'bg-white border-slate-200 shadow-sm'}`}>
-      <h3 className={`text-[11px] font-bold uppercase tracking-widest flex items-center gap-2 ${accent ? 'text-blue-600' : 'text-slate-400'}`}>
+    <div className="rounded-xl p-5 space-y-4" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-light)' }}>
+      <h3 className="text-[11px] font-bold uppercase tracking-widest flex items-center gap-2" style={{ color: 'var(--text-muted)' }}>
         {icon}
         {title}
       </h3>
@@ -312,13 +333,10 @@ function FormSection({ icon, title, children, accent }: { icon: React.ReactNode;
   );
 }
 
-function FormField({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+function FormField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-semibold text-slate-600">
-        {label}
-        {required && <span className="text-rose-500 ml-0.5">*</span>}
-      </label>
+      <label className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>{label}</label>
       {children}
     </div>
   );
@@ -329,10 +347,10 @@ function FormField({ label, required, children }: { label: string; required?: bo
 // ─────────────────────────────────────────────
 export default function CreateClientPage() {
   return (
-    <div className="min-h-screen p-6 md:p-8 flex justify-center items-start" style={{ background: '#f4f6f9', fontFamily: "'IBM Plex Sans', sans-serif" }}>
+    <div className="min-h-screen p-6 md:p-8 flex justify-center items-start" style={{ background: 'var(--bg-base)' }}>
       <Suspense fallback={
         <div className="flex h-64 items-center justify-center">
-          <Loader2 className="animate-spin text-blue-600" size={24} />
+          <Loader2 className="animate-spin" size={24} style={{ color: 'var(--accent-blue)' }} />
         </div>
       }>
         <CreateClientContent />
