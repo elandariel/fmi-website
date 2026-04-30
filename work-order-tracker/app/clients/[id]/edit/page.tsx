@@ -23,6 +23,7 @@ function EditClientContent() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
   );
 
+  // Matches actual DB columns in "Data Client Corporate"
   const [formData, setFormData] = useState({
     'ID Pelanggan':   '',
     'Nama Pelanggan': '',
@@ -33,9 +34,11 @@ function EditClientContent() {
     'STATUS':         '',
     'Kapasitas':      '',
     'RX ONT/SFP':     '',
-    'SN ONT':         '',
-    'Data Teknis':    '',
-    'Konfigurasi':    '',
+    'SN ONT/SFP':     '',
+    'Data Pelanggan': '',
+    'Daftar Vlan':    '',
+    'MRTG':           '',
+    'Officer':        '',
   });
 
   useEffect(() => {
@@ -74,9 +77,10 @@ function EditClientContent() {
         'STATUS':         formData['STATUS'],
         'Kapasitas':      formData['Kapasitas'],
         'RX ONT/SFP':     formData['RX ONT/SFP'],
-        'SN ONT':         formData['SN ONT'],
-        'Data Teknis':    formData['Data Teknis'],
-        'Konfigurasi':    formData['Konfigurasi'],
+        'SN ONT/SFP':     formData['SN ONT/SFP'],
+        'Data Pelanggan': formData['Data Pelanggan'],
+        'Daftar Vlan':    formData['Daftar Vlan'],
+        'MRTG':           formData['MRTG'],
       })
       .eq('id', id);
 
@@ -204,6 +208,14 @@ function EditClientContent() {
               style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)', color: 'var(--text-primary)' }}
             />
           </FormField>
+          {formData['Officer'] && (
+            <FormField label="Officer">
+              <input value={formData['Officer']} readOnly
+                className="w-full px-3 py-2 rounded-lg text-sm cursor-not-allowed"
+                style={{ background: 'var(--bg-base)', border: '1px solid var(--border-light)', color: 'var(--text-muted)' }}
+              />
+            </FormField>
+          )}
         </FormSection>
 
         {/* ── SPESIFIKASI ── */}
@@ -227,8 +239,8 @@ function EditClientContent() {
                 style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)', color: 'var(--text-primary)' }}
               />
             </FormField>
-            <FormField label="SN ONT">
-              <input name="SN ONT" value={formData['SN ONT'] || ''} onChange={handleChange}
+            <FormField label="SN ONT/SFP">
+              <input name="SN ONT/SFP" value={formData['SN ONT/SFP'] || ''} onChange={handleChange}
                 className="w-full px-3 py-2 rounded-lg text-sm font-mono"
                 style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)', color: 'var(--text-primary)' }}
               />
@@ -261,22 +273,28 @@ function EditClientContent() {
           </FormField>
         </FormSection>
 
-        {/* ── INFORMASI TAMBAHAN ── */}
-        <FormSection title="📄 Informasi Tambahan">
-          <FormField label="Data Teknis (Detail)">
-            <textarea name="Data Teknis" rows={5} value={formData['Data Teknis'] || ''} onChange={handleChange}
-              placeholder="Isi detail teknis lainnya di sini..."
-              className="w-full px-3 py-2 rounded-lg text-sm font-mono resize-y"
-              style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)', color: 'var(--text-primary)' }}
-            />
-          </FormField>
-          <FormField label="Konfigurasi">
-            <textarea name="Konfigurasi" rows={6} value={formData['Konfigurasi'] || ''} onChange={handleChange}
-              placeholder="Paste konfigurasi router/switch di sini..."
-              className="w-full px-3 py-2 rounded-lg text-sm font-mono resize-y"
-              style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)', color: 'var(--text-primary)' }}
-            />
-          </FormField>
+        {/* ── STATUS OTOMATIS ── */}
+        <FormSection title="Status Administrasi">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <FormField label="Data Pelanggan">
+              <input name="Data Pelanggan" value={formData['Data Pelanggan'] || ''} onChange={handleChange}
+                className="w-full px-3 py-2 rounded-lg text-sm"
+                style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)', color: 'var(--text-primary)' }}
+              />
+            </FormField>
+            <FormField label="Daftar Vlan">
+              <input name="Daftar Vlan" value={formData['Daftar Vlan'] || ''} onChange={handleChange}
+                className="w-full px-3 py-2 rounded-lg text-sm"
+                style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)', color: 'var(--text-primary)' }}
+              />
+            </FormField>
+            <FormField label="MRTG">
+              <input name="MRTG" value={formData['MRTG'] || ''} onChange={handleChange}
+                className="w-full px-3 py-2 rounded-lg text-sm"
+                style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)', color: 'var(--text-primary)' }}
+              />
+            </FormField>
+          </div>
         </FormSection>
 
         {/* ── SUBMIT ── */}

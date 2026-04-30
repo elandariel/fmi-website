@@ -8,7 +8,8 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, Pencil, Trash2, MapPin,
-  Loader2, AlertTriangle, Signal, Cpu, Wifi, FileText, Settings2
+  Loader2, AlertTriangle, Signal, Cpu, Wifi, FileText, X,
+  CheckCircle2, User2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { logActivity } from '@/lib/logger';
@@ -19,11 +20,12 @@ function ClientDetailContent() {
   const id      = params.id as string;
   const router  = useRouter();
 
-  const [client, setClient]             = useState<any>(null);
-  const [loading, setLoading]           = useState(true);
-  const [deleting, setDeleting]         = useState(false);
-  const [userRole, setUserRole]         = useState<any>(null);
+  const [client, setClient]                   = useState<any>(null);
+  const [loading, setLoading]                 = useState(true);
+  const [deleting, setDeleting]               = useState(false);
+  const [userRole, setUserRole]               = useState<any>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showDataTeknis, setShowDataTeknis]   = useState(false);
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -85,8 +87,10 @@ function ClientDetailContent() {
 
   const getStatusStyle = (status: string) => {
     const s = (status || '').toLowerCase();
-    if (s === 'active')                          return { dot: '#10b981', bg: 'rgba(16,185,129,0.12)', text: '#10b981', border: 'rgba(16,185,129,0.3)' };
-    if (s.includes('suspend') || s.includes('isolir')) return { dot: '#ef4444', bg: 'rgba(239,68,68,0.12)', text: '#ef4444', border: 'rgba(239,68,68,0.3)' };
+    if (s === 'active')
+      return { dot: '#10b981', bg: 'rgba(16,185,129,0.12)', text: '#10b981', border: 'rgba(16,185,129,0.3)' };
+    if (s === 'deactive' || s.includes('berhenti') || s === 'dismantle')
+      return { dot: '#ef4444', bg: 'rgba(239,68,68,0.12)', text: '#ef4444', border: 'rgba(239,68,68,0.3)' };
     return { dot: '#94a3b8', bg: 'rgba(148,163,184,0.12)', text: '#94a3b8', border: 'rgba(148,163,184,0.3)' };
   };
 
@@ -101,6 +105,35 @@ function ClientDetailContent() {
 
   const sig    = getSignalInfo(client['RX ONT/SFP']);
   const status = getStatusStyle(client['STATUS']);
+
+  // Build formatted text for "Data Teknis" modal
+  const dataTeknisTxt = `Dear All,
+
+Telah diregister dan diluruskan client di bawah ini :
+
+ID Pelanggan            : ${client['ID Pelanggan'] || '-'}
+Nama Pelanggan          : ${client['Nama Pelanggan'] || '-'}
+Alamat                  : ${client['ALAMAT'] || '-'}
+VLAN ID                 : ${client['VMAN / VLAN'] || '-'}
+Near End                : ${client['Near End'] || '-'}
+Far End                 : ${client['Far End'] || '-'}
+Kapasitas               : ${client['Kapasitas'] || '-'}
+RX ONT                  : ${client['RX ONT/SFP'] || '-'}
+SN ONT                  : ${client['SN ONT/SFP'] || '-'}
+Data Pelanggan          : ${client['Data Pelanggan'] || 'Sudah Ditambahkan'}
+Daftar Vlan             : ${client['Daftar Vlan'] || 'Sudah Ditambahkan'}
+MRTG                    : ${client['MRTG'] || 'Sudah Ditambahkan'}`;
+
+  const handleDownloadTxt = () => {
+    const blob = new Blob([dataTeknisTxt], { type: 'text/plain' });
+    const url  = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href     = url;
+    link.download = `Register_${(client['Nama Pelanggan'] || 'Client').replace(/\s+/g, '_')}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <div className="p-6 md:p-8 min-h-screen" style={{ background: 'var(--bg-base)' }}>
@@ -131,6 +164,85 @@ function ClientDetailContent() {
         </div>
       )}
 
+      {/* ── DATA TEKNIS MODAL ── */}
+      {showDataTeknis && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)' }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowDataTeknis(false); }}
+        >
+          <div className="w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-light)' }}>
+            {/* Header strip */}
+            <div className="h-1 w-full" style={{ background: 'linear-gradient(to right, #3b82f6, #6366f1)' }} />
+
+            {/* Header */}
+            <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border-light)' }}>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)' }}>
+                  <FileText size={16} style={{ color: '#3b82f6' }} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Data Teknis Client</h3>
+                  <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{client['Nama Pelanggan']}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowDataTeknis(false)}
+                className="p-1.5 rounded-lg transition-all"
+                style={{ color: 'var(--text-muted)' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-elevated)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Data rows */}
+            <div className="px-5 py-4 space-y-2 max-h-[65vh] overflow-y-auto custom-scrollbar">
+              <DataRow label="ID Pelanggan"  value={client['ID Pelanggan']} mono />
+              <DataRow label="Nama Pelanggan" value={client['Nama Pelanggan']} />
+              <DataRow label="Alamat"         value={client['ALAMAT']} />
+              <DataRow label="VLAN ID"        value={client['VMAN / VLAN']} mono />
+              <DataRow label="Near End"       value={client['Near End']} mono />
+              <DataRow label="Far End"        value={client['Far End']} mono />
+              <DataRow label="Kapasitas"      value={client['Kapasitas']} />
+              <DataRow label="RX ONT/SFP"     value={client['RX ONT/SFP']} mono />
+              <DataRow label="SN ONT/SFP"     value={client['SN ONT/SFP']} mono />
+              <div className="pt-2" style={{ borderTop: '1px solid var(--border-light)' }}>
+                <DataRow label="Data Pelanggan" value={client['Data Pelanggan'] || 'Sudah Ditambahkan'} badge="#10b981" />
+                <DataRow label="Daftar Vlan"    value={client['Daftar Vlan']    || 'Sudah Ditambahkan'} badge="#10b981" />
+                <DataRow label="MRTG"           value={client['MRTG']           || 'Sudah Ditambahkan'} badge="#10b981" />
+              </div>
+              {client['Officer'] && (
+                <div className="pt-2" style={{ borderTop: '1px solid var(--border-light)' }}>
+                  <DataRow label="Officer" value={client['Officer']} />
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-3 flex justify-between items-center" style={{ borderTop: '1px solid var(--border-light)', background: 'var(--bg-elevated)' }}>
+              <button
+                onClick={() => setShowDataTeknis(false)}
+                className="px-4 py-1.5 rounded-lg text-xs font-semibold"
+                style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}
+              >
+                Tutup
+              </button>
+              <button
+                onClick={handleDownloadTxt}
+                className="px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5"
+                style={{ background: '#3b82f6', color: '#fff' }}
+                onMouseEnter={e => { e.currentTarget.style.opacity = '0.85'; }}
+                onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
+              >
+                <FileText size={12} /> Download TXT
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-4xl mx-auto space-y-4">
 
         {/* ── TOP NAV ── */}
@@ -142,26 +254,39 @@ function ClientDetailContent() {
             <ArrowLeft size={16} /> Kembali
           </button>
 
-          {hasAccess(userRole, PERMISSIONS.CLIENT_EDIT_DELETE) && (
-            <div className="flex gap-2">
-              <Link href={`/clients/${id}/edit`}>
-                <button className="flex items-center gap-2 px-3.5 py-2 rounded-lg font-semibold text-xs transition-all"
-                  style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(59,130,246,0.5)'; e.currentTarget.style.color = '#3b82f6'; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-light)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+          <div className="flex gap-2">
+            {/* Data Teknis Button — always visible */}
+            <button
+              onClick={() => setShowDataTeknis(true)}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-lg font-semibold text-xs transition-all"
+              style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', color: '#3b82f6' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.18)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.1)'; }}
+            >
+              <FileText size={13} /> Data Teknis
+            </button>
+
+            {hasAccess(userRole, PERMISSIONS.CLIENT_EDIT_DELETE) && (
+              <>
+                <Link href={`/clients/${id}/edit`}>
+                  <button className="flex items-center gap-2 px-3.5 py-2 rounded-lg font-semibold text-xs transition-all"
+                    style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(59,130,246,0.5)'; e.currentTarget.style.color = '#3b82f6'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-light)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                  >
+                    <Pencil size={13} /> Edit Data
+                  </button>
+                </Link>
+                <button onClick={() => setShowDeleteModal(true)} disabled={deleting}
+                  className="flex items-center gap-2 px-3.5 py-2 rounded-lg font-semibold text-xs transition-all disabled:opacity-50"
+                  style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444' }}
                 >
-                  <Pencil size={13} /> Edit Data
+                  {deleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                  {deleting ? 'Memproses...' : 'Hapus'}
                 </button>
-              </Link>
-              <button onClick={() => setShowDeleteModal(true)} disabled={deleting}
-                className="flex items-center gap-2 px-3.5 py-2 rounded-lg font-semibold text-xs transition-all disabled:opacity-50"
-                style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444' }}
-              >
-                {deleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-                {deleting ? 'Memproses...' : 'Hapus'}
-              </button>
-            </div>
-          )}
+              </>
+            )}
+          </div>
         </div>
 
         {/* ── HERO CARD ── */}
@@ -184,6 +309,11 @@ function ClientDetailContent() {
                   {client['ALAMAT']}
                 </p>
               )}
+              {client['Officer'] && (
+                <p className="text-xs mt-2 flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
+                  <User2 size={11} /> Officer: {client['Officer']}
+                </p>
+              )}
             </div>
             <div className="shrink-0 text-right rounded-xl px-5 py-3" style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)' }}>
               <p className="text-[10px] font-bold uppercase tracking-widest mb-0.5" style={{ color: '#3b82f6' }}>Bandwidth</p>
@@ -201,10 +331,10 @@ function ClientDetailContent() {
               <Wifi size={13} /> Informasi Jaringan
             </h3>
             <div className="space-y-3">
-              <InfoRow label="VLAN / VMAN"   value={client['VMAN / VLAN']} mono />
-              <InfoRow label="Interkoneksi"  value={client['Near End']} />
-              <InfoRow label="Last PoP"      value={client['Far End']} />
-              <InfoRow label="SN ONT"        value={client['SN ONT']} mono />
+              <InfoRow label="VLAN / VMAN"  value={client['VMAN / VLAN']} mono />
+              <InfoRow label="Near End"     value={client['Near End']} />
+              <InfoRow label="Far End"      value={client['Far End']} />
+              <InfoRow label="SN ONT/SFP"   value={client['SN ONT/SFP']} mono />
             </div>
           </div>
 
@@ -240,49 +370,43 @@ function ClientDetailContent() {
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="rounded-lg p-4" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)' }}>
-                <p className="text-[10px] font-bold uppercase mb-1" style={{ color: 'var(--text-muted)' }}>Interkoneksi</p>
+                <p className="text-[10px] font-bold uppercase mb-1" style={{ color: 'var(--text-muted)' }}>Near End (POP)</p>
                 <p className="text-sm font-semibold font-mono" style={{ color: 'var(--text-primary)' }}>{client['Near End'] || '—'}</p>
               </div>
               <div className="rounded-lg p-4" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)' }}>
-                <p className="text-[10px] font-bold uppercase mb-1" style={{ color: 'var(--text-muted)' }}>Last PoP</p>
+                <p className="text-[10px] font-bold uppercase mb-1" style={{ color: 'var(--text-muted)' }}>Far End (CPE)</p>
                 <p className="text-sm font-semibold font-mono" style={{ color: 'var(--text-primary)' }}>{client['Far End'] || '—'}</p>
               </div>
             </div>
           </div>
         )}
 
-        {/* ── DATA TEKNIS ── */}
-        {client['Data Teknis'] && (
-          <div className="rounded-xl p-5" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-light)' }}>
-            <h3 className="text-[11px] font-bold uppercase tracking-widest mb-4 flex items-center gap-2" style={{ color: 'var(--text-muted)' }}>
-              <FileText size={13} /> Data Teknis
-            </h3>
-            <pre className="text-sm leading-relaxed whitespace-pre-wrap rounded-lg p-4 font-mono"
-              style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>
-              {client['Data Teknis']}
-            </pre>
+        {/* ── STATUS LAYANAN ── */}
+        <div className="rounded-xl p-5" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-light)' }}>
+          <h3 className="text-[11px] font-bold uppercase tracking-widest mb-4 flex items-center gap-2" style={{ color: 'var(--text-muted)' }}>
+            <CheckCircle2 size={13} /> Status Layanan
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              { label: 'Data Pelanggan', value: client['Data Pelanggan'] },
+              { label: 'Daftar Vlan',   value: client['Daftar Vlan']   },
+              { label: 'MRTG',          value: client['MRTG']          },
+              { label: 'Status',        value: client['STATUS']        },
+            ].map(({ label, value }) => (
+              <div key={label} className="rounded-lg p-3 text-center" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)' }}>
+                <p className="text-[10px] font-bold uppercase mb-1" style={{ color: 'var(--text-muted)' }}>{label}</p>
+                <p className="text-xs font-semibold" style={{ color: value ? '#10b981' : 'var(--text-muted)' }}>{value || '—'}</p>
+              </div>
+            ))}
           </div>
-        )}
-
-        {/* ── KONFIGURASI ── */}
-        {client['Konfigurasi'] && (
-          <div className="rounded-xl p-5" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-light)' }}>
-            <h3 className="text-[11px] font-bold uppercase tracking-widest mb-4 flex items-center gap-2" style={{ color: 'var(--text-muted)' }}>
-              <Settings2 size={13} /> Konfigurasi
-            </h3>
-            <pre className="text-sm leading-relaxed whitespace-pre-wrap rounded-lg p-4 font-mono"
-              style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>
-              {client['Konfigurasi']}
-            </pre>
-          </div>
-        )}
+        </div>
 
       </div>
     </div>
   );
 }
 
-// ── HELPER ──
+// ── HELPERS ──
 function InfoRow({ label, value, mono }: { label: string; value?: string; mono?: boolean }) {
   return (
     <div className="flex justify-between items-center py-2" style={{ borderBottom: '1px solid var(--border-light)' }}>
@@ -290,6 +414,23 @@ function InfoRow({ label, value, mono }: { label: string; value?: string; mono?:
       <span className={`text-xs font-semibold ${mono ? 'font-mono' : ''}`} style={{ color: 'var(--text-primary)' }}>
         {value || '—'}
       </span>
+    </div>
+  );
+}
+
+function DataRow({ label, value, mono, badge }: { label: string; value?: string; mono?: boolean; badge?: string }) {
+  return (
+    <div className="flex items-center justify-between py-2" style={{ borderBottom: '1px solid var(--border-light)' }}>
+      <span className="text-xs font-medium shrink-0" style={{ color: 'var(--text-muted)', minWidth: 140 }}>{label}</span>
+      {badge ? (
+        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: `${badge}18`, color: badge, border: `1px solid ${badge}33` }}>
+          {value || '—'}
+        </span>
+      ) : (
+        <span className={`text-xs font-semibold text-right ${mono ? 'font-mono' : ''}`} style={{ color: 'var(--text-primary)' }}>
+          {value || '—'}
+        </span>
+      )}
     </div>
   );
 }

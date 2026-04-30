@@ -13,8 +13,8 @@ import { toast } from 'sonner';
 // FORM CONTENT
 // ─────────────────────────────────────────────
 function CreateClientContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+  const router         = useRouter();
+  const searchParams   = useSearchParams();
   const nameFromTracker = searchParams.get('name') || '';
   const [saving, setSaving] = useState(false);
 
@@ -23,6 +23,8 @@ function CreateClientContent() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
   );
 
+  // formData includes Data Teknis & Konfigurasi for the TXT download
+  // but they are NOT saved to Supabase (no such column in DB)
   const [formData, setFormData] = useState({
     'ID Pelanggan':   '',
     'Nama Pelanggan': '',
@@ -33,7 +35,8 @@ function CreateClientContent() {
     'STATUS':         'Active',
     'Kapasitas':      '',
     'RX ONT/SFP':     '',
-    'SN ONT':         '',
+    'SN ONT/SFP':     '',
+    // TXT-only fields (not saved to DB)
     'Data Teknis':    '',
     'Konfigurasi':    '',
   });
@@ -48,7 +51,7 @@ function CreateClientContent() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const downloadTxt = (data: any) => {
+  const downloadTxt = (data: any, officerName: string) => {
     const content = `Dear All,
 
 Telah diregister dan diluruskan client di bawah ini :
@@ -61,7 +64,7 @@ Near End                : ${data['Near End'] || '-'}
 Far End                 : ${data['Far End'] || '-'}
 Kapasitas               : ${data['Kapasitas'] || '-'}
 RX ONT                  : ${data['RX ONT/SFP'] || '-'}
-SN ONT                  : ${data['SN ONT'] || '-'}
+SN ONT                  : ${data['SN ONT/SFP'] || '-'}
 Data Pelanggan          : Sudah Ditambahkan
 Daftar Vlan             : Sudah Ditambahkan
 MRTG                    : Sudah Ditambahkan
@@ -71,11 +74,13 @@ ${data['Data Teknis'] || '-'}
 
 Konfigurasi :
 ${data['Konfigurasi'] || '-'}
+
+Officer                 : ${officerName}
 `;
     const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
+    const url  = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.href = url;
+    link.href     = url;
     link.download = `Register_${data['Nama Pelanggan'] ? data['Nama Pelanggan'].replace(/\s+/g, '_') : 'Client'}.txt`;
     document.body.appendChild(link);
     link.click();
@@ -92,19 +97,30 @@ ${data['Konfigurasi'] || '-'}
       return;
     }
 
+    // Get current user for Officer field
+    const { data: { user } } = await supabase.auth.getUser();
+    let officerName = 'System';
+    if (user) {
+      const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single();
+      officerName = profile?.full_name || user.email || 'User';
+    }
+
+    // Only fields that exist in the DB
     const dbPayload = {
-      'ID Pelanggan':   formData['ID Pelanggan'],
-      'Nama Pelanggan': formData['Nama Pelanggan'],
-      'ALAMAT':         formData['ALAMAT'],
-      'VMAN / VLAN':    formData['VMAN / VLAN'],
-      'Near End':       formData['Near End'],
-      'Far End':        formData['Far End'],
-      'STATUS':         formData['STATUS'],
-      'Kapasitas':      formData['Kapasitas'],
-      'RX ONT/SFP':     formData['RX ONT/SFP'],
-      'SN ONT':         formData['SN ONT'],
-      'Data Teknis':    formData['Data Teknis'],
-      'Konfigurasi':    formData['Konfigurasi'],
+      'Officer':          officerName,
+      'ID Pelanggan':     formData['ID Pelanggan'],
+      'Nama Pelanggan':   formData['Nama Pelanggan'],
+      'ALAMAT':           formData['ALAMAT'],
+      'VMAN / VLAN':      formData['VMAN / VLAN'],
+      'Near End':         formData['Near End'],
+      'Far End':          formData['Far End'],
+      'STATUS':           formData['STATUS'],
+      'Kapasitas':        formData['Kapasitas'],
+      'RX ONT/SFP':       formData['RX ONT/SFP'],
+      'SN ONT/SFP':       formData['SN ONT/SFP'],
+      'Data Pelanggan':   'Sudah Ditambahkan',
+      'Daftar Vlan':      'Sudah Ditambahkan',
+      'MRTG':             'Sudah Ditambahkan',
     };
 
     const { error } = await supabase.from('Data Client Corporate').insert([dbPayload]);
@@ -113,16 +129,10 @@ ${data['Konfigurasi'] || '-'}
       toast.error('Gagal menyimpan: ' + error.message);
       setSaving(false);
     } else {
-      const { data: { user } } = await supabase.auth.getUser();
-      let actorName = 'System';
-      if (user) {
-        const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single();
-        actorName = profile?.full_name || user.email || 'User';
-      }
-      await logActivity({ activity: 'CLIENT_CREATE', subject: formData['Nama Pelanggan'], actor: actorName });
-      downloadTxt(formData);
+      await logActivity({ activity: 'CLIENT_CREATE', subject: formData['Nama Pelanggan'], actor: officerName });
+      downloadTxt(formData, officerName);
       toast.success('Client Berhasil Disimpan!', {
-        description: 'Laporan TXT sedang diunduh & Notifikasi terkirim.',
+        description: 'Laporan TXT sedang diunduh.',
         duration: 4000,
       });
       router.push('/clients');
@@ -158,7 +168,7 @@ ${data['Konfigurasi'] || '-'}
       <form onSubmit={handleSave} className="space-y-4">
 
         {/* ── GROUP 1: IDENTITAS ── */}
-        <FormSection icon={<UserPlus size={14} />} title="Identitas Pelanggan">
+        <FormSection title="Identitas Pelanggan">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField label="ID Pelanggan *">
               <input
@@ -197,7 +207,7 @@ ${data['Konfigurasi'] || '-'}
         </FormSection>
 
         {/* ── GROUP 2: JARINGAN ── */}
-        <FormSection icon={<Network size={14} />} title="Spesifikasi Jaringan">
+        <FormSection title="Spesifikasi Jaringan">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <FormField label="VLAN / VMAN">
               <input
@@ -229,10 +239,10 @@ ${data['Konfigurasi'] || '-'}
                 style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)', color: 'var(--text-primary)' }}
               />
             </FormField>
-            <FormField label="SN ONT">
+            <FormField label="SN ONT/SFP">
               <input
-                name="SN ONT"
-                value={formData['SN ONT']}
+                name="SN ONT/SFP"
+                value={formData['SN ONT/SFP']}
                 onChange={handleChange}
                 placeholder="ZTEGC8..."
                 className="w-full px-3 py-2 rounded-lg text-sm font-mono"
@@ -276,8 +286,11 @@ ${data['Konfigurasi'] || '-'}
           </FormField>
         </FormSection>
 
-        {/* ── GROUP 3: INFO TAMBAHAN ── */}
-        <FormSection icon={<FileText size={14} />} title="📄 Informasi Tambahan (Report TXT)">
+        {/* ── GROUP 3: INFO TAMBAHAN (TXT only) ── */}
+        <FormSection title="📄 Informasi Tambahan (untuk Report TXT)">
+          <p className="text-[11px] rounded-lg px-3 py-2" style={{ background: 'rgba(59,130,246,0.08)', color: 'var(--text-muted)', border: '1px solid rgba(59,130,246,0.2)' }}>
+            Field ini hanya masuk ke file TXT yang diunduh. Tidak disimpan ke database.
+          </p>
           <FormField label="Data Teknis (Detail)">
             <textarea
               name="Data Teknis"
@@ -321,13 +334,10 @@ ${data['Konfigurasi'] || '-'}
 // ─────────────────────────────────────────────
 // HELPER COMPONENTS
 // ─────────────────────────────────────────────
-function FormSection({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="rounded-xl p-5 space-y-4" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-light)' }}>
-      <h3 className="text-[11px] font-bold uppercase tracking-widest flex items-center gap-2" style={{ color: 'var(--text-muted)' }}>
-        {icon}
-        {title}
-      </h3>
+      <h3 className="text-[11px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>{title}</h3>
       {children}
     </div>
   );
