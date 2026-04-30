@@ -136,7 +136,7 @@ export default function InterkoneksiPage() {
     ID_Pelanggan: '', Nama_ISP: '', Location: '', Lantai: '',
     Device: '', SN_Perangkat: '', Rack: '', OTB: '', Type: '',
     Port: '', No_Reff: '', Label: '', Kapasitas: '', Limitasi: '',
-    Status: 'Active'
+    Note: '', Status: 'Active'
   };
 
   const [formData, setFormData] = useState(emptyForm);
@@ -337,6 +337,7 @@ export default function InterkoneksiPage() {
       Type:          item?.Type          || '', Port:         item?.Port         || '',
       No_Reff:       item?.No_Reff       || '', Label:        item?.Label        || '',
       Kapasitas:     item?.Kapasitas     || '', Limitasi:     item?.Limitasi     || '',
+      Note:          item?.Note          || '',
       Status:        item?.Status        || 'Active'
     });
     setIsModalOpen(true);
@@ -692,6 +693,23 @@ export default function InterkoneksiPage() {
                 <DrawerField label="No. Referensi" value={detailItem.No_Reff} mono wrap span />
                 <DrawerField label="Label"         value={detailItem.Label}        wrap span />
               </DrawerSection>
+
+              {/* Note section — only shown if Note has content */}
+              {detailItem.Note && (
+                <div className="rounded-xl border border-amber-100 overflow-hidden">
+                  <div className="px-4 py-2.5 bg-amber-50 border-b border-amber-100 flex items-center gap-2">
+                    <span className="text-amber-500">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                      </svg>
+                    </span>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600">Note / Catatan</p>
+                  </div>
+                  <div className="p-4">
+                    <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{detailItem.Note}</p>
+                  </div>
+                </div>
+              )}
             </div>
           </>
         )}
@@ -782,6 +800,19 @@ export default function InterkoneksiPage() {
                     />
                   </div>
                 ))}
+              </div>
+
+              {/* Note — full width textarea */}
+              <div className="mt-4 flex flex-col gap-1.5">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Note / Catatan</label>
+                <textarea
+                  value={(formData as any).Note || ''}
+                  onChange={(e) => setFormData({ ...formData, Note: e.target.value })}
+                  placeholder="Catatan tambahan, keterangan interkoneksi, dll..."
+                  rows={3}
+                  className="input resize-none w-full text-sm"
+                  style={{ fontFamily: 'inherit' }}
+                />
               </div>
             </div>
             <div className="px-6 py-4 bg-slate-50 border-t flex justify-end gap-2.5">
