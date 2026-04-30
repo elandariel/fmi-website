@@ -105,7 +105,7 @@ Officer                 : ${officerName}
       officerName = profile?.full_name || user.email || 'User';
     }
 
-    // Only fields that exist in the DB
+    // All DB fields including Data Teknis & Konfigurasi
     const dbPayload = {
       'Officer':          officerName,
       'ID Pelanggan':     formData['ID Pelanggan'],
@@ -121,6 +121,8 @@ Officer                 : ${officerName}
       'Data Pelanggan':   'Sudah Ditambahkan',
       'Daftar Vlan':      'Sudah Ditambahkan',
       'MRTG':             'Sudah Ditambahkan',
+      'Data Teknis':      formData['Data Teknis'],
+      'Konfigurasi':      formData['Konfigurasi'],
     };
 
     const { error } = await supabase.from('Data Client Corporate').insert([dbPayload]);
@@ -289,7 +291,7 @@ Officer                 : ${officerName}
         {/* ── GROUP 3: INFO TAMBAHAN (TXT only) ── */}
         <FormSection title="📄 Informasi Tambahan (untuk Report TXT)">
           <p className="text-[11px] rounded-lg px-3 py-2" style={{ background: 'rgba(59,130,246,0.08)', color: 'var(--text-muted)', border: '1px solid rgba(59,130,246,0.2)' }}>
-            Field ini hanya masuk ke file TXT yang diunduh. Tidak disimpan ke database.
+            Field ini disimpan ke database dan akan tampil di tombol <strong>Data Teknis</strong> pada halaman detail client.
           </p>
           <FormField label="Data Teknis (Detail)">
             <textarea

@@ -39,6 +39,8 @@ function EditClientContent() {
     'Daftar Vlan':    '',
     'MRTG':           '',
     'Officer':        '',
+    'Data Teknis':    '',
+    'Konfigurasi':    '',
   });
 
   useEffect(() => {
@@ -81,6 +83,8 @@ function EditClientContent() {
         'Data Pelanggan': formData['Data Pelanggan'],
         'Daftar Vlan':    formData['Daftar Vlan'],
         'MRTG':           formData['MRTG'],
+        'Data Teknis':    formData['Data Teknis'],
+        'Konfigurasi':    formData['Konfigurasi'],
       })
       .eq('id', id);
 
@@ -295,6 +299,24 @@ function EditClientContent() {
               />
             </FormField>
           </div>
+        </FormSection>
+
+        {/* ── DATA TEKNIS & KONFIGURASI ── */}
+        <FormSection title="📄 Informasi Tambahan (Data Teknis)">
+          <FormField label="Data Teknis (Detail)">
+            <textarea name="Data Teknis" rows={5} value={formData['Data Teknis'] || ''} onChange={handleChange}
+              placeholder="Isi detail teknis lainnya di sini..."
+              className="w-full px-3 py-2 rounded-lg text-sm font-mono resize-y"
+              style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)', color: 'var(--text-primary)' }}
+            />
+          </FormField>
+          <FormField label="Konfigurasi">
+            <textarea name="Konfigurasi" rows={6} value={formData['Konfigurasi'] || ''} onChange={handleChange}
+              placeholder="Paste konfigurasi router/switch di sini..."
+              className="w-full px-3 py-2 rounded-lg text-sm font-mono resize-y"
+              style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)', color: 'var(--text-primary)' }}
+            />
+          </FormField>
         </FormSection>
 
         {/* ── SUBMIT ── */}

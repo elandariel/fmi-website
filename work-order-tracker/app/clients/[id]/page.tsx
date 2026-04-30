@@ -106,7 +106,7 @@ function ClientDetailContent() {
   const sig    = getSignalInfo(client['RX ONT/SFP']);
   const status = getStatusStyle(client['STATUS']);
 
-  // Build formatted text for "Data Teknis" modal
+  // Build formatted text for "Data Teknis" modal / TXT download
   const dataTeknisTxt = `Dear All,
 
 Telah diregister dan diluruskan client di bawah ini :
@@ -122,7 +122,7 @@ RX ONT                  : ${client['RX ONT/SFP'] || '-'}
 SN ONT                  : ${client['SN ONT/SFP'] || '-'}
 Data Pelanggan          : ${client['Data Pelanggan'] || 'Sudah Ditambahkan'}
 Daftar Vlan             : ${client['Daftar Vlan'] || 'Sudah Ditambahkan'}
-MRTG                    : ${client['MRTG'] || 'Sudah Ditambahkan'}`;
+MRTG                    : ${client['MRTG'] || 'Sudah Ditambahkan'}${client['Data Teknis'] ? `\n\nData Teknis :\n${client['Data Teknis']}` : ''}${client['Konfigurasi'] ? `\n\nKonfigurasi :\n${client['Konfigurasi']}` : ''}`;
 
   const handleDownloadTxt = () => {
     const blob = new Blob([dataTeknisTxt], { type: 'text/plain' });
@@ -216,6 +216,30 @@ MRTG                    : ${client['MRTG'] || 'Sudah Ditambahkan'}`;
               {client['Officer'] && (
                 <div className="pt-2" style={{ borderTop: '1px solid var(--border-light)' }}>
                   <DataRow label="Officer" value={client['Officer']} />
+                </div>
+              )}
+
+              {/* Data Teknis & Konfigurasi */}
+              {(client['Data Teknis'] || client['Konfigurasi']) && (
+                <div className="pt-2 space-y-3" style={{ borderTop: '1px solid var(--border-light)' }}>
+                  {client['Data Teknis'] && (
+                    <div>
+                      <p className="text-[10px] font-bold uppercase mb-1.5" style={{ color: 'var(--text-muted)' }}>Data Teknis</p>
+                      <pre className="text-xs leading-relaxed whitespace-pre-wrap rounded-lg p-3 font-mono"
+                        style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)', color: 'var(--text-secondary)', maxHeight: 200, overflowY: 'auto' }}>
+                        {client['Data Teknis']}
+                      </pre>
+                    </div>
+                  )}
+                  {client['Konfigurasi'] && (
+                    <div>
+                      <p className="text-[10px] font-bold uppercase mb-1.5" style={{ color: 'var(--text-muted)' }}>Konfigurasi</p>
+                      <pre className="text-xs leading-relaxed whitespace-pre-wrap rounded-lg p-3 font-mono"
+                        style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)', color: 'var(--text-secondary)', maxHeight: 200, overflowY: 'auto' }}>
+                        {client['Konfigurasi']}
+                      </pre>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
