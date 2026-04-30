@@ -226,9 +226,12 @@ export default function BroadcastTicker() {
     let hourlyTimer: ReturnType<typeof setInterval>;
 
     async function fetchLatest() {
+      // Hanya tampilkan broadcast yang belum expired (< 24 jam)
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data } = await supabase
         .from('Broadcasts')
         .select('*')
+        .gte('created_at', since)
         .order('created_at', { ascending: false })
         .limit(1)
         .single();
@@ -261,7 +264,15 @@ export default function BroadcastTicker() {
         { event: 'INSERT', schema: 'public', table: 'Broadcasts' },
         (payload) => {
           const newBc = payload.new as Broadcast;
-          setBroadcast(newBc);
+          // Hanya ganti ticker jika broadcast lama sudah expired (>= 24 jam)
+          setBroadcast(prev => {
+            if (prev) {
+              const prevAge = Date.now() - new Date(prev.created_at).getTime();
+              const prevExpired = prevAge >= 24 * 60 * 60 * 1000;
+              if (!prevExpired) return prev; // broadcast lama masih aktif, jangan ganti
+            }
+            return newBc;
+          });
           setDismissed(null);
           setTickerVisible(true);
           openPopup(newBc);
