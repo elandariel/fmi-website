@@ -4133,9 +4133,8 @@ export default function ReportBackbone() {
 
         {/* Brand */}
         <div className="flex items-center gap-2.5 mr-3">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center"
-               style={{ background: C.accentBg, border: `1px solid ${C.accentBorder}` }}>
-            <Network size={16} style={{ color: C.accent }} />
+          <div className="w-8 h-8 rounded-xl overflow-hidden flex-shrink-0">
+            <img src="/backbone-monitor.png" alt="Backbone Monitor" className="w-full h-full object-cover" />
           </div>
           <div>
             <h1 className="text-[13px] font-black tracking-tight leading-none" style={{ color: C.text }}>Backbone Monitor</h1>
