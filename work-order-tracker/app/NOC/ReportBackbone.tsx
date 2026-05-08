@@ -2699,6 +2699,8 @@ export default function ReportBackbone() {
 
   // ── Page sub-tabs: overview / tiket / pop-kaki ──
   const [pageTab, setPageTab] = useState<"overview" | "tiket" | "pop-kaki">("tiket");
+  // ── Overview left panel search ──
+  const [popAlertSearch, setPopAlertSearch] = useState("");
 
   // ── Management Backbone PoP modal ──
   const [showBBMgmtModal,  setShowBBMgmtModal]  = useState(false);
@@ -4386,6 +4388,13 @@ export default function ReportBackbone() {
           const criticalPops  = popKakiStatus.filter(p => p.severity === "critical");
           // Hanya tampilkan blackout (0 kaki) dan critical (sisa 1 kaki)
           const alertPops     = [...blackoutPops, ...criticalPops];
+          const alertPopsFiltered = popAlertSearch.trim()
+            ? alertPops.filter(p =>
+                p.nama.toLowerCase().includes(popAlertSearch.toLowerCase()) ||
+                p.kode.toLowerCase().includes(popAlertSearch.toLowerCase()) ||
+                p.aliveNamas.some(n => n.toLowerCase().includes(popAlertSearch.toLowerCase()))
+              )
+            : alertPops;
 
           // ── Right: active tickets elapsed > 7 jam ──
           const now = Date.now();
@@ -4428,57 +4437,83 @@ export default function ReportBackbone() {
                     </span>
                   )}
                 </div>
-                {/* body */}
-                <div className="flex-1 overflow-y-auto">
+                {/* search */}
+                {alertPops.length > 0 && (
+                  <div className="px-3 py-2 flex-shrink-0"
+                       style={{ borderBottom: `1px solid ${C.border}`, background: C.surface }}>
+                    <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg"
+                         style={{ background: C.elevated, border: `1px solid ${C.border}` }}>
+                      <span className="text-[11px]" style={{ color: C.textMuted }}>🔍</span>
+                      <input
+                        type="text"
+                        placeholder="Cari PoP atau backbone..."
+                        value={popAlertSearch}
+                        onChange={e => setPopAlertSearch(e.target.value)}
+                        className="flex-1 bg-transparent outline-none text-[11px]"
+                        style={{ color: C.text }}
+                      />
+                      {popAlertSearch && (
+                        <button onClick={() => setPopAlertSearch("")}
+                          className="text-[10px] leading-none"
+                          style={{ color: C.textMuted }}>✕</button>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {/* body — max 5 item, scroll */}
+                <div style={{ maxHeight: "calc(5 * 72px)", overflowY: "auto" }}>
                   {alertPops.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full py-10 gap-2">
+                    <div className="flex flex-col items-center justify-center py-10 gap-2">
                       <span className="text-2xl">✅</span>
                       <p className="text-[12px] font-bold" style={{ color: "#10b981" }}>Semua PoP normal</p>
                       <p className="text-[11px]" style={{ color: C.textMuted }}>Tidak ada kaki backbone yang down</p>
                     </div>
+                  ) : alertPopsFiltered.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-8 gap-2">
+                      <span className="text-xl">🔍</span>
+                      <p className="text-[11px]" style={{ color: C.textMuted }}>Tidak ditemukan untuk &ldquo;{popAlertSearch}&rdquo;</p>
+                    </div>
                   ) : (
                     <div>
-                      {blackoutPops.map(pop => (
-                        <div key={pop.kode}
-                          className="flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors hover:opacity-80"
-                          style={{ background: "rgba(239,68,68,0.07)", borderBottom: `1px solid ${C.border}` }}
-                          onClick={() => setPageTab("pop-kaki")}>
-                          <span className="text-base flex-shrink-0 mt-0.5">🔴</span>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
-                              <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: "#ef4444" }}>BLACKOUT</span>
-                              <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded"
-                                    style={{ background: "rgba(239,68,68,0.15)", color: "#ef4444" }}>{pop.kode}</span>
+                      {alertPopsFiltered.map(pop => {
+                        const isBlackout = pop.severity === "blackout";
+                        return (
+                          <div key={pop.kode}
+                            className="flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors hover:opacity-80"
+                            style={{
+                              background: isBlackout ? "rgba(239,68,68,0.07)" : "rgba(249,115,22,0.07)",
+                              borderBottom: `1px solid ${C.border}`,
+                            }}
+                            onClick={() => setPageTab("pop-kaki")}>
+                            <span className="text-base flex-shrink-0 mt-0.5" style={isBlackout ? {} : { animation: "pulse 2s infinite" }}>
+                              {isBlackout ? "🔴" : "🚨"}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                                <span className="text-[10px] font-black uppercase tracking-widest"
+                                      style={{ color: isBlackout ? "#ef4444" : "#f97316" }}>
+                                  {isBlackout ? "BLACKOUT" : "SISA 1 KAKI"}
+                                </span>
+                                <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded"
+                                      style={{
+                                        background: isBlackout ? "rgba(239,68,68,0.15)" : "rgba(249,115,22,0.15)",
+                                        color: isBlackout ? "#ef4444" : "#f97316",
+                                      }}>{pop.kode}</span>
+                              </div>
+                              <p className="text-[12px] font-bold truncate" style={{ color: C.text }}>{pop.nama}</p>
+                              <p className="text-[10px] mt-0.5" style={{ color: isBlackout ? "#fca5a5" : "#fdba74" }}>
+                                {isBlackout
+                                  ? `Semua ${pop.total} kaki down · ${pop.activeTickets.join(", ") || "—"}`
+                                  : <>Sisa hidup: <strong>{pop.aliveNamas[0] || pop.aliveKodes[0] || "—"}</strong>
+                                      {pop.activeTickets.length > 0 && ` · ${pop.activeTickets.join(", ")}`}</>
+                                }
+                              </p>
                             </div>
-                            <p className="text-[12px] font-bold truncate" style={{ color: C.text }}>{pop.nama}</p>
-                            <p className="text-[10px] mt-0.5" style={{ color: "#fca5a5" }}>
-                              Semua {pop.total} kaki down · {pop.activeTickets.join(", ") || "—"}
-                            </p>
+                            <span className="text-[9px] flex-shrink-0 mt-0.5"
+                                  style={{ color: isBlackout ? "#ef4444" : "#f97316" }}>→</span>
                           </div>
-                          <span className="text-[9px] flex-shrink-0 mt-0.5" style={{ color: "#ef4444" }}>→</span>
-                        </div>
-                      ))}
-                      {criticalPops.map(pop => (
-                        <div key={pop.kode}
-                          className="flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors hover:opacity-80"
-                          style={{ background: "rgba(249,115,22,0.07)", borderBottom: `1px solid ${C.border}` }}
-                          onClick={() => setPageTab("pop-kaki")}>
-                          <span className="text-base flex-shrink-0 mt-0.5 animate-pulse">🚨</span>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
-                              <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: "#f97316" }}>SISA 1 KAKI</span>
-                              <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded"
-                                    style={{ background: "rgba(249,115,22,0.15)", color: "#f97316" }}>{pop.kode}</span>
-                            </div>
-                            <p className="text-[12px] font-bold truncate" style={{ color: C.text }}>{pop.nama}</p>
-                            <p className="text-[10px] mt-0.5" style={{ color: "#fdba74" }}>
-                              Sisa hidup: <strong>{pop.aliveNamas[0] || pop.aliveKodes[0] || "—"}</strong>
-                              {pop.activeTickets.length > 0 && ` · ${pop.activeTickets.join(", ")}`}
-                            </p>
-                          </div>
-                          <span className="text-[9px] flex-shrink-0 mt-0.5" style={{ color: "#f97316" }}>→</span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -4486,7 +4521,9 @@ export default function ReportBackbone() {
                 <div className="px-4 py-2 flex-shrink-0 flex items-center justify-between"
                      style={{ borderTop: `1px solid ${C.border}`, background: C.elevated }}>
                   <span className="text-[10px]" style={{ color: C.textMuted }}>
-                    {popKakiStatus.filter(p => p.total > 0).length} PoP terpantau
+                    {popAlertSearch
+                      ? `${alertPopsFiltered.length} / ${alertPops.length} alert`
+                      : `${popKakiStatus.filter(p => p.total > 0).length} PoP terpantau`}
                   </span>
                   <button onClick={() => setPageTab("pop-kaki")}
                     className="text-[10px] font-bold underline"
