@@ -39,24 +39,37 @@ function CreateTrackerContent() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
   );
 
-  const formatTanggalIndo = (dateString: string) => {
-    if (!dateString) return '';
-    return new Date(dateString).toLocaleDateString('id-ID', {
-      weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
-    });
-  };
+const getTodayWIB = () => {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(new Date());
+};
 
-  const [formData, setFormData] = useState({
-    'TANGGAL': new Date().toISOString().split('T')[0],
-    'SUBJECT BERLANGGANAN': subjectFromWO,
-    'PROBLEM': 'Nihil',
-    'TEAM': '',
-    'STATUS': 'Done',
-    'BTS': '',
-    'DEVICE': '',
-    'ISP': '',
-    'REASON': ''
+const formatTanggalIndo = (dateString: string) => {
+  if (!dateString) return '';
+  const date = new Date(dateString + 'T00:00:00'); 
+  return date.toLocaleDateString('id-ID', {
+    weekday: 'long',
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
   });
+};
+
+const [formData, setFormData] = useState({
+  'TANGGAL': getTodayWIB(), // Ini akan menghasilkan "2026-05-01"
+  'SUBJECT BERLANGGANAN': subjectFromWO,
+  'PROBLEM': 'Nihil',
+  'TEAM': '',
+  'STATUS': 'Done',
+  'BTS': '',
+  'DEVICE': '',
+  'ISP': '',
+  'REASON': ''
+});
 
   useEffect(() => {
     async function fetchMasterData() {

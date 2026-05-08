@@ -23,8 +23,6 @@ function CreateClientContent() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
   );
 
-  // formData includes Data Teknis & Konfigurasi for the TXT download
-  // but they are NOT saved to Supabase (no such column in DB)
   const [formData, setFormData] = useState({
     'ID Pelanggan':   '',
     'Nama Pelanggan': '',
@@ -36,7 +34,7 @@ function CreateClientContent() {
     'Kapasitas':      '',
     'RX ONT/SFP':     '',
     'SN ONT/SFP':     '',
-    // TXT-only fields (not saved to DB)
+    'Note':           '',
     'Data Teknis':    '',
     'Konfigurasi':    '',
   });
@@ -121,6 +119,7 @@ Officer                 : ${officerName}
       'Data Pelanggan':   'Sudah Ditambahkan',
       'Daftar Vlan':      'Sudah Ditambahkan',
       'MRTG':             'Sudah Ditambahkan',
+      'Note':             formData['Note'],
       'Data Teknis':      formData['Data Teknis'],
       'Konfigurasi':      formData['Konfigurasi'],
     };
@@ -272,6 +271,17 @@ Officer                 : ${officerName}
               />
             </FormField>
           </div>
+          <FormField label="Note / Catatan">
+            <textarea
+              name="Note"
+              rows={2}
+              value={formData['Note']}
+              onChange={handleChange}
+              placeholder="Catatan tambahan interkoneksi, remark, dll..."
+              className="w-full px-3 py-2 rounded-lg text-sm resize-none"
+              style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)', color: 'var(--text-primary)' }}
+            />
+          </FormField>
           <FormField label="Status Awal">
             <select
               name="STATUS"

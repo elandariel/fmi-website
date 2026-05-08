@@ -39,6 +39,7 @@ function EditClientContent() {
     'Daftar Vlan':    '',
     'MRTG':           '',
     'Officer':        '',
+    'Note':           '',
     'Data Teknis':    '',
     'Konfigurasi':    '',
   });
@@ -83,6 +84,7 @@ function EditClientContent() {
         'Data Pelanggan': formData['Data Pelanggan'],
         'Daftar Vlan':    formData['Daftar Vlan'],
         'MRTG':           formData['MRTG'],
+        'Note':           formData['Note'],
         'Data Teknis':    formData['Data Teknis'],
         'Konfigurasi':    formData['Konfigurasi'],
       })
@@ -264,6 +266,13 @@ function EditClientContent() {
               />
             </FormField>
           </div>
+          <FormField label="Note / Catatan">
+            <textarea name="Note" rows={2} value={formData['Note'] || ''} onChange={handleChange}
+              placeholder="Catatan tambahan interkoneksi, remark, dll..."
+              className="w-full px-3 py-2 rounded-lg text-sm resize-none"
+              style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-light)', color: 'var(--text-primary)' }}
+            />
+          </FormField>
           <FormField label="Status Layanan">
             <select name="STATUS" value={formData['STATUS'] || ''} onChange={handleChange}
               className="w-full px-3 py-2 rounded-lg text-sm"

@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manual Guide — NOC FMI Web Application</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    line-height: 1.7;
+    color: #1a1a2e;
+    background: #f8f9fa;
+  }
+
+  .cover {
+    page-break-after: always;
+    background: linear-gradient(135deg, #0f3460 0%, #16213e 50%, #1a1a2e 100%);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    text-align: center;
+    padding: 60px;
+  }
+
+  .cover .logo {
+    font-size: 56px;
+    margin-bottom: 24px;
+  }
+
+  .cover h1 {
+    font-size: 36px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    letter-spacing: -0.5px;
+  }
+
+  .cover h2 {
+    font-size: 20px;
+    font-weight: 400;
+    color: #a0b4c8;
+    margin-bottom: 48px;
+  }
+
+  .cover .badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 24px;
+    padding: 8px 24px;
+    font-size: 13px;
+    color: #cbd5e1;
+    margin: 4px;
+  }
+
+  .cover .meta {
+    margin-top: 60px;
+    font-size: 12px;
+    color: #64748b;
+  }
+
+  .toc {
+    page-break-after: always;
+    padding: 60px 80px;
+    background: white;
+  }
+
+  .toc h2 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #0f3460;
+    margin-bottom: 32px;
+    padding-bottom: 16px;
+    border-bottom: 3px solid #0f3460;
+  }
+
+  .toc ol {
+    list-style: none;
+    counter-reset: toc-counter;
+  }
+
+  .toc > ol > li {
+    counter-increment: toc-counter;
+    margin-bottom: 8px;
+  }
+
+  .toc > ol > li > a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    color: #1a1a2e;
+    font-weight: 600;
+    font-size: 15px;
+    padding: 8px 0;
+    border-bottom: 1px dashed #e2e8f0;
+  }
+
+  .toc > ol > li > a::before {
+    content: counter(toc-counter, decimal-leading-zero);
+    font-size: 12px;
+    font-weight: 700;
+    color: white;
+    background: #0f3460;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .toc > ol > li > a:hover { color: #0f3460; }
+
+  .content {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 40px 60px;
+    background: white;
+  }
+
+  .chapter {
+    page-break-before: always;
+    padding-top: 20px;
+  }
+
+  .chapter:first-child { page-break-before: avoid; }
+
+  h1 {
+    font-size: 30px;
+    font-weight: 700;
+    color: #0f3460;
+    margin-bottom: 8px;
+    padding-bottom: 12px;
+    border-bottom: 3px solid #0f3460;
+  }
+
+  .chapter-num {
+    font-size: 12px;
+    font-weight: 600;
+    color: #0f3460;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: #0f3460;
+    margin: 32px 0 16px;
+    padding-left: 12px;
+    border-left: 4px solid #0f3460;
+  }
+
+  h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1e3a5f;
+    margin: 24px 0 12px;
+  }
+
+  p {
+    margin-bottom: 14px;
+    color: #334155;
+  }
+
+  ul, ol {
+    margin: 12px 0 16px 24px;
+    color: #334155;
+  }
+
+  li {
+    margin-bottom: 6px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0 24px;
+    font-size: 13px;
+  }
+
+  th {
+    background: #0f3460;
+    color: white;
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+  }
+
+  td {
+    padding: 9px 14px;
+    border-bottom: 1px solid #e2e8f0;
+    color: #334155;
+  }
+
+  tr:nth-child(even) td { background: #f8fafc; }
+  tr:hover td { background: #eff6ff; }
+
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    background: #f1f5f9;
+    color: #e11d48;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  pre {
+    background: #1e293b;
+    color: #e2e8f0;
+    padding: 16px 20px;
+    border-radius: 8px;
+    margin: 16px 0;
+    overflow-x: auto;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  pre code {
+    background: none;
+    color: #e2e8f0;
+    padding: 0;
+    font-size: 12px;
+  }
+
+  blockquote {
+    background: #eff6ff;
+    border-left: 4px solid #3b82f6;
+    padding: 12px 16px;
+    margin: 16px 0;
+    border-radius: 0 6px 6px 0;
+    color: #1e40af;
+    font-size: 13px;
+  }
+
+  blockquote.warning {
+    background: #fff7ed;
+    border-color: #f97316;
+    color: #9a3412;
+  }
+
+  hr {
+    border: none;
+    border-top: 1px solid #e2e8f0;
+    margin: 28px 0;
+  }
+
+  strong { color: #0f3460; font-weight: 600; }
+
+  .status-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .info-box {
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin: 16px 0;
+  }
+
+  .info-box .title {
+    font-weight: 700;
+    color: #0369a1;
+    margin-bottom: 8px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .flow-box {
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 16px 0;
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: #475569;
+    line-height: 2;
+  }
+
+  @media print {
+    body { background: white; }
+    .cover { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    pre { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .chapter { page-break-before: always; }
+  }
+</style>
+</head>
+<body>
+
+<!-- COVER PAGE -->
+<div class="cover">
+  <div class="logo">📡</div>
+  <h1>NOC FMI Web Application</h1>
+  <h2>Manual Guide & Dokumentasi Pengguna</h2>
+  <div>
+    <span class="badge">📅 April 2026</span>
+    <span class="badge">📄 Versi 1.0</span>
+    <span class="badge">🔒 Dokumen Internal</span>
+  </div>
+  <br><br>
+  <div style="display:flex; gap:16px; flex-wrap:wrap; justify-content:center;">
+    <span class="badge">✅ Backbone Report NOC</span>
+    <span class="badge">✅ WA Report</span>
+    <span class="badge">✅ PDF Report</span>
+    <span class="badge">✅ Approval Telegram</span>
+    <span class="badge">✅ VLAN Database</span>
+    <span class="badge">✅ Integrasi Odoo</span>
+  </div>
+  <div class="meta">
+    PT. Fiber Media Indonesia &nbsp;|&nbsp; Network Operations Center &nbsp;|&nbsp; Dokumen Rahasia
+  </div>
+</div>
+
+<!-- TABLE OF CONTENTS -->
+<div class="toc">
+  <h2>📋 Daftar Isi</h2>
+  <ol>
+    <li><a href="#bab1">Pengenalan Sistem</a></li>
+    <li><a href="#bab2">Login &amp; Akses</a></li>
+    <li><a href="#bab3">Navigasi Sidebar</a></li>
+    <li><a href="#bab4">Role &amp; Hak Akses</a></li>
+    <li><a href="#bab5">Dashboard</a></li>
+    <li><a href="#bab6">Backbone Report NOC</a></li>
+    <li><a href="#bab7">VLAN Database</a></li>
+    <li><a href="#bab8">Data Client</a></li>
+    <li><a href="#bab9">Data Interkoneksi</a></li>
+    <li><a href="#bab10">Monthly Report Aktivator</a></li>
+    <li><a href="#bab11">Weekly Report Aktivator</a></li>
+    <li><a href="#bab12">Activity Log</a></li>
+    <li><a href="#bab13">Tools &amp; Utilities</a></li>
+    <li><a href="#bab14">Work Orders</a></li>
+    <li><a href="#bab15">Tracker</a></li>
+    <li><a href="#bab16">Broadcast</a></li>
+    <li><a href="#bab17">Profil &amp; Pengaturan Akun</a></li>
+    <li><a href="#bab18">Manage Users</a></li>
+    <li><a href="#bab19">Integrasi Telegram</a></li>
+    <li><a href="#bab20">Integrasi Odoo Helpdesk</a></li>
+  </ol>
+</div>
+
+<!-- CONTENT -->
+<div class="content">
+
+<!-- BAB 1 -->
+<div class="chapter" id="bab1">
+  <span class="chapter-num">Bab 01</span>
+  <h1>Pengenalan Sistem</h1>
+  <p><strong>NOC FMI Web</strong> adalah platform internal Fibermedia yang dirancang khusus untuk tim <strong>Network Operations Center (NOC)</strong>. Sistem ini mengintegrasikan berbagai kebutuhan operasional dalam satu tampilan, mulai dari pencatatan gangguan backbone hingga pembuatan laporan otomatis.</p>
+  <h2>Fitur Utama</h2>
+  <table>
+    <tr><th>Fitur</th><th>Keterangan</th></tr>
+    <tr><td>🔴 Backbone Report NOC</td><td>Manajemen tiket gangguan jaringan backbone</td></tr>
+    <tr><td>💬 WA Report</td><td>Generate laporan otomatis siap kirim ke WhatsApp</td></tr>
+    <tr><td>📄 PDF Report</td><td>Laporan bulanan/kuartalan/tahunan dalam format PDF</td></tr>
+    <tr><td>✅ Approval Kode Backbone</td><td>Sistem persetujuan penambahan kode backbone via Telegram</td></tr>
+    <tr><td>🌐 VLAN Database</td><td>Manajemen database VLAN</td></tr>
+    <tr><td>👥 Data Client</td><td>Database client korporat</td></tr>
+    <tr><td>📋 Work Orders</td><td>Pengelolaan work order aktivasi dan terminasi</td></tr>
+    <tr><td>🔗 Integrasi Odoo</td><td>Sinkronisasi tiket dengan Odoo Helpdesk</td></tr>
+    <tr><td>📨 Integrasi Telegram</td><td>Notifikasi log dan sistem approval via bot Telegram</td></tr>
+  </table>
+</div>
+
+<!-- BAB 2 -->
+<div class="chapter" id="bab2">
+  <span class="chapter-num">Bab 02</span>
+  <h1>Login &amp; Akses</h1>
+  <h2>Cara Login</h2>
+  <ol>
+    <li>Buka browser dan akses URL aplikasi</li>
+    <li>Masukkan <strong>Email</strong> dan <strong>Password</strong> yang telah didaftarkan</li>
+    <li>Klik tombol <strong>Login</strong></li>
+  </ol>
+  <blockquote>⚠️ Akun harus didaftarkan terlebih dahulu oleh <strong>Admin</strong> atau <strong>SUPER_DEV</strong>. Tidak ada fitur registrasi mandiri.</blockquote>
+  <h2>Lupa Password</h2>
+  <ol>
+    <li>Klik <strong>"Lupa Password?"</strong> di halaman login</li>
+    <li>Masukkan email yang terdaftar</li>
+    <li>Cek email untuk link reset password</li>
+    <li>Klik link dan buat password baru</li>
+  </ol>
+  <h2>Keamanan Akun</h2>
+  <ul>
+    <li>Gunakan password minimal <strong>6 karakter</strong> dengan kombinasi huruf besar, kecil, dan angka</li>
+    <li>Jangan bagikan password ke orang lain</li>
+    <li>Logout setelah selesai menggunakan sistem</li>
+  </ul>
+</div>
+
+<!-- BAB 3 -->
+<div class="chapter" id="bab3">
+  <span class="chapter-num">Bab 03</span>
+  <h1>Navigasi Sidebar</h1>
+  <p>Sidebar berada di sisi kiri layar dan menampilkan menu sesuai hak akses role pengguna.</p>
+  <pre>NOC FMI
+├── REPORTING
+│   ├── Dashboard
+│   ├── Monthly Report Aktivator
+│   ├── Weekly Report Aktivator
+│   └── Backbone Report NOC
+│
+├── DATABASE
+│   ├── VLAN Database
+│   ├── Data Client
+│   └── Data Interkoneksi
+│
+├── LOG & TOOLS
+│   ├── Activity Log
+│   └── Tools & Utilities
+│
+└── ACCESS
+    ├── Manage Users    (Admin / SUPER_DEV)
+    └── Broadcast       (Admin / SUPER_DEV)</pre>
+  <blockquote>Menu yang tidak sesuai dengan role pengguna tidak akan ditampilkan secara otomatis.</blockquote>
+</div>
+
+<!-- BAB 4 -->
+<div class="chapter" id="bab4">
+  <span class="chapter-num">Bab 04</span>
+  <h1>Role &amp; Hak Akses</h1>
+  <p>Sistem menggunakan 4 role utama dengan hak akses berbeda:</p>
+  <table>
+    <tr><th>Role</th><th>Deskripsi</th></tr>
+    <tr><td><strong>SUPER_DEV</strong></td><td>Akses penuh ke semua fitur termasuk pengaturan sistem</td></tr>
+    <tr><td><strong>ADMIN</strong></td><td>Akses manajemen user dan semua fitur operasional</td></tr>
+    <tr><td><strong>NOC</strong></td><td>Akses fitur backbone, tiket, dan laporan NOC</td></tr>
+    <tr><td><strong>AKTIVATOR</strong></td><td>Akses work order dan laporan aktivasi</td></tr>
+  </table>
+  <h2>Tabel Hak Akses Detail</h2>
+  <table>
+    <tr><th>Fitur</th><th>SUPER_DEV</th><th>ADMIN</th><th>NOC</th><th>AKTIVATOR</th></tr>
+    <tr><td>Backbone Report NOC</td><td>✅</td><td>✅</td><td>✅</td><td>❌</td></tr>
+    <tr><td>Buat Tiket</td><td>✅</td><td>✅</td><td>✅</td><td>❌</td></tr>
+    <tr><td>Approve Kode Backbone</td><td>✅</td><td>✅</td><td>❌</td><td>❌</td></tr>
+    <tr><td>VLAN Database</td><td>✅</td><td>✅</td><td>✅</td><td>❌</td></tr>
+    <tr><td>Data Client</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td></tr>
+    <tr><td>Work Orders</td><td>✅</td><td>✅</td><td>❌</td><td>✅</td></tr>
+    <tr><td>Manage Users</td><td>✅</td><td>✅</td><td>❌</td><td>❌</td></tr>
+    <tr><td>Broadcast</td><td>✅</td><td>✅</td><td>❌</td><td>❌</td></tr>
+    <tr><td>Activity Log</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td></tr>
+  </table>
+  <blockquote>Admin dapat memberikan <strong>override permission</strong> untuk user tertentu melebihi batas role default-nya.</blockquote>
+</div>
+
+<!-- BAB 5 -->
+<div class="chapter" id="bab5">
+  <span class="chapter-num">Bab 05</span>
+  <h1>Dashboard</h1>
+  <p>Halaman utama yang menampilkan ringkasan kondisi jaringan dan aktivitas terkini.</p>
+  <h2>Isi Dashboard</h2>
+  <ul>
+    <li><strong>Tiket Aktif</strong> — Jumlah tiket backbone yang sedang berjalan (ON PROGRESS / PENDING)</li>
+    <li><strong>Statistik Harian</strong> — Ringkasan tiket hari ini</li>
+    <li><strong>Status Jaringan</strong> — Overview kondisi backbone</li>
+  </ul>
+</div>
+
+<!-- BAB 6 -->
+<div class="chapter" id="bab6">
+  <span class="chapter-num">Bab 06</span>
+  <h1>Backbone Report NOC</h1>
+  <p>Fitur utama untuk tim NOC dalam mengelola tiket gangguan jaringan backbone secara real-time.</p>
+
+  <h2>6.1 Melihat Daftar Tiket</h2>
+  <ul>
+    <li>Buka menu <strong>Backbone Report NOC</strong> di sidebar</li>
+    <li>Daftar tiket ditampilkan dalam tampilan tabel</li>
+    <li>Gunakan <strong>filter</strong> di bagian atas untuk menyaring berdasarkan status, periode, atau kode backbone</li>
+  </ul>
+
+  <h3>Status Tiket</h3>
+  <table>
+    <tr><th>Status</th><th>Warna</th><th>Keterangan</th></tr>
+    <tr><td><strong>OPEN</strong></td><td>🔴 Merah</td><td>Tiket baru dibuka, belum ada penanganan</td></tr>
+    <tr><td><strong>ON PROGRESS</strong></td><td>🟡 Kuning</td><td>Tim sedang menangani gangguan</td></tr>
+    <tr><td><strong>PENDING</strong></td><td>🟠 Oranye</td><td>Menunggu pihak lain / material / informasi</td></tr>
+    <tr><td><strong>SOLVED</strong></td><td>🟢 Hijau</td><td>Gangguan telah teratasi sepenuhnya</td></tr>
+    <tr><td><strong>UNSOLVED</strong></td><td>⚫ Abu</td><td>Tidak dapat diselesaikan</td></tr>
+    <tr><td><strong>CANCEL</strong></td><td>⬜ Putih</td><td>Tiket dibatalkan</td></tr>
+  </table>
+
+  <h2>6.2 Membuat Tiket Baru</h2>
+  <ol>
+    <li>Klik tombol <strong>"+ Tiket Baru"</strong> di pojok kanan atas</li>
+    <li>Isi form dengan data berikut:</li>
+  </ol>
+  <table>
+    <tr><th>Field</th><th>Keterangan</th></tr>
+    <tr><td>Nomor Tiket</td><td>Nomor tiket unik (contoh: HT12345)</td></tr>
+    <tr><td>Subject Ticket</td><td>Judul/deskripsi singkat gangguan</td></tr>
+    <tr><td>Tanggal Report</td><td>Tanggal dan hari kejadian</td></tr>
+    <tr><td>Priority</td><td>MAJOR / CRITICAL / MINOR</td></tr>
+    <tr><td>Kode Backbone</td><td>Pilih dari daftar Index NOC</td></tr>
+    <tr><td>Nama Link</td><td>Nama link yang terdampak</td></tr>
+    <tr><td>Kapasitas</td><td>Kapasitas link (contoh: 10G, 1G)</td></tr>
+    <tr><td>Problem</td><td>Jenis problem (DOWN, DEGRADED, dll)</td></tr>
+    <tr><td>Start Down</td><td>Waktu mulai gangguan</td></tr>
+  </table>
+  <ol start="3">
+    <li>Klik <strong>"Simpan"</strong></li>
+  </ol>
+  <blockquote>Tiket yang dibuat akan otomatis tersinkronisasi ke <strong>Odoo Helpdesk</strong> jika integrasi sudah dikonfigurasi di profil.</blockquote>
+
+  <h2>6.3 Update Status Tiket</h2>
+  <ol>
+    <li>Klik ikon <strong>edit</strong> pada baris tiket yang ingin diupdate</li>
+    <li>Pilih status baru</li>
+    <li>Isi informasi tambahan sesuai status yang dipilih</li>
+    <li>Klik <strong>"Simpan"</strong></li>
+  </ol>
+  <table>
+    <tr><th>Status</th><th>Informasi yang Diisi</th></tr>
+    <tr><td>ON PROGRESS</td><td>Update timeline / keterangan tindakan</td></tr>
+    <tr><td>PENDING</td><td>Alasan pending / menunggu apa</td></tr>
+    <tr><td>SOLVED</td><td>Waktu selesai dan detail penyelesaian</td></tr>
+    <tr><td>UNSOLVED</td><td>Alasan tidak dapat diselesaikan</td></tr>
+    <tr><td>CANCEL</td><td>Alasan pembatalan tiket</td></tr>
+  </table>
+
+  <h2>6.4 Timeline ON PROGRESS</h2>
+  <p>Setiap kali update ke status <strong>ON PROGRESS</strong> atau <strong>PENDING</strong>, entri baru akan <strong>ditambahkan</strong> ke timeline — bukan menimpa yang lama.</p>
+  <p>Contoh tampilan timeline yang terkumpul:</p>
+  <pre>&gt; Team dalam perjalanan ke lokasi
+&gt; Team tiba di lokasi, mulai pengecekan
+&gt; Ditemukan kabel putus di titik koordinat X
+&gt; Proses penyambungan kabel selesai, monitoring 15 menit</pre>
+  <p>Seluruh riwayat update tersimpan dan ditampilkan di <strong>WA Report</strong>.</p>
+
+  <h2>6.5 WA Report</h2>
+  <p>Generate laporan siap kirim ke WhatsApp Group dengan satu klik.</p>
+  <h3>Cara Menggunakan</h3>
+  <ol>
+    <li>Klik tombol <strong>"WA Report"</strong> di toolbar atas</li>
+    <li>Modal menampilkan preview laporan semua tiket <strong>aktif</strong> hari ini</li>
+    <li>Klik <strong>"Copy Report"</strong> untuk menyalin ke clipboard</li>
+    <li>Paste ke WhatsApp Group NOC</li>
+  </ol>
+  <h3>Contoh Format WA Report</h3>
+  <pre>*REPORT BACKBONE PROBLEM | Rabu, 29 April 2026*
+
+===================================
+1. HT12345 - MAJOR - BACKBONE - MR &lt;&gt; SAMALI V DIRECT 10G - DOWN [Selasa 29 April 2026]
+
+Problem    : DOWN
+Impact     :
+- SAMALI &lt;&gt; APJII V BUNCIT (10G)
+Status     : ON PROGRESS
+
+&gt; Team dalam perjalanan ke lokasi
+&gt; Team tiba di lokasi, mulai pengecekan</pre>
+  <blockquote>Laporan hanya menampilkan tiket dengan status <strong>aktif</strong> (OPEN, ON PROGRESS, PENDING).</blockquote>
+
+  <h2>6.6 PDF Report</h2>
+  <p>Generate laporan rekap dalam format PDF untuk periode tertentu.</p>
+  <h3>Cara Menggunakan</h3>
+  <ol>
+    <li>Klik tombol <strong>"PDF"</strong> di toolbar atas</li>
+    <li>Pilih tipe laporan:
+      <ul>
+        <li><strong>Bulanan</strong> — Pilih bulan dan tahun</li>
+        <li><strong>Kuartalan</strong> — Pilih kuartal dan tahun</li>
+        <li><strong>Tahunan</strong> — Pilih tahun</li>
+      </ul>
+    </li>
+    <li>Klik <strong>"Generate PDF"</strong></li>
+  </ol>
+  <h3>Isi PDF Report</h3>
+  <ul>
+    <li>Rekap jumlah tiket per status</li>
+    <li>Statistik SLA dan MTTR rata-rata</li>
+    <li>Breakdown per jenis problem</li>
+    <li>Breakdown per kode backbone</li>
+    <li>Tabel detail semua tiket dalam periode</li>
+  </ul>
+  <blockquote>Item dengan jumlah 0 tetap ditampilkan (dengan tampilan redup) sebagai referensi kelengkapan data.</blockquote>
+
+  <h2>6.7 Kode Backbone (Index NOC)</h2>
+  <p>Daftar kode backbone yang terdaftar sebagai referensi saat membuat tiket.</p>
+  <h3>Menambah Kode Backbone</h3>
+  <table>
+    <tr><th>Role</th><th>Proses</th></tr>
+    <tr><td>SUPER_DEV / ADMIN</td><td>Langsung masuk ke Index NOC tanpa perlu approval</td></tr>
+    <tr><td>NOC</td><td>Masuk ke antrian approval, menunggu persetujuan Admin</td></tr>
+  </table>
+
+  <h2>6.8 Sistem Approval Kode Backbone</h2>
+  <p>Untuk menjaga kualitas data, penambahan kode backbone oleh role NOC harus disetujui Admin/SUPER_DEV terlebih dahulu.</p>
+  <div class="flow-box">
+    NOC request kode baru
+    ↓
+    Masuk ke backbone_pending
+    ↓
+    Bot Telegram kirim DM notifikasi ke semua Admin
+    ↓
+    Admin klik [✅ Setujui] atau [❌ Tolak] di Telegram
+    ↓
+    Disetujui → Kode masuk ke Index NOC
+    Ditolak → Request dihapus
+  </div>
+  <h3>Langkah untuk User NOC</h3>
+  <ol>
+    <li>Klik tombol <strong>"+ Kode Backbone"</strong></li>
+    <li>Isi Kode dan Nama Backbone</li>
+    <li>Klik <strong>"Request"</strong></li>
+    <li>Notifikasi otomatis terkirim ke Admin via Telegram</li>
+    <li>Tunggu persetujuan — kode muncul di Index NOC setelah disetujui</li>
+  </ol>
+  <h3>Langkah untuk Admin (via Web)</h3>
+  <ul>
+    <li>Badge <strong>⏳ Acc Kode</strong> muncul di toolbar saat ada request pending</li>
+    <li>Klik badge → lihat daftar request → Setujui atau Tolak</li>
+  </ul>
+  <h3>Langkah untuk Admin (via Telegram)</h3>
+  <ul>
+    <li>Bot mengirim DM berisi detail request</li>
+    <li>Klik <strong>✅ Setujui</strong> atau <strong>❌ Tolak</strong> langsung dari chat Telegram</li>
+    <li>Pesan otomatis terupdate dengan status hasil keputusan</li>
+  </ul>
+</div>
+
+<!-- BAB 7 -->
+<div class="chapter" id="bab7">
+  <span class="chapter-num">Bab 07</span>
+  <h1>VLAN Database</h1>
+  <p>Database untuk manajemen VLAN jaringan Fibermedia.</p>
+  <h2>Fitur</h2>
+  <ul>
+    <li>Lihat daftar VLAN berdasarkan range (1-1000, 1000+, 2000+, 3000+, 3500+, 4003+)</li>
+    <li>Cari VLAN berdasarkan nomor atau nama</li>
+    <li>Tambah, edit, dan hapus entri VLAN</li>
+  </ul>
+  <h2>Cara Penggunaan</h2>
+  <ol>
+    <li>Buka menu <strong>VLAN Database</strong></li>
+    <li>Pilih tab range VLAN yang diinginkan</li>
+    <li>Gunakan kolom pencarian untuk filter data</li>
+    <li>Klik <strong>"Tambah"</strong> untuk menambah VLAN baru</li>
+  </ol>
+</div>
+
+<!-- BAB 8 -->
+<div class="chapter" id="bab8">
+  <span class="chapter-num">Bab 08</span>
+  <h1>Data Client</h1>
+  <p>Database informasi client korporat Fibermedia.</p>
+  <h2>Cara Penggunaan</h2>
+  <ol>
+    <li>Buka menu <strong>Data Client</strong></li>
+    <li>Gunakan search bar untuk mencari client berdasarkan nama, alamat, atau nomor kontrak</li>
+    <li>Klik nama client untuk melihat detail lengkap</li>
+    <li>Klik <strong>"Edit"</strong> untuk memperbarui informasi client</li>
+  </ol>
+</div>
+
+<!-- BAB 9 -->
+<div class="chapter" id="bab9">
+  <span class="chapter-num">Bab 09</span>
+  <h1>Data Interkoneksi</h1>
+  <p>Database data interkoneksi jaringan antar node dan provider.</p>
+  <h2>Cara Penggunaan</h2>
+  <ol>
+    <li>Buka menu <strong>Data Interkoneksi</strong></li>
+    <li>Lihat daftar interkoneksi yang tersedia</li>
+    <li>Gunakan filter untuk menyaring data berdasarkan lokasi atau provider</li>
+  </ol>
+</div>
+
+<!-- BAB 10 -->
+<div class="chapter" id="bab10">
+  <span class="chapter-num">Bab 10</span>
+  <h1>Monthly Report Aktivator</h1>
+  <p>Laporan bulanan untuk tim Aktivator berisi rekap pekerjaan aktivasi layanan.</p>
+  <h2>Cara Penggunaan</h2>
+  <ol>
+    <li>Buka menu <strong>Monthly Report Aktivator</strong></li>
+    <li>Pilih <strong>bulan</strong> dan <strong>tahun</strong> laporan</li>
+    <li>Data akan otomatis terfilter sesuai periode yang dipilih</li>
+    <li>Export ke PDF atau cetak jika diperlukan</li>
+  </ol>
+</div>
+
+<!-- BAB 11 -->
+<div class="chapter" id="bab11">
+  <span class="chapter-num">Bab 11</span>
+  <h1>Weekly Report Aktivator</h1>
+  <p>Laporan mingguan aktivitas tim Aktivator.</p>
+  <h2>Cara Penggunaan</h2>
+  <ol>
+    <li>Buka menu <strong>Weekly Report Aktivator</strong></li>
+    <li>Pilih minggu yang ingin dilihat</li>
+    <li>Review data aktivasi dalam periode tersebut</li>
+  </ol>
+</div>
+
+<!-- BAB 12 -->
+<div class="chapter" id="bab12">
+  <span class="chapter-num">Bab 12</span>
+  <h1>Activity Log</h1>
+  <p>Catatan semua aktivitas yang terjadi di sistem, berguna untuk audit dan monitoring.</p>
+  <h2>Informasi yang Tercatat</h2>
+  <ul>
+    <li>Siapa yang melakukan aksi</li>
+    <li>Aksi apa yang dilakukan (buat tiket, update status, dll)</li>
+    <li>Kapan aksi dilakukan (timestamp)</li>
+    <li>Detail perubahan data</li>
+  </ul>
+  <h2>Cara Penggunaan</h2>
+  <ol>
+    <li>Buka menu <strong>Activity Log</strong></li>
+    <li>Gunakan filter tanggal untuk mempersempit pencarian</li>
+    <li>Cari berdasarkan nama user atau jenis aksi</li>
+  </ol>
+</div>
+
+<!-- BAB 13 -->
+<div class="chapter" id="bab13">
+  <span class="chapter-num">Bab 13</span>
+  <h1>Tools &amp; Utilities</h1>
+  <p>Kumpulan alat bantu untuk kebutuhan operasional NOC sehari-hari.</p>
+  <h2>Fitur yang Tersedia</h2>
+  <ul>
+    <li><strong>Kalkulator MTTR</strong> — Hitung Mean Time To Repair otomatis</li>
+    <li><strong>Konverter Waktu</strong> — Konversi zona waktu</li>
+    <li>Utilitas lainnya sesuai kebutuhan operasional</li>
+  </ul>
+</div>
+
+<!-- BAB 14 -->
+<div class="chapter" id="bab14">
+  <span class="chapter-num">Bab 14</span>
+  <h1>Work Orders</h1>
+  <p>Manajemen Work Order untuk proses aktivasi, upgrade, downgrade, dan terminasi layanan client.</p>
+  <h2>Jenis Work Order</h2>
+  <table>
+    <tr><th>Tipe</th><th>Keterangan</th></tr>
+    <tr><td>Berlangganan</td><td>Aktivasi layanan baru untuk client</td></tr>
+    <tr><td>Upgrade</td><td>Peningkatan kapasitas atau layanan</td></tr>
+    <tr><td>Downgrade</td><td>Penurunan kapasitas atau layanan</td></tr>
+    <tr><td>Berhenti Sementara</td><td>Suspend layanan sementara waktu</td></tr>
+    <tr><td>Berhenti Berlangganan</td><td>Terminasi layanan permanen</td></tr>
+  </table>
+  <h2>Status Work Order</h2>
+  <table>
+    <tr><th>Status</th><th>Keterangan</th></tr>
+    <tr><td>PENDING</td><td>Menunggu diproses oleh teknisi</td></tr>
+    <tr><td>IN PROGRESS</td><td>Sedang dikerjakan</td></tr>
+    <tr><td>DONE</td><td>Pekerjaan selesai</td></tr>
+    <tr><td>CANCEL</td><td>Work order dibatalkan</td></tr>
+  </table>
+  <h2>Cara Membuat Work Order</h2>
+  <ol>
+    <li>Buka menu <strong>Work Orders</strong></li>
+    <li>Klik <strong>"+ Work Order Baru"</strong></li>
+    <li>Pilih tipe WO</li>
+    <li>Isi data client dan detail pekerjaan</li>
+    <li>Klik <strong>"Simpan"</strong></li>
+  </ol>
+</div>
+
+<!-- BAB 15 -->
+<div class="chapter" id="bab15">
+  <span class="chapter-num">Bab 15</span>
+  <h1>Tracker</h1>
+  <p>Sistem pelacakan progres pekerjaan tim secara real-time.</p>
+  <h2>Cara Penggunaan</h2>
+  <ol>
+    <li>Buka menu <strong>Tracker</strong></li>
+    <li>Lihat daftar tugas yang sedang berjalan</li>
+    <li>Update progres tugas yang sedang dikerjakan</li>
+    <li>Tandai selesai saat pekerjaan selesai</li>
+  </ol>
+</div>
+
+<!-- BAB 16 -->
+<div class="chapter" id="bab16">
+  <span class="chapter-num">Bab 16</span>
+  <h1>Broadcast</h1>
+  <p>Fitur untuk mengirim pengumuman penting ke semua user yang aktif di sistem.</p>
+  <blockquote>⚠️ Hanya <strong>Admin</strong> dan <strong>SUPER_DEV</strong> yang dapat mengirim broadcast.</blockquote>
+  <h2>Cara Menggunakan</h2>
+  <ol>
+    <li>Buka menu <strong>Broadcast</strong></li>
+    <li>Tulis pesan pengumuman</li>
+    <li>Pilih target penerima (semua user atau role tertentu)</li>
+    <li>Klik <strong>"Kirim"</strong></li>
+  </ol>
+  <p>Pesan broadcast akan muncul sebagai <strong>banner</strong> di bagian atas halaman untuk semua user yang dituju secara real-time.</p>
+</div>
+
+<!-- BAB 17 -->
+<div class="chapter" id="bab17">
+  <span class="chapter-num">Bab 17</span>
+  <h1>Profil &amp; Pengaturan Akun</h1>
+  <h2>Informasi Pribadi</h2>
+  <ol>
+    <li>Klik nama/avatar di pojok kiri bawah sidebar → <strong>Profil</strong></li>
+    <li>Update Nama Lengkap dan Foto Profil (maks. 2 MB)</li>
+    <li>Klik <strong>"Simpan Perubahan"</strong></li>
+  </ol>
+  <h2>Ganti Password</h2>
+  <ol>
+    <li>Di halaman Profil, scroll ke bagian <strong>"Keamanan Akun"</strong></li>
+    <li>Isi <strong>Password Baru</strong> dan <strong>Ulangi Password</strong></li>
+    <li>Klik <strong>"Ganti Password"</strong></li>
+  </ol>
+  <h2>Integrasi Odoo Helpdesk</h2>
+  <p>Agar tiket otomatis tersinkron ke Odoo, setiap user perlu mengatur API Key-nya sendiri:</p>
+  <ol>
+    <li>Di halaman Profil, scroll ke <strong>"Integrasi Odoo Helpdesk"</strong></li>
+    <li>Cara mendapatkan API Key Odoo:
+      <ul>
+        <li>Login ke Odoo dengan email yang sama</li>
+        <li>Klik foto profil → <strong>Preferences</strong></li>
+        <li>Buka tab <strong>Account Security</strong></li>
+        <li>Klik <strong>New API Key</strong> → beri nama → <strong>Generate</strong></li>
+        <li>Salin API Key <em>(hanya ditampilkan sekali!)</em></li>
+      </ul>
+    </li>
+    <li>Paste API Key ke field <strong>"Odoo API Key"</strong></li>
+    <li>Klik <strong>"Simpan &amp; Verifikasi"</strong></li>
+    <li>Status berubah menjadi <strong>"Terhubung"</strong> jika berhasil</li>
+  </ol>
+  <blockquote>⚠️ API Key bersifat rahasia. Tiket akan tercatat atas nama akun Odoo kamu.</blockquote>
+</div>
+
+<!-- BAB 18 -->
+<div class="chapter" id="bab18">
+  <span class="chapter-num">Bab 18</span>
+  <h1>Manage Users</h1>
+  <p>Halaman khusus <strong>Admin</strong> dan <strong>SUPER_DEV</strong> untuk mengelola akun user.</p>
+  <h2>Mengubah Role User</h2>
+  <ol>
+    <li>Buka menu <strong>Manage Users</strong></li>
+    <li>Klik user yang ingin diubah</li>
+    <li>Pilih role baru dari dropdown</li>
+    <li>Klik <strong>"Simpan"</strong></li>
+  </ol>
+  <h2>Override Permission</h2>
+  <p>Untuk memberikan akses khusus di luar role default:</p>
+  <ol>
+    <li>Klik user yang ingin diatur</li>
+    <li>Di bagian <strong>"Permission Override"</strong>, aktifkan/nonaktifkan permission spesifik</li>
+    <li>Override menimpa hak akses role default untuk user tersebut</li>
+  </ol>
+  <h2>Mengundang User Baru</h2>
+  <ol>
+    <li>Klik <strong>"+ Tambah User"</strong></li>
+    <li>Masukkan email user baru</li>
+    <li>Pilih role yang sesuai</li>
+    <li>Klik <strong>"Kirim Undangan"</strong></li>
+  </ol>
+  <p>User akan mendapat email undangan untuk mengatur password pertama kali.</p>
+</div>
+
+<!-- BAB 19 -->
+<div class="chapter" id="bab19">
+  <span class="chapter-num">Bab 19</span>
+  <h1>Integrasi Telegram</h1>
+  <p>Sistem memiliki <strong>2 Bot Telegram</strong> untuk mendukung operasional NOC.</p>
+  <h2>Bot 1 — Notifikasi Log</h2>
+  <p>Mengirim notifikasi aktivitas penting ke <strong>Group Telegram NOC</strong> secara otomatis.</p>
+  <h3>Contoh Notifikasi yang Dikirim</h3>
+  <ul>
+    <li>Tiket baru dibuat</li>
+    <li>Status tiket diubah (OPEN → ON PROGRESS, dsb)</li>
+    <li>Tiket diselesaikan</li>
+  </ul>
+  <h2>Bot 2 — Sistem Approval Backbone</h2>
+  <p>Mengirim <strong>DM (Direct Message)</strong> ke Admin saat ada request kode backbone baru dari user NOC.</p>
+  <h3>Cara Kerja</h3>
+  <ol>
+    <li>User NOC request kode backbone baru</li>
+    <li>Bot mengirim DM ke semua Admin dengan tombol inline <strong>✅ Setujui</strong> / <strong>❌ Tolak</strong></li>
+    <li>Admin klik tombol langsung dari Telegram</li>
+    <li>Pesan di-update otomatis dengan status hasil keputusan dan nama approver</li>
+  </ol>
+  <h3>Syarat Penggunaan Bot</h3>
+  <ul>
+    <li>Admin harus pernah klik <strong>START</strong> ke Bot 2 terlebih dahulu</li>
+    <li>Telegram User ID Admin harus terdaftar di sistem</li>
+  </ul>
+  <h3>Cara Mendapatkan Telegram User ID</h3>
+  <ol>
+    <li>Buka Telegram</li>
+    <li>Cari bot <code>@userinfobot</code></li>
+    <li>Klik <strong>Start</strong></li>
+    <li>Bot membalas dengan User ID kamu</li>
+    <li>Berikan User ID ke Admin sistem untuk didaftarkan</li>
+  </ol>
+</div>
+
+<!-- BAB 20 -->
+<div class="chapter" id="bab20">
+  <span class="chapter-num">Bab 20</span>
+  <h1>Integrasi Odoo Helpdesk</h1>
+  <p>Sistem terintegrasi dengan <strong>Odoo Helpdesk</strong> untuk sinkronisasi tiket secara otomatis.</p>
+  <h2>Cara Kerja</h2>
+  <p>Setiap tiket yang dibuat atau diupdate di NOC Web akan otomatis:</p>
+  <ul>
+    <li>Membuat tiket baru di Odoo (jika belum ada)</li>
+    <li>Menambahkan <strong>log note</strong> saat status berubah</li>
+    <li>Mencatat nama teknisi yang melakukan update</li>
+  </ul>
+  <h2>Status Sinkronisasi</h2>
+  <table>
+    <tr><th>Status</th><th>Keterangan</th></tr>
+    <tr><td>✅ Terhubung</td><td>Integrasi berjalan normal</td></tr>
+    <tr><td>⚠️ Belum Dikonfigurasi</td><td>User belum set API Key di profil</td></tr>
+    <tr><td>❌ Gagal</td><td>Periksa API Key atau koneksi ke Odoo</td></tr>
+  </table>
+
+  <hr>
+
+  <h1 style="margin-top:40px;">🔧 Troubleshooting Umum</h1>
+  <table>
+    <tr><th>Masalah</th><th>Solusi</th></tr>
+    <tr><td>Tidak bisa login</td><td>Pastikan email dan password benar. Hubungi Admin jika lupa password</td></tr>
+    <tr><td>Menu tidak muncul</td><td>Hubungi Admin untuk cek hak akses role</td></tr>
+    <tr><td>Tiket tidak tersync ke Odoo</td><td>Cek dan verifikasi API Key Odoo di halaman Profil</td></tr>
+    <tr><td>Notifikasi Telegram tidak masuk</td><td>Pastikan sudah klik START ke Bot Telegram</td></tr>
+    <tr><td>WA Report kosong</td><td>Pastikan ada tiket aktif (OPEN/ON PROGRESS/PENDING)</td></tr>
+    <tr><td>Error saat tambah kode backbone</td><td>Periksa koneksi atau hubungi Admin untuk approval</td></tr>
+  </table>
+
+  <hr>
+
+  <div style="text-align:center; margin-top:40px; padding:32px; background:#f8fafc; border-radius:12px; color:#64748b; font-size:13px;">
+    <div style="font-size:32px; margin-bottom:12px;">📡</div>
+    <strong style="color:#0f3460; font-size:16px;">NOC FMI Web Application</strong><br><br>
+    Manual Guide Versi 1.0 — April 2026<br>
+    PT. Fiber Media Indonesia — Network Operations Center<br><br>
+    <em>Dokumen ini bersifat internal dan rahasia.<br>Dilarang disebarluaskan di luar tim Fibermedia.</em>
+  </div>
+</div>
+
+</div><!-- end content -->
+
+</body>
+</html>

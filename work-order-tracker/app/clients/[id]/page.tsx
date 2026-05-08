@@ -122,7 +122,7 @@ RX ONT                  : ${client['RX ONT/SFP'] || '-'}
 SN ONT                  : ${client['SN ONT/SFP'] || '-'}
 Data Pelanggan          : ${client['Data Pelanggan'] || 'Sudah Ditambahkan'}
 Daftar Vlan             : ${client['Daftar Vlan'] || 'Sudah Ditambahkan'}
-MRTG                    : ${client['MRTG'] || 'Sudah Ditambahkan'}${client['Data Teknis'] ? `\n\nData Teknis :\n${client['Data Teknis']}` : ''}${client['Konfigurasi'] ? `\n\nKonfigurasi :\n${client['Konfigurasi']}` : ''}`;
+MRTG                    : ${client['MRTG'] || 'Sudah Ditambahkan'}${client['Note'] ? `\n\nNote :\n${client['Note']}` : ''}${client['Data Teknis'] ? `\n\nData Teknis :\n${client['Data Teknis']}` : ''}${client['Konfigurasi'] ? `\n\nKonfigurasi :\n${client['Konfigurasi']}` : ''}`;
 
   const handleDownloadTxt = () => {
     const blob = new Blob([dataTeknisTxt], { type: 'text/plain' });
@@ -208,6 +208,7 @@ MRTG                    : ${client['MRTG'] || 'Sudah Ditambahkan'}${client['Data
               <DataRow label="Kapasitas"      value={client['Kapasitas']} />
               <DataRow label="RX ONT/SFP"     value={client['RX ONT/SFP']} mono />
               <DataRow label="SN ONT/SFP"     value={client['SN ONT/SFP']} mono />
+              {client['Note'] && <DataRow label="Note" value={client['Note']} />}
               <div className="pt-2" style={{ borderTop: '1px solid var(--border-light)' }}>
                 <DataRow label="Data Pelanggan" value={client['Data Pelanggan'] || 'Sudah Ditambahkan'} badge="#10b981" />
                 <DataRow label="Daftar Vlan"    value={client['Daftar Vlan']    || 'Sudah Ditambahkan'} badge="#10b981" />
@@ -359,6 +360,15 @@ MRTG                    : ${client['MRTG'] || 'Sudah Ditambahkan'}${client['Data
               <InfoRow label="Near End"     value={client['Near End']} />
               <InfoRow label="Far End"      value={client['Far End']} />
               <InfoRow label="SN ONT/SFP"   value={client['SN ONT/SFP']} mono />
+              {client['Note'] && (
+                <div className="pt-2" style={{ borderTop: '1px solid var(--border-light)' }}>
+                  <p className="text-[10px] font-bold uppercase mb-1.5" style={{ color: 'var(--text-muted)' }}>Note</p>
+                  <p className="text-xs leading-relaxed rounded-lg px-3 py-2 whitespace-pre-wrap"
+                    style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', color: 'var(--text-secondary)' }}>
+                    {client['Note']}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

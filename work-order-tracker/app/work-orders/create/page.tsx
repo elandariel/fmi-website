@@ -26,26 +26,36 @@ export default function CreateWOPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
   );
 
-  const formatTanggalIndo = (dateString: string) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('id-ID', {
-      weekday: 'long',
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric',
-    });
-  };
+const getLocalFormattedDate = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`; // Menghasilkan "2026-05-01"
+};
 
-  const [formData, setFormData] = useState({
-    'TANGGAL': new Date().toISOString().split('T')[0], 
-    'SUBJECT WO': '',
-    'STATUS': 'PROGRESS', 
-    'JENIS WO': 'PERMANEN', 
-    'KETERANGAN': '',
-    'SELESAI ACTION': '', 
-    'NAMA TEAM': ''
+// Tambahkan fungsi ini di bawah getTodayWIB
+const formatTanggalIndo = (dateString: string) => {
+  if (!dateString) return '';
+  // Gunakan T00:00:00 untuk mencegah error zona waktu (agar tetap tanggal yang dipilih)
+  const date = new Date(dateString + 'T00:00:00'); 
+  return date.toLocaleDateString('id-ID', {
+    weekday: 'long',
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
   });
+};
+
+const [formData, setFormData] = useState({
+  'TANGGAL': getLocalFormattedDate(), // <--- Pakai fungsi ini
+  'SUBJECT WO': '',
+  'STATUS': 'PROGRESS', 
+  'JENIS WO': 'PERMANEN', 
+  'KETERANGAN': '',
+  'SELESAI ACTION': '', 
+  'NAMA TEAM': ''
+});
 
   useEffect(() => {
     async function fetchTeams() {

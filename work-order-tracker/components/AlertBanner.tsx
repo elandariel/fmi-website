@@ -99,14 +99,23 @@ export default function AlertBanner() {
     if (actionType === 'SOLVED' && !teamName) {
       toast.error('Pilih Team Eksekutor dulu!'); return;
     }
-    setProcessingId(id);
-    const toastId = toast.loading('Memproses...');
-    const { error } = await supabase.from('Report Bulanan').update({
-      'STATUS': actionType,
-      'KETERANGAN': actionType === 'SOLVED' ? 'DONE' : 'CANCELLED',
-      'SELESAI ACTION': new Date().toISOString().split('T')[0],
-      'NAMA TEAM': teamName || 'System'
-    }).eq('id', id);
+
+    const tanggalHariIni = new Date().toLocaleDateString('id-ID', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric'
+});
+
+setProcessingId(id);
+const toastId = toast.loading('Memproses...');
+
+const { error } = await supabase.from('Report Bulanan').update({
+  'STATUS': actionType,
+  'KETERANGAN': actionType === 'SOLVED' ? 'DONE' : 'CANCELLED',
+  'SELESAI ACTION': actionType === 'SOLVED' ? tanggalHariIni : null,
+  'NAMA TEAM': teamName || 'System'
+}).eq('id', id);
 
     if (error) {
       toast.error('Gagal: ' + error.message, { id: toastId });
